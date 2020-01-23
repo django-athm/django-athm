@@ -129,4 +129,5 @@ dmypy.json
 .pyre/
 
 # Mac OS
-.DS_Store
+**/.DS_Store
+scratchpad

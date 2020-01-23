@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+
+
+{% block ath_button  %}
+<script>
+    function onCancelledPayment(response) {
+        console.log("Cancelled:", response)
+    }
+
+    function onExpiredPayment(response){
+        console.log("Expired:", response)
+    }
+
+    function onCompletedPayment(response){
+        console.log("Completed:", response)
+    }
+
+    var ATHM_Checkout = {
+        env: "{{ ATHM_CONFIG.env }}",
+        publicToken: "{{ ATHM_CONFIG.public_token }}",
+
+        timeout: 100,
+        theme: "btn",
+
+        lang: "{{ ATHM_CONFIG.lang|safe }}",
+
+        total: "{{ ATHM_CONFIG.total|safe }}",
+        metadata1: "{{ ATHM_CONFIG.metadata_1|safe}}",
+        metadata2: "{{ATHM_CONFIG.metadata_2|safe}}",
+        onCompletedPayment: onCompletedPayment,
+        onCancelledPayment: onCancelledPayment,
+        onExpiredPayment: onExpiredPayment,
+
+        {% autoescape off %}
+            items: {{ATHM_CONFIG.items }}
+        {% endautoescape %}
+    }
+
+    {% if ATHM_CONFIG.tax %}
+        ATHM_Checkout.tax = "{{ATHM_CONFIG.tax}}"
+    {% else %}
+        ATHM_Checkout.tax = null
+    {% endif %}
+
+    {% if ATHM_CONFIG.subtotal %}
+        ATHM_Checkout.subtotal = "{{ATHM_CONFIG.subtotal}}"
+    {% else %}
+        ATHM_Checkout.subtotal = null
+    {% endif %}
+
+    {% if ATHM_CONFIG.metadata_1 %}
+        ATHM_Checkout.metadata1 = "{{ATHM_CONFIG.metadata_1|safe}}"
+    {% else %}
+        ATHM_Checkout.metadata1 = null
+    {% endif %}
+
+    {% if ATHM_CONFIG.metadata_2 %}
+        ATHM_Checkout.metadata2 = "{{ATHM_CONFIG.metadata_2|safe}}"
+    {% else %}
+        ATHM_Checkout.metadata2 = null
+    {% endif %}
+</script>
+
+<script src="https://www.athmovil.com/api/js/v2/athmovilV2.js"></script>
+
+<div id="ATHMovil_Checkout_Button"></div>
+
+{% endblock %}
