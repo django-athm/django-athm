@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [ ] Create utility template tags
 - [ ] Allow usage of custom Transaction model
 - [ ] Allow usage of custom callback View
+- [ ] Add Django Admin support
 - [ ] Emit signals (suggested by @chrisrodz)
 - [ ] Sync management command
 - [ ] Support [list transactions API](https://github.com/evertec/athmovil-javascript-api#transactions)

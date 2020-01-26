@@ -1,0 +1,4 @@
+site_name: Django ATHM
+nav:
+    - Home: index.md
+theme: readthedocs

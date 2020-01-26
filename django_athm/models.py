@@ -4,6 +4,7 @@ from django.conf import settings
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
+from .constants import REFUND_URL, STATUS_URL
 from .utils import get_http_adapter
 
 
@@ -46,17 +47,15 @@ class ATH_Transaction(models.Model):
 
     @classmethod
     def refund(cls, transaction, amount=None):
-        # TODO: Raise earlier than here if needed settings are missing
-
         # Refund the whole transaction by default
         if not amount:
             amount = transaction.total
 
         response = cls.http_adapter.post(
-            "/rs/v2/refund",
+            REFUND_URL,
             data=dict(
-                publicToken=settings.ATHM_PUBLIC_TOKEN,
-                privateToken=settings.ATHM_PRIVATE_TOKEN,
+                publicToken=settings.DJANGO_ATHM_PUBLIC_TOKEN,
+                privateToken=settings.DJANGO_ATHM_PRIVATE_TOKEN,
                 referenceNumber=transaction.reference_number,
                 amount=str(amount),
             ),
@@ -66,7 +65,7 @@ class ATH_Transaction(models.Model):
             raise Exception(response.get("description"))
 
         # Update the transaction status if refund was successful
-        if response["refund_status"] == "completed":
+        if response["refundStatus"] == "completed":
             transaction.status = cls.REFUNDED
             transaction.refunded_amount = response["refundedAmount"]
             transaction.save()
@@ -76,7 +75,7 @@ class ATH_Transaction(models.Model):
     @classmethod
     def inspect(cls, transaction):
         response = cls.http_adapter.post(
-            "/rs/v2/transactionStatus",
+            STATUS_URL,
             data=dict(
                 publicToken=settings.ATHM_PUBLIC_TOKEN,
                 privateToken=settings.ATHM_PRIVATE_TOKEN,

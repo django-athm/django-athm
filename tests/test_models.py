@@ -1,6 +1,6 @@
 import pytest
 
-from django_athm.ath_movil import models
+from django_athm import models
 
 
 class TestATH_Transaction:
@@ -26,6 +26,7 @@ class TestATH_Transaction:
     def test_can_list_transactions(self):
         pass
 
+    @pytest.mark.django_db
     def test_can_refund_transaction(self):
         transaction = models.ATH_Transaction(
             reference_number="test-reference-number",
@@ -39,4 +40,9 @@ class TestATH_Transaction:
         )
 
         response = models.ATH_Transaction.refund(transaction, amount=12.80)
-        assert response == "test"
+        assert response["refundStatus"] == "completed"
+
+        updated_transaction = models.ATH_Transaction.objects.get(
+            reference_number="test-reference-number"
+        )
+        assert updated_transaction.status == models.ATH_Transaction.REFUNDED

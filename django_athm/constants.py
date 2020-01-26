@@ -1,5 +1,8 @@
 API_BASE_URL = "https://www.athmovil.com"
 
+REFUND_URL = "/rs/v2/refund"
+STATUS_URL = "/rs/v2/transactionStatus"
+
 ERROR_DICT = {
     3010: "publicToken is invalid",
     3020: "publicToken is revoked",

@@ -1,53 +1,47 @@
-import os
+from django.conf import settings
+from django.core.exceptions import ImproperlyConfigured
+from django.utils.module_loading import import_string
 
-DEBUG = True
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+def get_callback_function(setting_name, default=None):
+    func = getattr(settings, setting_name, None)
+    if not func:
+        return default
 
-STATIC_URL = "/static/"
+    if callable(func):
+        return func
 
-SECRET_KEY = "its-a-secret-to-everybody"
+    if isinstance(func, str):
+        func = import_string(func)
 
-INSTALLED_APPS = [
-    "django.contrib.admin",
-    "django.contrib.auth",
-    "django.contrib.contenttypes",
-    "django.contrib.sessions",
-    "django.contrib.messages",
-    "django.contrib.staticfiles",
-    "debug_toolbar",
-    "django_athm.ath_movil",
-]
+    if not callable(func):
+        raise ImproperlyConfigured("f{setting_name} must be callable.")
 
-MIDDLEWARE = [
-    "django.middleware.security.SecurityMiddleware",
-    "django.contrib.sessions.middleware.SessionMiddleware",
-    "django.middleware.common.CommonMiddleware",
-    "django.middleware.csrf.CsrfViewMiddleware",
-    "django.contrib.auth.middleware.AuthenticationMiddleware",
-    "django.contrib.messages.middleware.MessageMiddleware",
-    "django.middleware.clickjacking.XFrameOptionsMiddleware",
-    "debug_toolbar.middleware.DebugToolbarMiddleware",
-]
+    return func
 
-DATABASES = {
-    "default": {"ENGINE": "django.db.backends.sqlite3", "NAME": "athm_test_database",}
-}
 
-ROOT_URLCONF = "django_athm.urls"
+ATHM_CALLBACK_VIEW = "django_athm.views.default_callback"
 
-TEMPLATES = [
-    {
-        "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [os.path.join(BASE_DIR, "django_athm", "templates")],
-        "APP_DIRS": False,
-        "OPTIONS": {
-            "context_processors": [
-                "django.template.context_processors.debug",
-                "django.template.context_processors.request",
-                "django.contrib.auth.context_processors.auth",
-                "django.contrib.messages.context_processors.messages",
-            ],
-        },
-    },
-]
+SANDBOX_PUBLIC_TOKEN = "sandboxtoken01875617264"
+
+# Sandbox Mode
+if hasattr(settings, "DJANGO_ATHM_SANDBOX_MODE"):
+    DJANGO_ATHM_SANDBOX_MODE = settings.DJANGO_ATHM_SANDBOX_MODE
+else:
+    DJANGO_ATHM_SANDBOX_MODE = False
+
+# Public Token
+if hasattr(settings, "DJANGO_ATHM_PUBLIC_TOKEN"):
+    DJANGO_ATHM_PUBLIC_TOKEN = settings.DJANGO_ATHM_PUBLIC_TOKEN
+else:
+    if DJANGO_ATHM_SANDBOX_MODE:
+        DJANGO_ATHM_PUBLIC_TOKEN = SANDBOX_PUBLIC_TOKEN
+    else:
+        raise ImproperlyConfigured("Missing DJANGO_ATHM_PUBLIC_TOKEN setting.")
+
+# Private token
+if hasattr(settings, "DJANGO_ATHM_PRIVATE_TOKEN"):
+    DJANGO_ATHM_PRIVATE_TOKEN = settings.DJANGO_ATHM_PRIVATE_TOKEN
+else:
+    if not DJANGO_ATHM_SANDBOX_MODE:
+        raise ImproperlyConfigured("Missing DJANGO_ATHM_PRIVATE_TOKEN setting.")

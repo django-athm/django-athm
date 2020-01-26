@@ -1,10 +1,15 @@
 import json
+import logging
 
 from django.http import HttpResponse
 from django.shortcuts import render
 from django.views.decorators.csrf import requires_csrf_token
 
-from django_athm.ath_movil import models
+from django_athm import models
+
+logger = logging.getLogger(__name__)
+
+app_name = "django_athm"
 
 
 @requires_csrf_token
@@ -38,7 +43,7 @@ def index(request):
     return render(request, "button.html", context=context)
 
 
-def callback(request):
+def default_callback(request):
     reference_number = request.POST["referenceNumber"]
     total = float(request.POST["total"])
 

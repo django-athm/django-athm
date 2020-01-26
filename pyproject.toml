@@ -20,6 +20,7 @@ tox = "^3.14.3"
 codecov = "^2.0.15"
 django-debug-toolbar = "^2.1"
 pytest-cov = "^2.8.1"
+mkdocs = "1.0.4"
 
 [tool.tox]
 legacy_tox_ini = """
@@ -53,7 +54,7 @@ deps =
     pytest-cov
 
 [pytest]
-DJANGO_SETTINGS_MODULE = django_athm.settings
+DJANGO_SETTINGS_MODULE = tests.settings
 """
 
 [build-system]
