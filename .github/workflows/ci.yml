@@ -45,3 +45,6 @@ jobs:
         env:
           DJANGO_SETTINGS_MODULE: tests.settings
         run: poetry run pytest --cov .
+
+      - name: Upload code coverage
+        run: poetry run codecov
