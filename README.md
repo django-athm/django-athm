@@ -1,6 +1,11 @@
-# django-athm
+# django-athm 
+
+![CI](https://github.com/django-athm/django-athm/workflows/CI/badge.svg?branch=master)
+![code style badge][black-badge]
+![license badge][license-badge]
 
 Django + ATH Móvil proof-of-concept
+
 
 References
 
@@ -96,3 +101,5 @@ my_transactions = ATH_Transaction.objects.all()
 my_items = ATH_Items.objects.all()
 ```
 
+[black-badge]: https://badgen.net/badge/code%20style/black/000
+[license-badge]: https://img.shields.io/github/license/django-athm/django-athm.svg

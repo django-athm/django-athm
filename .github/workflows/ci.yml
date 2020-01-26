@@ -43,5 +43,5 @@ jobs:
 
       - name: Test with pytest
         env:
-          DJANGO_SETTINGS_MODULE: django_athm.settings
+          DJANGO_SETTINGS_MODULE: tests.settings
         run: poetry run pytest --cov .
