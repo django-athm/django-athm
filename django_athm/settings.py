@@ -8,7 +8,6 @@ STATIC_URL = "/static/"
 
 SECRET_KEY = "its-a-secret-to-everybody"
 
-
 INSTALLED_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",
@@ -16,6 +15,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "debug_toolbar",
     "django_athm.ath_movil",
 ]
 
@@ -27,7 +27,12 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "debug_toolbar.middleware.DebugToolbarMiddleware",
 ]
+
+DATABASES = {
+    "default": {"ENGINE": "django.db.backends.sqlite3", "NAME": "athm_test_database",}
+}
 
 ROOT_URLCONF = "django_athm.urls"
 

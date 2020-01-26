@@ -2,7 +2,30 @@
 
 Django + ATH Móvil proof-of-concept
 
-Reference: https://github.com/evertec/athmovil-javascript-api
+References
+
+- https://github.com/evertec/athmovil-javascript-api
+
+- https://docs.djangoproject.com/en/3.0/ref/csrf/#ajax
+
+## Concept
+
+1. `pip install django-athm`
+
+2. 
+
+```python
+INSTALLED_APPS = [
+    ...,
+    "django_athm",
+]
+```
+
+3.
+
+4.
+
+5.
 
 ## How To Use
 
@@ -33,8 +56,8 @@ You can use the following snippet:
 
 # ...
 
-DJANGO_ATHM_SANDBOX_MODE = False # Default: False
-DJANGO_ATHM_PUBLIC_TOKEN = 'YOUR_PUBLIC_TOKEN_HERE'
+DJANGO_ATHM_SANDBOX_MODE = True # Default: False
+DJANGO_ATHM_PUBLIC_TOKEN = 'YOUR_PUBLIC_TOKEN_HERE' # Default: None
 DJANGO_ATHM_PRIVATE_TOKEN =  'YOUR_PRIVATE_TOKEN_HERE'
 
 # ...
@@ -65,4 +88,6 @@ def example_view(request):
 
     return render(request, "index.html", context=context)
 ```
+
+
 

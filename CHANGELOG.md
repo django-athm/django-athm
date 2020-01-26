@@ -6,9 +6,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-- [ ] Create template tags to connect ATH response to Django models
+- [ ] Create utility template tags
+- [ ] Allow usage of custom Transaction model
+- [ ] Allow usage of custom callback View
+- [ ] Emit signals (suggested by @chrisrodz)
 - [ ] Sync management command
-- [ ] Strict data validation
+- [ ] Support [list transactions API](https://github.com/evertec/athmovil-javascript-api#transactions)
+- [ ] Strict data validation in template and callback view
 - [ ] Async support
     - [ ] Django 3 support
     - [ ] httpx async

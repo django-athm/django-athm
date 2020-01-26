@@ -1,18 +1,30 @@
 {% extends "base.html" %}
+{% load handle_response_payload %}
 
 
 {% block ath_button  %}
 <script>
+    var callbackPayload = {
+                method: "POST",
+                url: "{% url 'athm_callback' %}",
+                headers: {"X-CSRFToken": "{{ csrf_token }}"},
+    }
+
     function onCancelledPayment(response) {
-        console.log("Cancelled:", response)
+        callbackPayload.data = response
+        $.ajax(callbackPayload)
+       
     }
 
-    function onExpiredPayment(response){
-        console.log("Expired:", response)
+    function onExpiredPayment(response) {
+        callbackPayload.data = response
+        $.ajax(callbackPayload)
+
     }
 
-    function onCompletedPayment(response){
-        console.log("Completed:", response)
+    function onCompletedPayment(response) {
+        callbackPayload.data = response
+        $.ajax(callbackPayload)    
     }
 
     var ATHM_Checkout = {
