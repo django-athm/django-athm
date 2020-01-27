@@ -6,16 +6,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-- [ ] Create utility template tags
-- [ ] Allow usage of custom Transaction model
-- [ ] Allow usage of custom callback View
-- [ ] Add Django Admin support
-- [ ] Emit signals (suggested by @chrisrodz)
-- [ ] Sync management command
-- [ ] Support [list transactions API](https://github.com/evertec/athmovil-javascript-api#transactions)
-- [ ] Strict data validation in template and callback view
-- [ ] Async support
-    - [ ] Django 3 support
-    - [ ] httpx async
-- [ ] 100% test coverage
-- [ ] Publish PyPI package
+- Allow usage of custom Transaction model
+- Allow usage of custom callback View
+- Add Django Admin support
+- Emit signals (suggested by @chrisrodz)
+- Sync management command
+- Support [list transactions API](https://github.com/evertec/athmovil-javascript-api#transactions)
+- Strict data validation in template and callback view
+- Async support
+    - Django 3 support
+    - httpx async
+- 100% test coverage
+
+## [0.0.2] - 2019-01-26
+
+### Added
+
+- `athm_button` custom template tag.
+
+
+## [0.0.1] - 2019-01-26
+
+### Added
+
+- Released PyPI package

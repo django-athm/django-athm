@@ -16,5 +16,5 @@ urlpatterns = [
     path("home/", empty_view, name="home"),
     path("admin/", admin.site.urls),
     path("athm/", include("django_athm.urls", namespace="django_athm")),
-    # path("test_app/", include("tests.apps.testapp.urls")),
+    path("testapp/", include("tests.apps.testapp.urls")),
 ]

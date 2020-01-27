@@ -2,45 +2,12 @@ import json
 import logging
 
 from django.http import HttpResponse
-from django.shortcuts import render
-from django.views.decorators.csrf import requires_csrf_token
 
 from django_athm import models
 
 logger = logging.getLogger(__name__)
 
 app_name = "django_athm"
-
-
-@requires_csrf_token
-def index(request):
-    context = {
-        "ATHM_CONFIG": {
-            "env": "sandbox",
-            "public_token": "sandboxtoken01875617264",
-            "lang": "en",
-            "total": 25.00,
-            "items": [
-                {
-                    "name": "First Item",
-                    "description": "This is a description.",
-                    "quantity": "1",
-                    "price": "1.00",
-                    "tax": "1.00",
-                    "metadata": "metadata test",
-                },
-                {
-                    "name": "Second Item",
-                    "description": "Hello world",
-                    "quantity": "3",
-                    "price": "2.00",
-                    "tax": "",
-                    "metadata": "",
-                },
-            ],
-        }
-    }
-    return render(request, "button.html", context=context)
 
 
 def default_callback(request):

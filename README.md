@@ -4,17 +4,10 @@
 [![codecov](https://codecov.io/gh/django-athm/django-athm/branch/master/graph/badge.svg)](https://codecov.io/gh/django-athm/django-athm)
 [![pypi version](https://img.shields.io/pypi/v/django-athm.svg)](https://pypi.org/project/django-athm/)
 [![Packaged with poetry](https://img.shields.io/badge/package_manager-poetry-blue.svg)](https://poetry.eustace.io/)
-![code style badge][black-badge]
-![license badge][license-badge]
+![code style badge](https://badgen.net/badge/code%20style/black/000)
+![license badge](https://img.shields.io/github/license/django-athm/django-athm.svg)
 
 Django + ATH Móvil proof-of-concept
-
-
-References
-
-- https://github.com/evertec/athmovil-javascript-api
-
-- https://docs.djangoproject.com/en/3.0/ref/csrf/#ajax
 
 ## How To Use
 
@@ -42,7 +35,7 @@ DJANGO_ATHM_PRIVATE_TOKEN = 'your-private-token'
 python manage.py migrate
 ```
 
-4.
+4. Add the default callback function to your root urls (custom callback support coming soon):
 
 ```python
     urlpatterns = [
@@ -51,12 +44,12 @@ python manage.py migrate
     ]
 ```
 
-5. In the templates where you wish to display the Checkout button, load and invoke the `athm_button` tag.
+5. In the templates where you wish to display the Checkout button, load and invoke the `athm_button` custom tag.
 
 ```html
 {% load django_athm %}
 
-{% athm_button ATHM_CONFIG %}
+{% athm_button %}
 ```
 
 **NOTE**: You must have jQuery loaded in your Django template BEFORE you use the `athm_button` tag.
@@ -66,16 +59,17 @@ You can use the following snippet, placing it somewhere above the `athm_button` 
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
 ```
 
+Also, make sure that the CSRF token is available in your template. You may need to decorate your route with `@requires_csrf_token`.
+
 6. In the related views, pass the `ATHM_CONFIG` to the context:
 
 ```python
 def your_view(request):
     context = {
         "ATHM_CONFIG": {
-            "env": "production",
-            "public_token": settings.DJANGO_ATHM_PUBLIC_TOKEN,
-            "lang": "en",
-            "total": 25.00,
+            "total": 25.0,
+            "subtotal": 24.0,
+            "tax": 1.0,
             "items": [
                 {
                     "name": "First Item",
@@ -83,17 +77,18 @@ def your_view(request):
                     "quantity": "1",
                     "price": "24.00",
                     "tax": "1.00",
-                    "metadata": "metadata test",
-                },
-            ],
+                    "metadata": "metadata test"
+                }
+            ]
         }
     }
+
     return render(request, "your-template.html", context=context)
 ```
 
 7. The user clicks on button rendered by your template and then uses the ATH Móvil app to pay the business associated to the public and private tokens you set up in `settings.py`.
 
-8. This package will perform an `ajax` request on success or failure to the URL that resolves for `athm_callback`. By default, this will be a simple view that will create the transaction and related items.
+8. This package will perform a POST `ajax` request on success or failure to the callback view. By default, this will persist the transaction and items in your database.
 
 9. You can obtain your transactions and items from the database:
 
@@ -104,5 +99,16 @@ my_transactions = ATH_Transaction.objects.all()
 my_items = ATH_Items.objects.all()
 ```
 
-[black-badge]: https://badgen.net/badge/code%20style/black/000
-[license-badge]: https://img.shields.io/github/license/django-athm/django-athm.svg
+## Legal
+
+This project is not affiliated with or endorsed by [Evertec, Inc.](https://www.evertecinc.com/) or [ATH Móvil](https://portal.athmovil.com/) in any way.
+
+
+## References
+
+- https://github.com/evertec/athmovil-javascript-api
+
+- https://docs.djangoproject.com/en/3.0/ref/csrf/#ajax
+
+- https://docs.djangoproject.com/en/3.0/howto/custom-template-tags/
+

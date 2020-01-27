@@ -1,12 +1,7 @@
-{% extends "base.html" %}
-{% load handle_response_payload %}
-
-
-{% block ath_button  %}
 <script>
     var callbackPayload = {
                 method: "POST",
-                url: "{% url 'athm_callback' %}",
+                url: "{% url 'django_athm:athm_callback' %}",
                 headers: {"X-CSRFToken": "{{ csrf_token }}"},
     }
 
@@ -28,46 +23,57 @@
     }
 
     var ATHM_Checkout = {
-        env: "{{ ATHM_CONFIG.env }}",
-        publicToken: "{{ ATHM_CONFIG.public_token }}",
+        env: "{{ env }}",
+        publicToken: "{{ public_token }}",
 
-        timeout: 100,
-        theme: "btn",
+        timeout: {{ timeout }},
+        theme: "{{ theme }}",
 
-        lang: "{{ ATHM_CONFIG.lang|safe }}",
+        lang: "{{ lang|safe }}",
 
-        total: "{{ ATHM_CONFIG.total|safe }}",
-        metadata1: "{{ ATHM_CONFIG.metadata_1|safe}}",
-        metadata2: "{{ATHM_CONFIG.metadata_2|safe}}",
+        total: "{{ total|safe }}",
+       
         onCompletedPayment: onCompletedPayment,
         onCancelledPayment: onCancelledPayment,
         onExpiredPayment: onExpiredPayment,
 
         {% autoescape off %}
-            items: {{ATHM_CONFIG.items }}
+            items: {{ items }}
         {% endautoescape %}
     }
 
+    {% if metadata_1 %}
+        ATHM_Checkout.metadata1 = "{{ metadata_1|safe }}",
+    {% else %}
+        ATHM_Checkout.metadata1 = null
+    {% endif %}
+
+    {% if metadata_2 %}
+        ATHM_Checkout.metadata2 = "{{ metadata_2|safe }}",
+    {% else %}
+        ATHM_Checkout.metadata2 = null
+    {% endif %}
+
     {% if ATHM_CONFIG.tax %}
-        ATHM_Checkout.tax = "{{ATHM_CONFIG.tax}}"
+        ATHM_Checkout.tax = "{{ tax }}"
     {% else %}
         ATHM_Checkout.tax = null
     {% endif %}
 
     {% if ATHM_CONFIG.subtotal %}
-        ATHM_Checkout.subtotal = "{{ATHM_CONFIG.subtotal}}"
+        ATHM_Checkout.subtotal = "{{ subtotal }}"
     {% else %}
         ATHM_Checkout.subtotal = null
     {% endif %}
 
     {% if ATHM_CONFIG.metadata_1 %}
-        ATHM_Checkout.metadata1 = "{{ATHM_CONFIG.metadata_1|safe}}"
+        ATHM_Checkout.metadata1 = "{{ metadata_1|safe }}"
     {% else %}
         ATHM_Checkout.metadata1 = null
     {% endif %}
 
     {% if ATHM_CONFIG.metadata_2 %}
-        ATHM_Checkout.metadata2 = "{{ATHM_CONFIG.metadata_2|safe}}"
+        ATHM_Checkout.metadata2 = "{{ metadata_2|safe}} "
     {% else %}
         ATHM_Checkout.metadata2 = null
     {% endif %}
@@ -76,5 +82,3 @@
 <script src="https://www.athmovil.com/api/js/v2/athmovilV2.js"></script>
 
 <div id="ATHMovil_Checkout_Button"></div>
-
-{% endblock %}
