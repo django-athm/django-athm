@@ -46,3 +46,34 @@ class TestATHM_Transaction:
             reference_number="test-reference-number"
         )
         assert updated_transaction.status == models.ATHM_Transaction.REFUNDED
+
+    @pytest.mark.django_db
+    def test_str_representation(self):
+        transaction = models.ATHM_Transaction.objects.create(
+            reference_number="test-reference-number",
+            status=models.ATHM_Transaction.PROCESSING,
+            total=25.50,
+            tax=1.75,
+            refunded_amount=None,
+            subtotal=23.75,
+            metadata_1="Testing Metadata 1",
+            metadata_2=None,
+        )
+
+        assert str(transaction) == "test-reference-number"
+
+    @pytest.mark.django_db
+    def test_uses_total_if_no_amount(self):
+        transaction = models.ATHM_Transaction.objects.create(
+            reference_number="test-reference-number",
+            status=models.ATHM_Transaction.PROCESSING,
+            total=25.50,
+            tax=1.75,
+            refunded_amount=None,
+            subtotal=23.75,
+            metadata_1="Testing Metadata 1",
+            metadata_2=None,
+        )
+
+        response = models.ATHM_Transaction.refund(transaction)
+        assert response["data"].get("amount") == "25.5"

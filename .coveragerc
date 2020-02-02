@@ -6,6 +6,8 @@ omit =
     *site-packages*
     *tests*
     *.tox*
+    *settings.py
+    *urls.py
 show_missing = True
 exclude_lines =
     raise NotImplementedError

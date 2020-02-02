@@ -2,8 +2,10 @@ from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 from django.utils.module_loading import import_string
 
+from django_athm.views import default_callback
 
-def get_callback_function(setting_name, default=None):
+
+def get_callback_function(setting_name, default):
     func = getattr(settings, setting_name, None)
     if not func:
         return default
@@ -20,7 +22,10 @@ def get_callback_function(setting_name, default=None):
     return func
 
 
-ATHM_CALLBACK_VIEW = "django_athm.views.default_callback"
+# Callback view
+DJANGO_ATHM_CALLBACK_VIEW = get_callback_function(
+    "DJANGO_ATHM_CALLBACK_VIEW", default_callback
+)
 
 SANDBOX_PUBLIC_TOKEN = "sandboxtoken01875617264"
 
