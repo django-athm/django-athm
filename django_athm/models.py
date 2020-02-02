@@ -33,12 +33,12 @@ class ATHM_Transaction(models.Model):
     refunded_amount = models.FloatField(null=True)
     subtotal = models.FloatField(null=True)
 
-    metadata_1 = models.CharField(max_length=64, null=True)
-    metadata_2 = models.CharField(max_length=64, null=True)
+    metadata_1 = models.CharField(max_length=64, blank=True, null=True)
+    metadata_2 = models.CharField(max_length=64, blank=True, null=True)
 
     class Meta:
-        verbose_name = _("ATH transaction")
-        verbose_name_plural = _("ATH transactions")
+        verbose_name = _("ATHM Transaction")
+        verbose_name_plural = _("ATHM Transactions")
 
     def __str__(self):
         return self.reference_number
@@ -96,11 +96,11 @@ class ATHM_Item(models.Model):
 
     price = models.FloatField()
     tax = models.FloatField(null=True)
-    metadata = models.CharField(max_length=64, null=True)
+    metadata = models.CharField(max_length=64, blank=True, null=True)
 
     class Meta:
-        verbose_name = _("ATH item")
-        verbose_name_plural = _("ATH items")
+        verbose_name = _("ATHM Item")
+        verbose_name_plural = _("ATHM Items")
 
     def __str__(self):
         return self.name

@@ -87,3 +87,5 @@ from django_athm.models import ATHM_Transaction, ATHM_Items
 my_transactions = ATHM_Transaction.objects.all()
 my_items = ATHM_Items.objects.all()
 ```
+
+10. Admin actions are available as well! You can refund transactions directly from the Django Admin interface.
