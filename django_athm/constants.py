@@ -19,3 +19,7 @@ ERROR_DICT = {
     7030: "amount is required",
     7040: "error completing refund",
 }
+
+CANCELLED_STATUS = "cancelled"
+EXPIRED_STATUS = "expired"
+COMPLETED_STATUS = "completed"

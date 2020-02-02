@@ -1,3 +1,5 @@
+{% load athm_response_signal %}
+
 <script>
     var callbackPayload = {
                 method: "POST",
@@ -6,18 +8,24 @@
     }
 
     function onCancelledPayment(response) {
+        {% athm_response_signal 'cancelled' %}
+
         callbackPayload.data = response
         $.ajax(callbackPayload)
        
     }
 
     function onExpiredPayment(response) {
+        {% athm_response_signal 'expired' %}
+
         callbackPayload.data = response
         $.ajax(callbackPayload)
 
     }
 
     function onCompletedPayment(response) {
+        {% athm_response_signal 'completed' %}
+
         callbackPayload.data = response
         $.ajax(callbackPayload)    
     }

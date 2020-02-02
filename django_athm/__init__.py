@@ -7,4 +7,4 @@ class DjangoAthmAppConfig(AppConfig):
     name = "django_athm"
 
     def ready(self):
-        pass
+        from . import signals  # noqa
