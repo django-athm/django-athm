@@ -8,12 +8,10 @@ register = template.Library()
 logger = logging.getLogger(__name__)
 
 
-@register.inclusion_tag("athm_button.html", takes_context=True)
-def athm_button(context):
+@register.inclusion_tag("athm_button.html")
+def athm_button(athm_config):
     logger.debug("[django_athm template:athm_button]")
-
     # TODO: Pre-process/validate data here
-    athm_config = context.get("ATHM_CONFIG")
 
     return {
         "env": "sandbox" if settings.DJANGO_ATHM_SANDBOX_MODE else "production",
