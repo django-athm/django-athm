@@ -29,7 +29,7 @@ class DummyHTTPAdapter(BaseHTTPAdapter):
         logger.debug(f"[DummyHTTPAdapter:get] URL: {url}")
 
         if url == STATUS_URL:
-            return {}
+            return {"url": url}
 
     def post(self, url, data):
         logger.debug(f"[DummyHTTPAdapter:post] URL: {url}")
@@ -37,15 +37,8 @@ class DummyHTTPAdapter(BaseHTTPAdapter):
         if url == REFUND_URL:
             return {
                 "refundStatus": "completed",
-                "referenceNumber": "test-reference-number",
-                "date": "2020-01-25 19:05:53.0",
-                "refundedAmount": "1.00",
-                "total": "1.00",
-                "tax": "0.00",
-                "subtotal": "0.00",
-                "metadata1": None,
-                "metadata2": None,
-                "items": '[{"name":"First Item","description":"This is a description.","quantity":"1","price":"1.00","tax":"1.00","metadata":"metadata test"}]',
+                "refundedAmount": data["amount"],
+                "data": data,
             }
 
 

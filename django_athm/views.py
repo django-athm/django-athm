@@ -36,7 +36,7 @@ def default_callback(request):
 
     transaction = models.ATHM_Transaction.objects.create(
         reference_number=reference_number,
-        status=models.ATHM_Transaction.PROCESSING,
+        status=models.ATHM_Transaction.COMPLETED,
         total=total,
         subtotal=subtotal,
         tax=tax,
@@ -63,4 +63,4 @@ def default_callback(request):
     if item_instances:
         models.ATHM_Item.objects.bulk_create(item_instances)
 
-    return HttpResponse()
+    return HttpResponse(status=201)

@@ -1,4 +1,5 @@
 # Changelog
+
 All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
@@ -9,7 +10,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Allow usage of custom Transaction model
 - Allow usage of custom callback View
 - Add Django Admin support
-- Emit signals (suggested by @chrisrodz)
 - Sync management command
 - Support [list transactions API](https://github.com/evertec/athmovil-javascript-api#transactions)
 - Strict data validation in template and callback view
@@ -17,6 +17,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - Django 3 support
     - httpx async
 - 100% test coverage
+
+## [0.1.0] - 2019-02-02
+
+### Added
+
+- Emit signals upon receiving ATHM response (suggested by @chrisrodz)
+
+### Changed
+- `athm_button` template tag no longer takes template context, now requires the configuration options explicitly
+
+- Renamed `ATH_Transaction` and `ATH_Item` models to `ATHM_Transaction` and `ATHM_Item`.
 
 ## [0.0.2] - 2019-01-26
 
