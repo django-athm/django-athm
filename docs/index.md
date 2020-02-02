@@ -18,7 +18,7 @@ DJANGO_ATHM_PUBLIC_TOKEN = 'your-public-token'
 DJANGO_ATHM_PRIVATE_TOKEN = 'your-private-token'
 ```
 
-3. _(Optional)_ Create the model tables for storing ATH Móvil transactions and items.
+3. Create the model tables for storing ATH Móvil transactions and items.
 
 ```bash
 python manage.py migrate
