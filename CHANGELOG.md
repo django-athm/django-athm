@@ -9,7 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Allow usage of custom Transaction model
 - Allow usage of custom callback View
-- Add Django Admin support
 - Sync management command
 - Support [list transactions API](https://github.com/evertec/athmovil-javascript-api#transactions)
 - Strict data validation in template and callback view
@@ -17,6 +16,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - Django 3 support
     - httpx async
 - 100% test coverage
+
+## [0.1.1] - 2019-02-02
+
+### Added
+
+- Django Admin support
 
 ## [0.1.0] - 2019-02-02
 
