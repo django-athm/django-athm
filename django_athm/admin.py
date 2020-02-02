@@ -2,15 +2,15 @@ from django.contrib import admin
 
 from . import models
 
-admin.register(models.ATH_Transaction)
+admin.register(models.ATHM_Transaction)
 
 
-class ATH_TransactionAdmin(admin.ModelAdmin):
+class ATHM_TransactionAdmin(admin.ModelAdmin):
     pass
 
 
-admin.register(models.ATH_Item)
+admin.register(models.ATHM_Item)
 
 
-class ATH_ItemAdmin(admin.ModelAdmin):
+class ATHM_ItemAdmin(admin.ModelAdmin):
     pass

@@ -3,12 +3,12 @@ import pytest
 from django_athm import models
 
 
-class TestATH_Transaction:
+class TestATHM_Transaction:
     @pytest.mark.django_db
     def test_can_save_transaction(self):
-        transaction = models.ATH_Transaction(
+        transaction = models.ATHM_Transaction(
             reference_number="test-reference-number",
-            status=models.ATH_Transaction.PROCESSING,
+            status=models.ATHM_Transaction.PROCESSING,
             total=25.50,
             tax=1.75,
             refunded_amount=None,
@@ -19,7 +19,7 @@ class TestATH_Transaction:
 
         transaction.save()
 
-        stored_transactions = models.ATH_Transaction.objects.all()
+        stored_transactions = models.ATHM_Transaction.objects.all()
         assert len(stored_transactions) == 1
         assert stored_transactions[0].reference_number == "test-reference-number"
 
@@ -28,9 +28,9 @@ class TestATH_Transaction:
 
     @pytest.mark.django_db
     def test_can_refund_transaction(self):
-        transaction = models.ATH_Transaction(
+        transaction = models.ATHM_Transaction(
             reference_number="test-reference-number",
-            status=models.ATH_Transaction.PROCESSING,
+            status=models.ATHM_Transaction.PROCESSING,
             total=25.50,
             tax=1.75,
             refunded_amount=None,
@@ -39,10 +39,10 @@ class TestATH_Transaction:
             metadata_2=None,
         )
 
-        response = models.ATH_Transaction.refund(transaction, amount=12.80)
+        response = models.ATHM_Transaction.refund(transaction, amount=12.80)
         assert response["refundStatus"] == "completed"
 
-        updated_transaction = models.ATH_Transaction.objects.get(
+        updated_transaction = models.ATHM_Transaction.objects.get(
             reference_number="test-reference-number"
         )
-        assert updated_transaction.status == models.ATH_Transaction.REFUNDED
+        assert updated_transaction.status == models.ATHM_Transaction.REFUNDED

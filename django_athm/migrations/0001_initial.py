@@ -14,7 +14,7 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.CreateModel(
-            name="ATH_Transaction",
+            name="ATHM_Transaction",
             fields=[
                 (
                     "id",
@@ -52,7 +52,7 @@ class Migration(migrations.Migration):
             },
         ),
         migrations.CreateModel(
-            name="ATH_Item",
+            name="ATHM_Item",
             fields=[
                 (
                     "id",
@@ -73,7 +73,7 @@ class Migration(migrations.Migration):
                     "transaction",
                     models.ForeignKey(
                         on_delete=django.db.models.deletion.CASCADE,
-                        to="django_athm.ATH_Transaction",
+                        to="django_athm.ATHM_Transaction",
                     ),
                 ),
             ],

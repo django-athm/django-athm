@@ -8,7 +8,7 @@ from .constants import REFUND_URL, STATUS_URL
 from .utils import get_http_adapter
 
 
-class ATH_Transaction(models.Model):
+class ATHM_Transaction(models.Model):
     PROCESSING = "PROCESSING"
     COMPLETED = "COMPLETED"
     REFUNDED = "REFUNDED"
@@ -86,9 +86,9 @@ class ATH_Transaction(models.Model):
         return response
 
 
-class ATH_Item(models.Model):
+class ATHM_Item(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    transaction = models.ForeignKey(ATH_Transaction, on_delete=models.CASCADE)
+    transaction = models.ForeignKey(ATHM_Transaction, on_delete=models.CASCADE)
 
     name = models.CharField(max_length=32)
     description = models.CharField(max_length=128)

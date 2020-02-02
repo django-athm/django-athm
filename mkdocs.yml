@@ -1,4 +1,6 @@
 site_name: Django ATHM
 nav:
-    - Home: index.md
+    - Getting Started: index.md
+    - Changelog: 'https://github.com/django-athm/django-athm/blob/master/CHANGELOG.md'
+    - Configuration: config.md
 theme: readthedocs

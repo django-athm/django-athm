@@ -34,9 +34,9 @@ def default_callback(request):
     if not metadata_2:
         metadata_2 = None
 
-    transaction = models.ATH_Transaction.objects.create(
+    transaction = models.ATHM_Transaction.objects.create(
         reference_number=reference_number,
-        status=models.ATH_Transaction.PROCESSING,
+        status=models.ATHM_Transaction.PROCESSING,
         total=total,
         subtotal=subtotal,
         tax=tax,
@@ -49,7 +49,7 @@ def default_callback(request):
 
     for item in items:
         item_instances.append(
-            models.ATH_Item(
+            models.ATHM_Item(
                 transaction=transaction,
                 name=item["name"],
                 description=item["description"],
@@ -61,6 +61,6 @@ def default_callback(request):
         )
 
     if item_instances:
-        models.ATH_Item.objects.bulk_create(item_instances)
+        models.ATHM_Item.objects.bulk_create(item_instances)
 
     return HttpResponse()
