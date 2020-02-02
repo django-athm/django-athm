@@ -1,9 +1,18 @@
 [tool.poetry]
 name = "django-athm"
-version = "0.1.1"
+version = "0.1.2"
 description = "Django + ATH Móvil"
 authors = ["Raúl Negrón <raul.esteban.negron@gmail.com>"]
+maintainers = ["Raúl Negrón <raul.esteban.negron@gmail.com>"]
 license = "MIT"
+readme = "README.md"
+homepage = ""
+repository = "https://github.com/django-athm/django-athm"
+documentation = "https://django-athm.github.io/django-athm/"
+keywords = ["Django",
+            "ATH Móvil",
+            "Payments",
+            "athm"]
 
 [tool.poetry.dependencies]
 python = "^3.7"
@@ -21,6 +30,10 @@ codecov = "^2.0.15"
 django-debug-toolbar = "^2.1"
 pytest-cov = "^2.8.1"
 mkdocs = "1.0.4"
+
+
+[tool.poetry.urls]
+issues = "https://github.com/django-athm/django-athm/issues"
 
 [tool.tox]
 legacy_tox_ini = """
