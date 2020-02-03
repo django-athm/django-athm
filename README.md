@@ -7,9 +7,17 @@
 ![Code style badge](https://badgen.net/badge/code%20style/black/000)
 ![License badge](https://img.shields.io/github/license/django-athm/django-athm.svg)
 
-Django + ATH Móvil
+_Ver este README en español: [README_ES](/README_ES)_
 
-### Documentation
+## Features
+
+* Persist transactions and item references in your own database.
+* Template tag provides convenient access to the ATH Móvil Checkout Button.
+* Signals can be used to handle completed, cancelled or expired transactions.
+* Refund transactions through the Django Admin.
+
+
+## Documentation
 
 For information on installation and configuration, see the documentation at:
 
