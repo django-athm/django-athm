@@ -31,19 +31,21 @@
     }
 
     var ATHM_Checkout = {
-        env: "{{ env }}",
-        publicToken: "{{ public_token }}",
-
-        timeout: {{ timeout }},
-        theme: "{{ theme }}",
-
-        lang: "{{ lang|safe }}",
-
-        total: "{{ total|safe }}",
-       
         onCompletedPayment: onCompletedPayment,
         onCancelledPayment: onCancelledPayment,
         onExpiredPayment: onExpiredPayment,
+
+        env: "{{ env }}",
+        
+        publicToken: "{{ publicToken }}",
+        
+        timeout: {{ timeout }},
+        
+        theme: "{{ theme }}",
+        
+        lang: "{{ lang|safe }}",
+
+        total: "{{ total|safe }}",
 
         {% autoescape off %}
             items: {{ items }}
@@ -62,28 +64,16 @@
         ATHM_Checkout.metadata2 = null
     {% endif %}
 
-    {% if ATHM_CONFIG.tax %}
+    {% if tax %}
         ATHM_Checkout.tax = "{{ tax }}"
     {% else %}
         ATHM_Checkout.tax = null
     {% endif %}
 
-    {% if ATHM_CONFIG.subtotal %}
+    {% if subtotal %}
         ATHM_Checkout.subtotal = "{{ subtotal }}"
     {% else %}
         ATHM_Checkout.subtotal = null
-    {% endif %}
-
-    {% if ATHM_CONFIG.metadata_1 %}
-        ATHM_Checkout.metadata1 = "{{ metadata_1|safe }}"
-    {% else %}
-        ATHM_Checkout.metadata1 = null
-    {% endif %}
-
-    {% if ATHM_CONFIG.metadata_2 %}
-        ATHM_Checkout.metadata2 = "{{ metadata_2|safe}} "
-    {% else %}
-        ATHM_Checkout.metadata2 = null
     {% endif %}
 </script>
 

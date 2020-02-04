@@ -13,6 +13,7 @@ _Ver este README en español: [README_ES.md](/README_ES.md)_
 
 * Persist transactions and item references in your own database.
 * Template tag provides convenient access to the ATH Móvil Checkout Button.
+* Import your existing transactions from ATH Móvil using the `athm_sync` management command.
 * Signals can be used to handle completed, cancelled or expired transactions.
 * Refund transactions through the Django Admin.
 

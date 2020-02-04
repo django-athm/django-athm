@@ -15,14 +15,16 @@ def athm_button(athm_config):
 
     return {
         "env": "sandbox" if settings.DJANGO_ATHM_SANDBOX_MODE else "production",
-        "public_token": settings.DJANGO_ATHM_PUBLIC_TOKEN,
-        "lang": "en",
-        "timeout": 100,
-        "theme": "btn",
+        "publicToken": athm_config.get(
+            "public_token", settings.DJANGO_ATHM_PUBLIC_TOKEN
+        ),
+        "lang": athm_config.get("language", "en"),
+        "timeout": athm_config.get("timeout", 600),
+        "theme": athm_config.get("theme", "btn"),
         "total": athm_config["total"],
         "subtotal": athm_config["subtotal"],
         "items": athm_config["items"],
         "tax": athm_config["tax"],
-        "metadata_1": athm_config.get("metadata_1", None),
-        "metadata_2": athm_config.get("metadata_2", None),
+        "metadata1": athm_config.get("metadata_1", ""),
+        "metadata2": athm_config.get("metadata_2", ""),
     }

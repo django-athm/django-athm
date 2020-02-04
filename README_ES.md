@@ -13,6 +13,7 @@ _See this README in English: [README.md](/README.md)_
 
 * Persiste referencias a transacciones y artículos en tu propia base de datos.
 * El template tag provee acceso conveniente al botón de ATH Móvil.
+* Importe sus transacciones existentes utilizando el comando `athm_sync`.
 * Se pueden utilizar signals para manejar alertas sobre transacciones completadas, canceladas o expiradas.
 * Reembolsa transacciones a través del Django Admin.
 

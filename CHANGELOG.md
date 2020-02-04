@@ -10,13 +10,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Allow usage of custom Transaction model
 - Specify minimum Django version (2.2)
 - Allow usage of custom callback View
-- Sync management command
-- Customizable checkout button
 - Strict data validation in template and callback view
 - Async support
     - Django 3 support
     - httpx async
 - 100% test coverage
+
+## [0.3.0] - 2019-02-04
+
+### Added
+
+- Sync management command
+- Customizable checkout button
 
 ## [0.2.0] - 2019-02-03
 
