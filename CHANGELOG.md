@@ -8,14 +8,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 - Allow usage of custom Transaction model
+- Specify minimum Django version (2.2)
 - Allow usage of custom callback View
 - Sync management command
-- Support [list transactions API](https://github.com/evertec/athmovil-javascript-api#transactions)
+- Customizable checkout button
 - Strict data validation in template and callback view
 - Async support
     - Django 3 support
     - httpx async
 - 100% test coverage
+
+## [0.2.0] - 2019-02-03
+
+### Added
+- Support [list transactions API](https://github.com/evertec/athmovil-javascript-api#transactions)
 
 ## [0.1.1] - 2019-02-02
 

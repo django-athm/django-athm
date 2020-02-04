@@ -4,7 +4,7 @@ from django.conf import settings
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
-from .constants import REFUND_URL, STATUS_URL
+from .constants import LIST_URL, REFUND_URL, STATUS_URL
 from .utils import get_http_adapter
 
 
@@ -44,6 +44,20 @@ class ATHM_Transaction(models.Model):
         return self.reference_number
 
     http_adapter = get_http_adapter()
+
+    @classmethod
+    def list(cls, start_date, end_date, public_token, private_token):
+        response = cls.http_adapter.get_with_data(
+            url=LIST_URL,
+            data=dict(
+                publicToken=settings.DJANGO_ATHM_PUBLIC_TOKEN,
+                privateToken=settings.DJANGO_ATHM_PRIVATE_TOKEN,
+                fromDate=start_date,
+                toDate=end_date,
+            ),
+        )
+
+        return response
 
     @classmethod
     def refund(cls, transaction, amount=None):

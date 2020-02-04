@@ -2,6 +2,7 @@ API_BASE_URL = "https://www.athmovil.com"
 
 REFUND_URL = "/rs/v2/refund"
 STATUS_URL = "/rs/v2/transactionStatus"
+LIST_URL = "/transactions/v1/business"
 
 ERROR_DICT = {
     "3010": "publicToken is invalid",
@@ -20,6 +21,7 @@ ERROR_DICT = {
     "7040": "error completing refund",
 }
 
+REFUNDED_STATUS = "refunded"
 CANCELLED_STATUS = "cancelled"
 EXPIRED_STATUS = "expired"
 COMPLETED_STATUS = "completed"

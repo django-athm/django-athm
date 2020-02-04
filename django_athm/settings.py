@@ -27,9 +27,10 @@ DJANGO_ATHM_CALLBACK_VIEW = get_callback_function(
     "DJANGO_ATHM_CALLBACK_VIEW", default_callback
 )
 
-SANDBOX_PUBLIC_TOKEN = "sandboxtoken01875617264"
 
 # Sandbox Mode
+SANDBOX_PUBLIC_TOKEN = "sandboxtoken01875617264"
+
 if hasattr(settings, "DJANGO_ATHM_SANDBOX_MODE"):
     DJANGO_ATHM_SANDBOX_MODE = settings.DJANGO_ATHM_SANDBOX_MODE
 else:
