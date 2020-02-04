@@ -7,28 +7,28 @@
 ![Code style badge](https://badgen.net/badge/code%20style/black/000)
 ![License badge](https://img.shields.io/github/license/django-athm/django-athm.svg)
 
-_Ver este README en español: [README_ES.md](/README_ES.md)_
+_See this README in English: [README.md](/README.md)_
 
-## Features
+## Características
 
-* Persist transactions and item references in your own database.
-* Template tag provides convenient access to the ATH Móvil Checkout Button.
-* Signals can be used to handle completed, cancelled or expired transactions.
-* Refund transactions through the Django Admin.
+* Persiste referencias a transacciones y artículos en tu propia base de datos.
+* El template tag provee acceso conveniente al botón de ATH Móvil.
+* Se pueden utilizar signals para manejar alertas sobre transacciones completadas, canceladas o expiradas.
+* Reembolsa transacciones a través del Django Admin.
 
 
-## Documentation
+## Documentación
 
-For information on installation and configuration, see the documentation at:
+Para más información sobre la instalación y configuración, ver la documentación disponible en:
 
 https://django-athm.github.io/django-athm/
 
 ## Legal
 
-This project is not affiliated with or endorsed by [Evertec, Inc.](https://www.evertecinc.com/) or [ATH Móvil](https://portal.athmovil.com/) in any way.
+Este proyecto no está afiliado ni endosado de ninguna manera por [Evertec, Inc.](https://www.evertecinc.com/) ni [ATH Móvil](https://portal.athmovil.com/).
 
 
-## References
+## Referencias
 
 - https://github.com/evertec/athmovil-javascript-api
 
