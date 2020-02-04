@@ -102,7 +102,12 @@ class ATHM_Transaction(models.Model):
 
 class ATHM_Item(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    transaction = models.ForeignKey(ATHM_Transaction, on_delete=models.CASCADE)
+    transaction = models.ForeignKey(
+        ATHM_Transaction,
+        on_delete=models.CASCADE,
+        related_name="items",
+        related_query_name="item",
+    )
 
     name = models.CharField(max_length=32)
     description = models.CharField(max_length=128)
