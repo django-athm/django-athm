@@ -13,7 +13,6 @@ class ATHM_TransactionAdmin(admin.ModelAdmin):
     search_fields = ("reference_number",)
 
     def refund(self, request, queryset):
-
         try:
             for transaction in queryset:
                 models.ATHM_Transaction.refund(transaction)
