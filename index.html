@@ -61,6 +61,11 @@
           
             <li class="toctree-l1">
 		
+    <a class="" href="config/">Configuration</a>
+	    </li>
+          
+            <li class="toctree-l1">
+		
     <a class="" href="https://github.com/django-athm/django-athm/blob/master/CHANGELOG.md">Changelog</a>
 	    </li>
           
@@ -100,15 +105,15 @@
             <div class="section">
               
                 <h1 id="installation">Installation</h1>
-<ol>
+<ul>
 <li>Install the package from PyPI.</li>
-</ol>
+</ul>
 <pre><code class="bash">pip install django-athm
 </code></pre>
 
-<ol>
+<ul>
 <li>Add the package to your <code>INSTALLED_APPS</code> and configure the needed settings in your <code>settings.py</code>.</li>
-</ol>
+</ul>
 <pre><code class="python">INSTALLED_APPS = [
     ...,
     &quot;django_athm&quot;,
@@ -118,30 +123,33 @@ DJANGO_ATHM_PUBLIC_TOKEN = 'your-public-token'
 DJANGO_ATHM_PRIVATE_TOKEN = 'your-private-token'
 </code></pre>
 
-<ol>
+<ul>
 <li>Create the model tables for storing ATH Móvil transactions and items.</li>
-</ol>
+</ul>
 <pre><code class="bash">python manage.py migrate
 </code></pre>
 
-<ol>
-<li>Add the default callback function to your root urls (custom callback support coming soon):</li>
-</ol>
+<ul>
+<li>Add the default callback function to your root urls:</li>
+</ul>
 <pre><code class="python">    urlpatterns = [
         ...,
         path(&quot;athm/&quot;, include(&quot;django_athm.urls&quot;, namespace=&quot;django_athm&quot;)),
     ]
 </code></pre>
 
-<ol>
+<ul>
 <li>In your views, pass a <code>ATHM_CONFIG</code> (or whichever key you prefer) to the context:</li>
-</ol>
+</ul>
 <pre><code class="python">def your_view(request):
     context = {
         &quot;ATHM_CONFIG&quot;: {
+            &quot;theme&quot;: &quot;btn&quot;,
+            &quot;language&quot;: &quot;es&quot;,
             &quot;total&quot;: 25.0,
             &quot;subtotal&quot;: 24.0,
             &quot;tax&quot;: 1.0,
+            &quot;metadata_1&quot;: &quot;This is metadata 1&quot;,
             &quot;items&quot;: [
                 {
                     &quot;name&quot;: &quot;First Item&quot;,
@@ -149,21 +157,19 @@ DJANGO_ATHM_PRIVATE_TOKEN = 'your-private-token'
                     &quot;quantity&quot;: &quot;1&quot;,
                     &quot;price&quot;: &quot;24.00&quot;,
                     &quot;tax&quot;: &quot;1.00&quot;,
-                    &quot;metadata&quot;: &quot;metadata test&quot;
+                    &quot;metadata&quot;: &quot;metadata test&quot;,
                 }
-            ]
+            ],
         }
     }
 
     return render(request, &quot;your-template.html&quot;, context=context)
 </code></pre>
 
-<ol>
+<ul>
 <li>In the related templates where you wish to display the Checkout button, load and invoke the <code>athm_button</code> custom tag along with your ATHM config from the previous step.</li>
-</ol>
-<pre><code class="html">{% load django_athm %}
-
-{% athm_button ATHM_CONFIG %}
+</ul>
+<pre><code class="html">{% load django_athm %} {% athm_button ATHM_CONFIG %}
 </code></pre>
 
 <p><strong>NOTE</strong>: You must have jQuery loaded in your Django template BEFORE you use the <code>athm_button</code> tag.</p>
@@ -172,30 +178,44 @@ DJANGO_ATHM_PRIVATE_TOKEN = 'your-private-token'
 </code></pre>
 
 <p>Also, make sure that the CSRF token tag is available in your template. You may need to decorate your views with <code>@requires_csrf_token</code>.</p>
-<ol>
+<ul>
 <li>
 <p>The user clicks on button rendered by your template and then uses the ATH Móvil app to pay the business associated to the public and private tokens you set up in <code>settings.py</code>.</p>
 </li>
 <li>
-<p>This package will perform a POST <code>ajax</code> request on success or failure to the callback view. By default, this will persist the transaction and items in your database.</p>
+<p>This package will perform a POST <code>ajax</code> request on success or failure to the callback view. This will persist the transaction and items in your database.</p>
 </li>
 <li>
 <p>You can obtain your transactions and items from the database:</p>
 </li>
-</ol>
+</ul>
 <pre><code class="python">from django_athm.models import ATHM_Transaction, ATHM_Items
 
 my_transactions = ATHM_Transaction.objects.all()
 my_items = ATHM_Items.objects.all()
 </code></pre>
 
-<ol>
-<li>Admin actions are available as well! You can refund transactions directly from the Django Admin interface.</li>
-</ol>
+<ul>
+<li>
+<p>Admin actions are available as well! You can refund transactions directly from the Django Admin interface.</p>
+</li>
+<li>
+<p>If you would like to synchronize your database with transactional data from ATH Móvil, you can use the <code>athm_sync</code> management command:</p>
+</li>
+</ul>
+<pre><code class="bash">$ python manage.py athm_sync --start &quot;2020-01-01 00:00:00&quot; --end &quot;2020-02-05 12:30:00&quot;
+</code></pre>
               
             </div>
           </div>
           <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="config/" class="btn btn-neutral float-right" title="Configuration">Next <span class="icon icon-circle-arrow-right"></span></a>
+      
+      
+    </div>
   
 
   <hr/>
@@ -222,6 +242,8 @@ my_items = ATHM_Items.objects.all()
       
       
       
+        <span style="margin-left: 15px"><a href="config/" style="color: #fcfcfc">Next &raquo;</a></span>
+      
     </span>
 </div>
     <script>var base_url = '.';</script>
@@ -233,5 +255,5 @@ my_items = ATHM_Items.objects.all()
 
 <!--
 MkDocs version : 1.0.4
-Build Date UTC : 2020-02-04 11:49:09
+Build Date UTC : 2020-02-05 16:23:52
 -->
