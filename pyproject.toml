@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "django-athm"
-version = "0.3.0"
+version = "0.3.1"
 description = "Django + ATH Móvil"
 authors = ["Raúl Negrón <raul.esteban.negron@gmail.com>"]
 maintainers = ["Raúl Negrón <raul.esteban.negron@gmail.com>"]

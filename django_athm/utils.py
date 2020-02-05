@@ -40,7 +40,24 @@ class DummyHTTPAdapter(BaseHTTPAdapter):
                 "subtotal": "1.00",
                 "metadata1": "metadata1 test",
                 "metadata2": "metadata2 test",
-                "items": '[{"name":"First Item","description":"This is a description.","quantity":"1","price":"1.00","tax":"1.00","metadata":"metadata test"},{"name":"Second Item","description":"This is another description.","quantity":"1","price":"1.00","tax":"1.00","metadata":"metadata test"}]',
+                "items": [
+                    {
+                        "name": "First Item",
+                        "description": "This is a description.",
+                        "quantity": "1",
+                        "price": "1.00",
+                        "tax": "1.00",
+                        "metadata": "metadata test",
+                    },
+                    {
+                        "name": "Second Item",
+                        "description": "This is another description.",
+                        "quantity": "1",
+                        "price": "1.00",
+                        "tax": "1.00",
+                        "metadata": "metadata test",
+                    },
+                ],
             },
             {
                 "transactionType": "payment",
@@ -53,7 +70,24 @@ class DummyHTTPAdapter(BaseHTTPAdapter):
                 "subtotal": "4.00",
                 "metadata1": "metadata1 test",
                 "metadata2": "metadata2 test",
-                "items": '[{"name":"First Item","description":"This is a description.","quantity":"1","price":"1.00","tax":"1.00","metadata":"metadata test"},{"name":"Second Item","description":"This is another description.","quantity":"1","price":"1.00","tax":"1.00","metadata":"metadata test"}]',
+                "items": [
+                    {
+                        "name": "First Item",
+                        "description": "This is a description.",
+                        "quantity": "1",
+                        "price": "1.00",
+                        "tax": "1.00",
+                        "metadata": "metadata test",
+                    },
+                    {
+                        "name": "Second Item",
+                        "description": "This is another description.",
+                        "quantity": "1",
+                        "price": "1.00",
+                        "tax": "1.00",
+                        "metadata": "metadata test",
+                    },
+                ],
             },
         ]
 
@@ -67,6 +101,13 @@ class DummyHTTPAdapter(BaseHTTPAdapter):
         logger.debug(f"[DummyHTTPAdapter:post] URL: {url}")
 
         if url == REFUND_URL:
+            # Force fail (for testing)
+            if data["referenceNumber"] == "error":
+                return {
+                    "errorCode": "5010",
+                    "description": "Transaction does not exist",
+                }
+
             return {
                 "refundStatus": "completed",
                 "refundedAmount": data["amount"],
@@ -103,7 +144,6 @@ class SyncHTTPAdapter(BaseHTTPAdapter):
 
 
 def get_http_adapter():
-
     if settings.DEBUG:
         return DummyHTTPAdapter()
 
