@@ -8,13 +8,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 - Allow usage of custom Transaction model
-- Specify minimum Django version (2.2)
 - Allow usage of custom callback View
 - Strict data validation in template and callback view
 - Async support
     - Django 3 support
     - httpx async
 - 100% test coverage
+
+## [0.3.2] - 2019-02-05
+
+## Added
+
+- Setup tox multi-env testing
+- Added classifiers to poetry config
+
+## Changed
+
+- Specify minimum Django version (2.2)
+- Cleaned up dev dependencies
+- Updated docs
 
 ## [0.3.0] - 2019-02-04
 

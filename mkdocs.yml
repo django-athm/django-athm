@@ -2,5 +2,6 @@ site_name: Django ATHM
 repo_url: https://github.com/django-athm/django-athm
 nav:
     - Getting Started: index.md
+    - Configuration: config.md
     - Changelog: 'https://github.com/django-athm/django-athm/blob/master/CHANGELOG.md'
 theme: readthedocs

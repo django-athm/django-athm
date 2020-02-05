@@ -4,19 +4,21 @@ on: [push]
 
 jobs:
 
-
   test:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: [3.6, 3.7, 3.8]
 
     steps:
       - uses: actions/checkout@v1
         with:
           fetch-depth: 1
 
-      - name: Set up Python 3.7
+      - name: Set up Python
         uses: actions/setup-python@v1
         with:
-          python-version: 3.7
+          python-version: ${{ matrix.python }}
 
       - name: Install Poetry
         uses: dschep/install-poetry-action@v1.3
@@ -40,12 +42,10 @@ jobs:
         if: steps.cache.outputs.cache-hit != 'true'
 
       - name: Code Quality
-        run: poetry run black . --check
+        run: poetry run black . --check && poetry run isort --check-only && poetry run flake8 .
 
-      - name: Test with pytest
-        env:
-          DJANGO_SETTINGS_MODULE: tests.settings
-        run: poetry run pytest --cov django_athm --cov-report=xml
+      - name: Test with tox
+        run: tox -e py
 
       - name: Upload coverage to Codecov  
         uses: codecov/codecov-action@v1
