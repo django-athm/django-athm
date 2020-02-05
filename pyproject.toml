@@ -31,8 +31,7 @@ classifiers= [
 ]
 
 [tool.poetry.dependencies]
-python = "^3.7"
-django = "<3"
+python = "^3.6"
 httpx = "^0.11.1"
 
 [tool.poetry.dev-dependencies]
@@ -45,7 +44,7 @@ tox = "^3.14.3"
 codecov = "^2.0.15"
 pytest-cov = "^2.8.1"
 mkdocs = "1.0.4"
-django-extensions = "^2.2.6"
+django = "2.2.10"
 
 
 [tool.poetry.urls]
@@ -69,8 +68,6 @@ deps =
     pytest
     pytest-cov
     pytest-django
-    coverage
-    django_extensions
     django22: Django>=2.2,<2.3
     django30: Django>=3.0,<3.1
 
@@ -81,6 +78,6 @@ commands = coverage erase
 """
 
 [build-system]
-requires = ["poetry>=0.12"]
+requires = ["poetry>=0.12", "django>=2.2,<3"]
 build-backend = "poetry.masonry.api"
 
