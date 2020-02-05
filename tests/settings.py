@@ -29,6 +29,7 @@ INSTALLED_APPS = [
     "django.contrib.sites",
     "django.contrib.staticfiles",
     "django_athm",
+    "django_extensions",
     "tests",
     "tests.apps.testapp",
 ]
