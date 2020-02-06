@@ -57,7 +57,6 @@ isolated_build = true
 envlist = 
     py{36,37,38}-django{22,30}
     lint
-    docs
 
 [travis]
 python =
@@ -94,15 +93,8 @@ deps =
 commands =
     isort --check-only
     black . --check
-    flake8 .
+    flake8 django_athm/
 
-[testenv:docs]
-commands = 
-    mkdocs build
-    mkdocs gh-deploy
-
-deps =
-    mkdocs
 """
 
 [build-system]
