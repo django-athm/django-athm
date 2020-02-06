@@ -1,0 +1,32 @@
+# https://travis-ci.org/django-athm/django-athm/
+
+dist: xenial
+language: python
+
+cache: pip
+
+matrix:
+  fast_finish: true
+
+  include:
+    - { python: "3.6", env: TOXENV=py36-django22 }
+    - { python: "3.6", env: TOXENV=py36-django30 }
+
+    - { python: "3.7", env: TOXENV=py37-django22 }
+    - { python: "3.7", env: TOXENV=py37-django22 }
+
+    - { python: "3.8", env: TOXENV=py38-django22 }
+    - { python: "3.8", env: TOXENV=py38-django30 }
+
+    - { python: "3.7", env: TOXENV=lint }
+    - { python: "3.7", env: TOXENV=docs }
+
+install:
+  - pip install --upgrade pip
+  - pip install tox codecov
+
+script:
+  - tox
+
+after_success:
+  - codecov

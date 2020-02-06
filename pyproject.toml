@@ -54,7 +54,16 @@ issues = "https://github.com/django-athm/django-athm/issues"
 legacy_tox_ini = """
 [tox]
 isolated_build = true
-envlist = py{36,37,38}-django{22,30}
+envlist = 
+    py{36,37,38}-django{22,30}
+    lint
+    docs
+
+[travis]
+python =
+    3.6: py36
+    3.7: py37
+    3.8: py38
 
 [testenv]
 setenv =
@@ -62,7 +71,6 @@ setenv =
     PYTHONWARNINGS = all
     PYTEST_ADDOPTS = --cov django_athm --cov-append --cov-report=xml --cov-fail-under 90
 commands = 
-    django-admin --version
     pytest {posargs}
 deps =
     pytest
@@ -75,6 +83,26 @@ deps =
 deps = coverage
 skip_install = true
 commands = coverage erase
+
+[testenv:lint]
+skip_install = True
+deps =
+    flake8
+    isort
+    black
+
+commands =
+    isort --check-only
+    black . --check
+    flake8 .
+
+[testenv:docs]
+commands = 
+    mkdocs build
+    mkdocs gh-deploy
+
+deps =
+    mkdocs
 """
 
 [build-system]
