@@ -1,0 +1,103 @@
+[tool.poetry]
+name = "django-athm"
+version = "0.3.2"
+description = "Django + ATH Móvil"
+authors = ["Raúl Negrón <raul.esteban.negron@gmail.com>"]
+maintainers = ["Raúl Negrón <raul.esteban.negron@gmail.com>"]
+license = "MIT"
+readme = "README.md"
+homepage = ""
+repository = "https://github.com/django-athm/django-athm"
+documentation = "https://django-athm.github.io/django-athm/"
+keywords = [
+    "Django",
+    "ATH Móvil",
+    "payments",
+    "athm"
+]
+classifiers= [
+    "Development Status :: 4 - Beta",
+    "Environment :: Web Environment",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Topic :: Office/Business :: Financial",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.6",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Framework :: Django",
+    "Framework :: Django :: 2.2",
+    "Framework :: Django :: 3.0"
+]
+
+[tool.poetry.dependencies]
+python = "^3.6"
+httpx = "^0.11.1"
+
+[tool.poetry.dev-dependencies]
+black = "^19.10b0"
+isort = "^4.3.21"
+flake8 = "^3.7.9"
+pre-commit = "^1.21.0"
+pytest-django = "^3.8.0"
+tox = "^3.14.3"
+codecov = "^2.0.15"
+pytest-cov = "^2.8.1"
+mkdocs = "1.0.4"
+django = "2.2.10"
+
+
+[tool.poetry.urls]
+issues = "https://github.com/django-athm/django-athm/issues"
+
+[tool.tox]
+legacy_tox_ini = """
+[tox]
+isolated_build = true
+envlist = 
+    py{36,37,38}-django{22,30}
+    lint
+
+[travis]
+python =
+    3.6: py36
+    3.7: py37
+    3.8: py38
+
+[testenv]
+setenv =
+    DJANGO_SETTINGS_MODULE = tests.settings
+    PYTHONWARNINGS = all
+    PYTEST_ADDOPTS = --cov django_athm --cov-append --cov-report=xml --cov-fail-under 90
+commands = 
+    pytest {posargs}
+deps =
+    pytest
+    pytest-cov
+    pytest-django
+    django22: Django>=2.2,<2.3
+    django30: Django>=3.0,<3.1
+
+[testenv:clean]
+deps = coverage
+skip_install = true
+commands = coverage erase
+
+[testenv:lint]
+skip_install = True
+deps =
+    flake8
+    isort
+    black
+
+commands =
+    isort --check-only
+    black . --check
+    flake8 django_athm/
+
+"""
+
+[build-system]
+requires = ["poetry>=0.12", "django>=2.2,<3"]
+build-backend = "poetry.masonry.api"
+

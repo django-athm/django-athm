@@ -1,0 +1,82 @@
+{% load athm_response_signal %}
+
+<script>
+    var callbackPayload = {
+                method: "POST",
+                url: "{% url 'django_athm:athm_callback' %}",
+                headers: {"X-CSRFToken": "{{ csrf_token }}"},
+    }
+
+    function onCancelledPayment(response) {
+        {% athm_response_signal 'cancelled' %}
+
+        callbackPayload.data = response
+        $.ajax(callbackPayload)
+       
+    }
+
+    function onExpiredPayment(response) {
+        {% athm_response_signal 'expired' %}
+
+        callbackPayload.data = response
+        $.ajax(callbackPayload)
+
+    }
+
+    function onCompletedPayment(response) {
+        {% athm_response_signal 'completed' %}
+
+        callbackPayload.data = response
+        $.ajax(callbackPayload)    
+    }
+
+    var ATHM_Checkout = {
+        onCompletedPayment: onCompletedPayment,
+        onCancelledPayment: onCancelledPayment,
+        onExpiredPayment: onExpiredPayment,
+
+        env: "{{ env }}",
+        
+        publicToken: "{{ publicToken }}",
+        
+        timeout: {{ timeout }},
+        
+        theme: "{{ theme }}",
+        
+        lang: "{{ lang|safe }}",
+
+        total: "{{ total|safe }}",
+
+        {% autoescape off %}
+            items: {{ items }}
+        {% endautoescape %}
+    }
+
+    {% if metadata_1 %}
+        ATHM_Checkout.metadata1 = "{{ metadata_1|safe }}",
+    {% else %}
+        ATHM_Checkout.metadata1 = null
+    {% endif %}
+
+    {% if metadata_2 %}
+        ATHM_Checkout.metadata2 = "{{ metadata_2|safe }}",
+    {% else %}
+        ATHM_Checkout.metadata2 = null
+    {% endif %}
+
+    {% if tax %}
+        ATHM_Checkout.tax = "{{ tax }}"
+    {% else %}
+        ATHM_Checkout.tax = null
+    {% endif %}
+
+    {% if subtotal %}
+        ATHM_Checkout.subtotal = "{{ subtotal }}"
+    {% else %}
+        ATHM_Checkout.subtotal = null
+    {% endif %}
+</script>
+
+<script src="https://www.athmovil.com/api/js/v2/athmovilV2.js"></script>
+
+<div id="ATHMovil_Checkout_Button"></div>

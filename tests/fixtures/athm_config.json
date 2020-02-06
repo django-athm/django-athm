@@ -1,0 +1,24 @@
+{
+    "ATHM_CONFIG": {
+        "env": "sandbox",
+        "public_token": "sandboxtoken01875617264",
+        "timeout": 600,
+        "theme": "btn",
+        "language": "es",
+
+        "total": 25.0,
+        "subtotal": 24.0,
+        "tax": 1.0,
+        "metadata_1": "This is metadata 1",
+        "items": [
+            {
+                "name": "First Item",
+                "description": "This is a description.",
+                "quantity": "1",
+                "price": "24.00",
+                "tax": "1.00",
+                "metadata": "metadata test"
+            }
+        ]
+    }
+}

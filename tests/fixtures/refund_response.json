@@ -1,0 +1,12 @@
+{
+    "refundStatus": "completed",
+    "referenceNumber": "33908215-4028f9e06fd3c5c1016fdef4714a369a",
+    "date": "2020-01-25 19:05:53.0",
+    "refundedAmount": "1.00",
+    "total": "1.00",
+    "tax": "0.00",
+    "subtotal": "0.00",
+    "metadata1": null,
+    "metadata2": null,
+    "items": "[{\"name\":\"First Item\",\"description\":\"This is a description.\",\"quantity\":\"1\",\"price\":\"1.00\",\"tax\":\"1.00\",\"metadata\":\"metadata test\"}]"
+}
