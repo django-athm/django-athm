@@ -1,9 +1,9 @@
 import uuid
 
-from django.conf import settings
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
+from .conf import settings
 from .constants import LIST_URL, REFUND_URL, STATUS_URL
 from .utils import get_http_adapter
 
@@ -25,7 +25,7 @@ class ATHM_Transaction(models.Model):
         max_length=16, choices=TRANSACTION_STATUS_CHOICES, default=PROCESSING
     )
 
-    # TODO: Use ATH's date
+    # TODO: Use ATH Móvil's date from .inspect()
     date = models.DateTimeField(auto_now_add=True)
 
     total = models.FloatField()
@@ -50,8 +50,8 @@ class ATHM_Transaction(models.Model):
         response = cls.http_adapter.get_with_data(
             url=LIST_URL,
             data=dict(
-                publicToken=settings.DJANGO_ATHM_PUBLIC_TOKEN,
-                privateToken=settings.DJANGO_ATHM_PRIVATE_TOKEN,
+                publicToken=settings.PUBLIC_TOKEN,
+                privateToken=settings.PRIVATE_TOKEN,
                 fromDate=start_date,
                 toDate=end_date,
             ),
@@ -68,8 +68,8 @@ class ATHM_Transaction(models.Model):
         response = cls.http_adapter.post(
             REFUND_URL,
             data=dict(
-                publicToken=settings.DJANGO_ATHM_PUBLIC_TOKEN,
-                privateToken=settings.DJANGO_ATHM_PRIVATE_TOKEN,
+                publicToken=settings.PUBLIC_TOKEN,
+                privateToken=settings.PRIVATE_TOKEN,
                 referenceNumber=transaction.reference_number,
                 amount=str(amount),
             ),
@@ -91,8 +91,8 @@ class ATHM_Transaction(models.Model):
         response = cls.http_adapter.post(
             STATUS_URL,
             data=dict(
-                publicToken=settings.ATHM_PUBLIC_TOKEN,
-                privateToken=settings.ATHM_PRIVATE_TOKEN,
+                publicToken=settings.PUBLIC_TOKEN,
+                privateToken=settings.PRIVATE_TOKEN,
                 referenceNumber=transaction.reference_number,
             ),
         )

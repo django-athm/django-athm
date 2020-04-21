@@ -1,10 +1,25 @@
-from django.apps import AppConfig
+# flake8: noqa
 
-default_app_config = "django_athm.DjangoAthmAppConfig"
+__version__ = "0.3.3"
+
+default_app_config = "django_athm.apps.DjangoAthmAppConfig"
 
 
-class DjangoAthmAppConfig(AppConfig):
-    name = "django_athm"
+def parse_version(version):
+    """
+    FROM: https://github.com/carltongibson/django-filter/blob/master/django_filters/__init__.py
 
-    def ready(self):
-        from . import signals  # noqa
+    '0.1.2.dev1' -> (0, 1, 2, 'dev1')
+    '0.1.2' -> (0, 1, 2)
+    """
+    v = version.split(".")
+    ret = []
+    for p in v:
+        if p.isdigit():
+            ret.append(int(p))
+        else:
+            ret.append(p)
+    return tuple(ret)
+
+
+VERSION = parse_version(__version__)

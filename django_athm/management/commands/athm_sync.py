@@ -1,8 +1,8 @@
-from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 from django.utils.dateparse import parse_datetime
 from django.utils.timezone import make_aware
 
+from django_athm.conf import settings as app_settings
 from django_athm.constants import COMPLETED_STATUS, REFUNDED_STATUS
 from django_athm.models import ATHM_Item, ATHM_Transaction
 
@@ -57,7 +57,7 @@ class Command(BaseCommand):
             "--public-token",
             type=str,
             required=False,
-            default=settings.DJANGO_ATHM_PUBLIC_TOKEN,
+            default=app_settings.PUBLIC_TOKEN,
             help="Your ATH Móvil Business public token. Default = settings.DJANGO_ATHM_PUBLIC_TOKEN",
             metavar="ATHM_PUBLIC_TOKEN",
         )
@@ -66,7 +66,7 @@ class Command(BaseCommand):
             "--private-token",
             type=str,
             required=False,
-            default=settings.DJANGO_ATHM_PRIVATE_TOKEN,
+            default=app_settings.PRIVATE_TOKEN,
             help="Your ATH Móvil Business private token. Default = settings.DJANGO_ATHM_PRIVATE_TOKEN",
             metavar="ATHM_PRIVATE_TOKEN",
         )

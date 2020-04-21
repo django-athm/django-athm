@@ -2,7 +2,7 @@ import logging
 
 from django import template
 
-from django_athm import settings
+from django_athm.conf import settings as app_settings
 
 register = template.Library()
 
@@ -15,10 +15,8 @@ def athm_button(athm_config):
     # TODO: Pre-process/validate data here
 
     return {
-        "env": "sandbox" if settings.DJANGO_ATHM_SANDBOX_MODE else "production",
-        "publicToken": athm_config.get(
-            "public_token", settings.DJANGO_ATHM_PUBLIC_TOKEN
-        ),
+        "env": "sandbox" if app_settings.SANDBOX_MODE else "production",
+        "publicToken": athm_config.get("public_token", app_settings.PUBLIC_TOKEN),
         "lang": athm_config.get("language", "en"),
         "timeout": athm_config.get("timeout", 600),
         "theme": athm_config.get("theme", "btn"),
