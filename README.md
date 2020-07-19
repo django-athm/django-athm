@@ -1,4 +1,4 @@
-# django-athm 
+# django-athm
 
 [![Build Status](https://travis-ci.org/django-athm/django-athm.svg?branch=master)](https://travis-ci.org/django-athm/django-athm)
 [![Codecov status](https://codecov.io/gh/django-athm/django-athm/branch/master/graph/badge.svg)](https://codecov.io/gh/django-athm/django-athm)
@@ -25,6 +25,14 @@ _Ver este README en español: [README_ES.md](/README_ES.md)_
 For information on installation and configuration, see the documentation at:
 
 https://django-athm.github.io/django-athm/
+
+## Local testing with coverage
+
+Assuming you've already installed all the packages, you can run the following command in the project root folder:
+
+```bash
+DJANGO_SETTINGS_MODULE=tests.settings pytest --cov django_athm
+```
 
 ## Legal
 

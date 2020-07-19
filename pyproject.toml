@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "django-athm"
-version = "0.3.3"
+version = "0.3.4"
 description = "Django + ATH Móvil"
 authors = ["Raúl Negrón <raul.esteban.negron@gmail.com>"]
 maintainers = ["Raúl Negrón <raul.esteban.negron@gmail.com>"]
@@ -32,19 +32,19 @@ classifiers= [
 
 [tool.poetry.dependencies]
 python = "^3.6"
-httpx = "^0.11.1"
+httpx = "^0.13.3"
 
 [tool.poetry.dev-dependencies]
 black = "^19.10b0"
-isort = "^4.3.21"
-flake8 = "^3.7.9"
-pre-commit = "^1.21.0"
-pytest-django = "^3.8.0"
-tox = "^3.14.3"
-codecov = "^2.0.15"
-pytest-cov = "^2.8.1"
-mkdocs = "1.0.4"
-django = "2.2.10"
+isort = "^5.1.1"
+flake8 = "^3.8.3"
+pre-commit = "^2.1.1"
+pytest-django = "^3.9.0"
+tox = "^3.17.1"
+codecov = "^2.1.8"
+pytest-cov = "^2.10.0"
+mkdocs = "1.1.2"
+django = "2.2.13"
 
 
 [tool.poetry.urls]
@@ -54,7 +54,7 @@ issues = "https://github.com/django-athm/django-athm/issues"
 legacy_tox_ini = """
 [tox]
 isolated_build = true
-envlist = 
+envlist =
     py{36,37,38}-django{22,30}
     lint
 
@@ -69,7 +69,7 @@ setenv =
     DJANGO_SETTINGS_MODULE = tests.settings
     PYTHONWARNINGS = all
     PYTEST_ADDOPTS = --cov django_athm --cov-append --cov-report=xml --cov-fail-under 90
-commands = 
+commands =
     pytest {posargs}
 deps =
     pytest

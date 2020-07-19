@@ -46,7 +46,7 @@ class ATHM_Transaction(models.Model):
     http_adapter = get_http_adapter()
 
     @classmethod
-    def list(cls, start_date, end_date, public_token, private_token):
+    def list(cls, start_date, end_date):
         response = cls.http_adapter.get_with_data(
             url=LIST_URL,
             data=dict(

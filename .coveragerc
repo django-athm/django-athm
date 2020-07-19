@@ -3,6 +3,8 @@ branch = true
 
 [report]
 omit =
+    django_athm/__init__.py
+    django_athm/conf.py
     *site-packages*
     *tests*
     *.tox*

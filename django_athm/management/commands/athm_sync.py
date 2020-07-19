@@ -102,10 +102,7 @@ class Command(BaseCommand):
 
         # Call the ATH Móvil API and get all transactions between the selected dates
         athm_transactions = ATHM_Transaction.list(
-            start_date=str(start_date),
-            end_date=str(end_date),
-            public_token=public_token,
-            private_token=private_token,
+            start_date=str(start_date), end_date=str(end_date)
         )
 
         self.stdout.write(
@@ -118,7 +115,7 @@ class Command(BaseCommand):
         total_created = 0
         total_updated = 0
 
-        self.stdout.write(self.style.WARNING(f"Saving results to database..."))
+        self.stdout.write(self.style.WARNING("Saving results to database..."))
 
         # For each transaction, create or update an ATHM_Transaction instance
         for transaction in athm_transactions:

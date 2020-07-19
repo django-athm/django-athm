@@ -15,6 +15,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - httpx async
 - 100% test coverage
 
+## [0.3.4] - 2020-07-19
+
+## Changed
+
+- Updated packages
+- Improved coverage
+
 ## [0.3.2] - 2019-02-05
 
 ## Added
