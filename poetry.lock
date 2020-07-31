@@ -323,9 +323,10 @@ description = "A Python utility / library to sort Python imports."
 name = "isort"
 optional = false
 python-versions = ">=3.6,<4.0"
-version = "5.1.3"
+version = "5.2.2"
 
 [package.extras]
+colors = ["colorama (>=0.4.3,<0.5.0)"]
 pipfile_deprecated_finder = ["pipreqs", "requirementslib", "tomlkit (>=0.5.3)"]
 requirements_deprecated_finder = ["pipreqs", "pip-api"]
 
@@ -831,7 +832,7 @@ docs = ["sphinx", "jaraco.packaging (>=3.2)", "rst.linker (>=1.9)"]
 testing = ["jaraco.itertools", "func-timeout"]
 
 [metadata]
-content-hash = "ad3ba37599832aa5a34db7546012aff7a4977d2fbdb81461ace938503deb5dbd"
+content-hash = "bd8d0132d5e7a45cbbbcd6139f026546df152cf2aa53559fdcd4e4f7ad363833"
 python-versions = "^3.6"
 
 [metadata.files]
@@ -993,8 +994,8 @@ importlib-resources = [
     {file = "importlib_resources-3.0.0.tar.gz", hash = "sha256:19f745a6eca188b490b1428c8d1d4a0d2368759f32370ea8fb89cad2ab1106c3"},
 ]
 isort = [
-    {file = "isort-5.1.3-py3-none-any.whl", hash = "sha256:001ab55382453892ddb6956f65c6331f610041eed7ddc9c6bdf7975cb504f66f"},
-    {file = "isort-5.1.3.tar.gz", hash = "sha256:9be41d107294ddf25ef6af83979cb3dfa1b5752311b6d50611c8f8d321d4a4eb"},
+    {file = "isort-5.2.2-py3-none-any.whl", hash = "sha256:aea484023188ef1c38256dd24afa96e914adafe3a911a1786800a74e433006d1"},
+    {file = "isort-5.2.2.tar.gz", hash = "sha256:96b27045e3187b9bdde001143b79f9b10a462f372bff7062302818013b6c86f3"},
 ]
 jinja2 = [
     {file = "Jinja2-2.11.2-py2.py3-none-any.whl", hash = "sha256:f0a4641d3cf955324a89c04f3d94663aa4d638abe8f733ecd3582848e1c37035"},
