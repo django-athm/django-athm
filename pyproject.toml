@@ -44,7 +44,7 @@ tox = "^3.17.1"
 codecov = "^2.1.8"
 pytest-cov = "^2.10.0"
 mkdocs = "1.1.2"
-django = "2.2.13"
+django = "2.2.15"
 
 
 [tool.poetry.urls]
