@@ -32,7 +32,7 @@ classifiers= [
 
 [tool.poetry.dependencies]
 python = "^3.6"
-httpx = "^0.13.3"
+httpx = ">=0.13.3,<0.15.0"
 
 [tool.poetry.dev-dependencies]
 black = "^19.10b0"
