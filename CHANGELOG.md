@@ -15,6 +15,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - httpx async
 - 100% test coverage
 
+## [0.4.0] - 2020-11-01
+
+## Changed
+
+- Update packages
+- Improved coverage
+- Add testing for Django 3.1
+- Installed pytest-mock for testing
+
+## Fixed
+
+- Fix model name in documentation
+
+## Removed
+- Remove `DummyHTTPAdapter` class
+
+
+
 ## [0.3.4] - 2020-07-19
 
 ## Changed

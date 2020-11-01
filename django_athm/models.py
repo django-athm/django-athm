@@ -3,8 +3,10 @@ import uuid
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
+from django_athm.exceptions import ATHM_RefundError
+
 from .conf import settings
-from .constants import LIST_URL, REFUND_URL, STATUS_URL
+from .constants import COMPLETED_STATUS, LIST_URL, REFUND_URL, STATUS_URL
 from .utils import get_http_adapter
 
 
@@ -76,10 +78,10 @@ class ATHM_Transaction(models.Model):
         )
 
         if "errorCode" in response:
-            raise Exception(response.get("description"))
+            raise ATHM_RefundError(response.get("description"))
 
         # Update the transaction status if refund was successful
-        if response["refundStatus"] == "completed":
+        if response["refundStatus"] == COMPLETED_STATUS:
             transaction.status = cls.REFUNDED
             transaction.refunded_amount = response["refundedAmount"]
             transaction.save()

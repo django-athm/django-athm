@@ -84,10 +84,10 @@ Also, make sure that the CSRF token tag is available in your template. You may n
 * You can obtain your transactions and items from the database:
 
 ```python
-from django_athm.models import ATHM_Transaction, ATHM_Items
+from django_athm.models import ATHM_Transaction, ATHM_Item
 
 my_transactions = ATHM_Transaction.objects.all()
-my_items = ATHM_Items.objects.all()
+my_items = ATHM_Item.objects.all()
 ```
 
 * Admin actions are available as well! You can refund transactions directly from the Django Admin interface.

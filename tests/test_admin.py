@@ -8,10 +8,15 @@ from django.urls import reverse
 from django_athm.admin import ATHM_TransactionAdmin
 from django_athm.models import ATHM_Transaction
 
+pytestmark = pytest.mark.django_db
+
 
 class TestAdminCommands:
-    @pytest.mark.django_db
-    def test_athm_transaction_refund(self, rf):
+    def test_athm_transaction_refund(self, rf, mock_http_adapter_post):
+        mock_http_adapter_post.return_value = {
+            "refundStatus": "completed",
+            "refundedAmount": "25.50",
+        }
         request = rf.post(reverse("admin:django_athm_athm_transaction_changelist"))
 
         SessionMiddleware().process_request(request)
@@ -40,8 +45,11 @@ class TestAdminCommands:
 
         assert str(list(messages)[0]) == "Successfully refunded 1 transactions!"
 
-    @pytest.mark.django_db
-    def test_athm_transaction_refund_failed(self, rf):
+    def test_athm_transaction_refund_failed(self, rf, mock_http_adapter_post):
+        mock_http_adapter_post.return_value = {
+            "errorCode": "5010",
+            "description": "Transaction does not exist",
+        }
         request = rf.post(reverse("admin:django_athm_athm_transaction_changelist"))
 
         SessionMiddleware().process_request(request)

@@ -6,13 +6,144 @@ from django.core.management.base import CommandError
 from django.utils.dateparse import parse_datetime
 from django.utils.timezone import make_aware
 
-from django_athm.constants import COMPLETED_STATUS, REFUNDED_STATUS
+from django_athm.constants import COMPLETED_STATUS, EXPIRED_STATUS, REFUNDED_STATUS
+from django_athm.management.commands.athm_sync import get_status
 from django_athm.models import ATHM_Item, ATHM_Transaction
 
 
 class TestSyncCommand:
+    def test_get_status_refund(self):
+        upstream_transaction = {
+            "transactionType": "refund",
+            "referenceNumber": "212831546-7638e92vjhsbjbsdkjqbjkbqdq",
+            "date": "2019-06-06 17:12:02.0",
+            "refundedAmount": "1.00",
+            "total": "1.00",
+            "tax": "1.00",
+            "subtotal": "1.00",
+            "metadata1": "metadata1 test",
+            "metadata2": "metadata2 test",
+            "items": [],
+        }
+
+        status = get_status(upstream_transaction)
+        assert status == REFUNDED_STATUS
+
+    def test_get_status_ecommerce_refund(self):
+        upstream_transaction = {
+            "transactionType": "ecommerce",
+            "referenceNumber": "212831546-7638e92vjhsbjbsdkjqbjkbqdq",
+            "date": "2019-06-06 17:12:02.0",
+            "refundedAmount": "1.00",
+            "total": "1.00",
+            "tax": "1.00",
+            "subtotal": "1.00",
+            "metadata1": "metadata1 test",
+            "metadata2": "metadata2 test",
+            "items": [],
+        }
+
+        status = get_status(upstream_transaction)
+        assert status == REFUNDED_STATUS
+
+    def test_get_status_ecommerce_non_refund(self):
+        upstream_transaction = {
+            "transactionType": "ecommerce",
+            "referenceNumber": "212831546-7638e92vjhsbjbsdkjqbjkbqdq",
+            "date": "2019-06-06 17:12:02.0",
+            "refundedAmount": "0.00",
+            "total": "1.00",
+            "tax": "1.00",
+            "subtotal": "1.00",
+            "metadata1": "metadata1 test",
+            "metadata2": "metadata2 test",
+            "items": [],
+        }
+
+        status = get_status(upstream_transaction)
+        assert status == COMPLETED_STATUS
+
+    def test_get_status_other(self):
+        upstream_transaction = {
+            "status": EXPIRED_STATUS,
+            "transactionType": "expired",
+            "referenceNumber": "212831546-7638e92vjhsbjbsdkjqbjkbqdq",
+            "date": "2019-06-06 17:12:02.0",
+            "refundedAmount": "1.00",
+            "total": "1.00",
+            "tax": "1.00",
+            "subtotal": "1.00",
+            "metadata1": "metadata1 test",
+            "metadata2": "metadata2 test",
+            "items": [],
+        }
+
+        status = get_status(upstream_transaction)
+        assert status == EXPIRED_STATUS
+
     @pytest.mark.django_db
-    def test_command_output(self):
+    def test_command_output(self, mock_http_adapter_get_with_data):
+        mock_http_adapter_get_with_data.return_value = [
+            {
+                "transactionType": "refund",
+                "referenceNumber": "212831546-7638e92vjhsbjbsdkjqbjkbqdq",
+                "date": "2019-06-06 17:12:02.0",
+                "refundedAmount": "1.00",
+                "total": "1.00",
+                "tax": "1.00",
+                "subtotal": "1.00",
+                "metadata1": "metadata1 test",
+                "metadata2": "metadata2 test",
+                "items": [
+                    {
+                        "name": "First Item",
+                        "description": "This is a description.",
+                        "quantity": "1",
+                        "price": "1.00",
+                        "tax": "1.00",
+                        "metadata": "metadata test",
+                    },
+                    {
+                        "name": "Second Item",
+                        "description": "This is another description.",
+                        "quantity": "1",
+                        "price": "1.00",
+                        "tax": "1.00",
+                        "metadata": "metadata test",
+                    },
+                ],
+            },
+            {
+                "transactionType": "payment",
+                "status": "completed",
+                "referenceNumber": "212831546-402894d56b240610016b2e6c78a6003a",
+                "date": "2019-06-06 16:12:02.0",
+                "refundedAmount": "0.00",
+                "total": "5.00",
+                "tax": "1.00",
+                "subtotal": "4.00",
+                "metadata1": "metadata1 test",
+                "metadata2": "metadata2 test",
+                "items": [
+                    {
+                        "name": "First Item",
+                        "description": "This is a description.",
+                        "quantity": "1",
+                        "price": "1.00",
+                        "tax": "1.00",
+                        "metadata": "metadata test",
+                    },
+                    {
+                        "name": "Second Item",
+                        "description": "This is another description.",
+                        "quantity": "1",
+                        "price": "1.00",
+                        "tax": "1.00",
+                        "metadata": "metadata test",
+                    },
+                ],
+            },
+        ]
 
         existing_transaction = ATHM_Transaction.objects.create(
             status="completed",
