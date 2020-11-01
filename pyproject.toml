@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "django-athm"
-version = "0.3.4"
+version = "0.4.0"
 description = "Django + ATH Móvil"
 authors = ["Raúl Negrón <raul.esteban.negron@gmail.com>"]
 maintainers = ["Raúl Negrón <raul.esteban.negron@gmail.com>"]
@@ -31,20 +31,21 @@ classifiers= [
 ]
 
 [tool.poetry.dependencies]
-python = "^3.6"
-httpx = "^0.13.3"
+python = ">=3.6.1,<4.0"
+httpx = "0.16.1"
 
 [tool.poetry.dev-dependencies]
 black = "^19.10b0"
 isort = "^5.1.1"
 flake8 = "^3.8.3"
-pre-commit = "^2.1.1"
-pytest-django = "^3.9.0"
+pre-commit = "^2.8.2"
+pytest-django = "^4.1.0"
 tox = "^3.17.1"
 codecov = "^2.1.8"
 pytest-cov = "^2.10.0"
-mkdocs = "1.1.2"
-django = "2.2.13"
+mkdocs = "^1.1.2"
+django = "^2.2.16"
+pytest-mock = "3.3.1"
 
 
 [tool.poetry.urls]
@@ -55,7 +56,7 @@ legacy_tox_ini = """
 [tox]
 isolated_build = true
 envlist =
-    py{36,37,38}-django{22,30}
+    py{36,37,38}-django{22,30,31}
     lint
 
 [travis]
@@ -77,6 +78,7 @@ deps =
     pytest-django
     django22: Django>=2.2,<2.3
     django30: Django>=3.0,<3.1
+    django31: Django>=3.1,<3.2
 
 [testenv:clean]
 deps = coverage
@@ -98,6 +100,6 @@ commands =
 """
 
 [build-system]
-requires = ["poetry>=0.12", "django>=2.2,<3"]
+requires = ["poetry>=0.12", "django>=2.2,<3.2"]
 build-backend = "poetry.masonry.api"
 
