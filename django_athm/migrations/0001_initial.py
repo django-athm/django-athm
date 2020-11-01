@@ -77,6 +77,9 @@ class Migration(migrations.Migration):
                     ),
                 ),
             ],
-            options={"verbose_name": "ATH item", "verbose_name_plural": "ATH items",},
+            options={
+                "verbose_name": "ATH item",
+                "verbose_name_plural": "ATH items",
+            },
         ),
     ]
