@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "django-athm"
-version = "0.4.0"
+version = "0.4.2"
 description = "Django + ATH Móvil"
 authors = ["Raúl Negrón <raul.esteban.negron@gmail.com>"]
 maintainers = ["Raúl Negrón <raul.esteban.negron@gmail.com>"]
@@ -27,7 +27,8 @@ classifiers= [
     "Programming Language :: Python :: 3.8",
     "Framework :: Django",
     "Framework :: Django :: 2.2",
-    "Framework :: Django :: 3.0"
+    "Framework :: Django :: 3.0",
+    "Framework :: Django :: 3.1"
 ]
 
 [tool.poetry.dependencies]
