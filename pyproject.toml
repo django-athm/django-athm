@@ -46,7 +46,7 @@ codecov = "^2.1.8"
 pytest-cov = "2.10.0"
 mkdocs = "^1.1.2"
 django = "^2.2.16"
-pytest-mock = "3.3.1"
+pytest-mock = "3.4.0"
 
 
 [tool.poetry.urls]
