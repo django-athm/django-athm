@@ -74,8 +74,7 @@ setenv =
     PYTHONWARNINGS = all
     PYTEST_ADDOPTS = --cov django_athm --cov-append --cov-report=xml --cov-fail-under 90
 commands =
-    poetry install -v
-    poetry run pytest {posargs}
+    pytest {posargs}
 deps =
     pytest
     pytest-cov == 2.10.0
