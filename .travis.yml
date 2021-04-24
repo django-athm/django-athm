@@ -28,7 +28,7 @@ matrix:
 
 install:
   - pip install --upgrade pip
-  - pip install tox codecov
+  - pip install tox codecov respx
 
 script:
   - tox
