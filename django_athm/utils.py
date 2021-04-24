@@ -1,5 +1,3 @@
-# from contextlib import AbstractContextManager
-
 import logging
 
 import httpx
@@ -15,9 +13,6 @@ def parse_error_code(error_code):
 
 class BaseHTTPAdapter:
     client = None
-
-    def get(self, url):
-        raise NotImplementedError
 
     def get_with_data(self, url, data):
         raise NotImplementedError
@@ -35,15 +30,9 @@ class SyncHTTPAdapter(BaseHTTPAdapter):
 
     def get_with_data(self, url, data):
         logger.debug(f"[SyncHTTPAdapter:get_with_data] URL: {url}")
+
         with self.client as client:
             response = client.request(method="GET", url=url, json=data)
-            return response.json()
-
-    def get(self, url):
-        logger.debug(f"[SyncHTTPAdapter:get] URL: {url}")
-
-        with self.client as client:
-            response = client.get(url)
             return response.json()
 
     def post(self, url, data):

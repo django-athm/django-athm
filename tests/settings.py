@@ -30,7 +30,6 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "django_athm",
     "tests",
-    "tests.apps.testapp",
 ]
 
 MIDDLEWARE = [
