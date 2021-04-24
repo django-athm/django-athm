@@ -15,6 +15,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - httpx async
 - 100% test coverage
 
+## [0.4.3] - 2021-04-24
+
+## Changed
+
+- Update packages
+- Add testing for Django 3.2
+
 ## [0.4.0] - 2020-11-01
 
 ## Changed
