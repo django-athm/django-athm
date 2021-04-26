@@ -46,7 +46,7 @@ tox = "3.23.0"
 codecov = "^2.1.11"
 pytest-cov = "^2.11.1"
 mkdocs = "^1.1.2"
-pytest-mock = "^3.5.1"
+pytest-mock = "^3.6.0"
 setuptools = "^53.0.0"
 respx = "^0.16.3"
 
