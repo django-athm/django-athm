@@ -1,0 +1,54 @@
+version: 2
+updates:
+- package-ecosystem: pip
+  directory: "/"
+  schedule:
+    interval: daily
+  open-pull-requests-limit: 10
+  reviewers:
+  - rnegron
+  ignore:
+  - dependency-name: pre-commit
+    versions:
+    - 2.10.0
+    - 2.10.1
+    - 2.11.0
+    - 2.11.1
+    - 2.12.0
+    - 2.12.1
+  - dependency-name: flake8
+    versions:
+    - 3.9.0
+    - 3.9.1
+  - dependency-name: pytest-django
+    versions:
+    - 4.2.0
+  - dependency-name: django
+    versions:
+    - 2.2.17
+    - 2.2.18
+    - 2.2.19
+    - 2.2.20
+  - dependency-name: isort
+    versions:
+    - 5.7.0
+    - 5.8.0
+  - dependency-name: httpx
+    versions:
+    - 0.17.0
+    - 0.17.1
+  - dependency-name: tox
+    versions:
+    - 3.21.3
+    - 3.21.4
+    - 3.22.0
+    - 3.23.0
+  - dependency-name: pytest-cov
+    versions:
+    - 2.11.1
+  - dependency-name: pytest-mock
+    versions:
+    - 3.5.1
+  - dependency-name: codecov
+    versions:
+    - 2.1.11
