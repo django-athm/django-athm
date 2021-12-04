@@ -1,8 +1,6 @@
 # flake8: noqa
 
-__version__ = "0.3.3"
-
-default_app_config = "django_athm.apps.DjangoAthmAppConfig"
+__version__ = "0.5.0"
 
 
 def parse_version(version):

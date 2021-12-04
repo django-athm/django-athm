@@ -11,6 +11,10 @@ from django_athm.models import ATHM_Transaction
 pytestmark = pytest.mark.django_db
 
 
+def dummy_get_response(request):
+    return None
+
+
 class TestAdminCommands:
     def test_athm_transaction_refund(self, rf, mock_http_adapter_post):
         mock_http_adapter_post.return_value = {
@@ -19,8 +23,8 @@ class TestAdminCommands:
         }
         request = rf.post(reverse("admin:django_athm_athm_transaction_changelist"))
 
-        SessionMiddleware().process_request(request)
-        MessageMiddleware().process_request(request)
+        SessionMiddleware(dummy_get_response).process_request(request)
+        MessageMiddleware(dummy_get_response).process_request(request)
         request.session.save()
 
         ATHM_Transaction.objects.create(
@@ -52,8 +56,8 @@ class TestAdminCommands:
         }
         request = rf.post(reverse("admin:django_athm_athm_transaction_changelist"))
 
-        SessionMiddleware().process_request(request)
-        MessageMiddleware().process_request(request)
+        SessionMiddleware(dummy_get_response).process_request(request)
+        MessageMiddleware(dummy_get_response).process_request(request)
         request.session.save()
 
         ATHM_Transaction.objects.create(

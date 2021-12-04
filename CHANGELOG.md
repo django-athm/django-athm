@@ -15,46 +15,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - httpx async
 - 100% test coverage
 
-## [0.4.3] - 2021-04-24
+## [0.5.0] - 2021-12-04
 
-## Changed
+### Changed
+- Update packages
+- Update pre-commit config
+- Update README and LICENSE
+- Use Github CI instead of TravisCI
+- Fix deprecation warnings in test
+- Use built-in pip caching in actions/setup-python
+
+### Changed
 
 - Update packages
 - Add testing for Django 3.2
 
 ## [0.4.0] - 2020-11-01
 
-## Changed
+### Changed
 
 - Update packages
 - Improved coverage
 - Add testing for Django 3.1
 - Installed pytest-mock for testing
 
-## Fixed
+### Fixed
 
 - Fix model name in documentation
 
-## Removed
+### Removed
 - Remove `DummyHTTPAdapter` class
-
 
 
 ## [0.3.4] - 2020-07-19
 
-## Changed
+### Changed
 
 - Updated packages
 - Improved coverage
 
 ## [0.3.2] - 2019-02-05
 
-## Added
+### Added
 
 - Setup tox multi-env testing
 - Added classifiers to poetry config
 
-## Changed
+### Changed
 
 - Specify minimum Django version (2.2)
 - Cleaned up dev dependencies
@@ -94,7 +101,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - `athm_button` custom template tag.
-
 
 ## [0.0.1] - 2019-01-26
 

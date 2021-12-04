@@ -1,11 +1,11 @@
 # django-athm
 
-[![Build Status](https://travis-ci.org/django-athm/django-athm.svg?branch=main)](https://travis-ci.org/django-athm/django-athm)
+![Build Status](https://github.com/django-athm/django-athm/actions/workflows/ci.yaml/badge.svg)
 [![Codecov status](https://codecov.io/gh/django-athm/django-athm/branch/main/graph/badge.svg)](https://codecov.io/gh/django-athm/django-athm)
 ![PyPI - Python Version](https://img.shields.io/pypi/pyversions/django-athm)
 ![PyPI - Django Version](https://img.shields.io/pypi/djversions/django-athm)
 [![PyPI version](https://img.shields.io/pypi/v/django-athm.svg)](https://pypi.org/project/django-athm/)
-[![Packaged with Poetry](https://img.shields.io/badge/package_manager-poetry-blue.svg)](https://poetry.eustace.io/)
+[![Packaged with Poetry](https://img.shields.io/badge/package_manager-poetry-blue.svg)](https://python-poetry.org/)
 ![Code style badge](https://badgen.net/badge/code%20style/black/000)
 ![License badge](https://img.shields.io/github/license/django-athm/django-athm.svg)
 
