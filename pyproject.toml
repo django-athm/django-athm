@@ -35,7 +35,7 @@ classifiers= [
 
 [tool.poetry.dependencies]
 python = ">=3.7,<3.11"
-httpx = "^0.21.1"
+httpx = ">=0.21.1,<0.23.0"
 
 [tool.poetry.dev-dependencies]
 Django = "^3.2.9"
