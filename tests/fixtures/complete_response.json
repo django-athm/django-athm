@@ -1,0 +1,19 @@
+{
+    "status": "completed",
+    "date": "2019-06-06 16:12:02.0",
+    "referenceNumber": "a387643827-fdew98ffw9fbfewkjb",
+    "dailyTransactionID": "1234",
+    "name": "Valeria Herrero",
+    "phoneNumber": "7871234567",
+    "email": "valher@gmail.com",
+    "message": "",
+    "total": 1.0,
+    "tax": 1.0,
+    "subtotal": 1.0,
+    "fee": 0.06,
+    "netAmount": 0.94,
+    "totalRefundedAmount": 0.0,
+    "metadata1": "metadata1 test",
+    "metadata2": "metadata2 test",
+    "items": "[{\"name\":\"First Item\",\"description\":\"This is a description.\",\"quantity\":\"1\",\"price\":\"1.00\",\"tax\":\"1.00\",\"metadata\":\"metadata test\"},{\"name\":\"Second Item\",\"description\":\"This is another  description.\",\"quantity\":\"1\",\"price\":\"1.00\",\"tax\":\"1.00\",\"metadata\":\"metadata test\"}]"
+}

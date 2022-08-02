@@ -13,7 +13,7 @@ _Ver este README en español: [README_ES.md](/README_ES.md)_
 
 ## Features
 
-* Persist transactions and item references in your own database.
+* Persist itemized transactions data and clients in your own database.
 * The customizable `athm_button` template tag provides convenient access to the ATH Móvil Checkout button.
 * Import your existing transactions from ATH Móvil using the `athm_sync` management command.
 * Various signals can be used to get notified of completed, cancelled or expired transactions.
@@ -36,12 +36,18 @@ DJANGO_SETTINGS_MODULE=tests.settings pytest --cov django_athm
 
 ## Legal
 
-This project is not affiliated with or endorsed by [Evertec, Inc.](https://www.evertecinc.com/) or [ATH Móvil](https://portal.athmovil.com/) in any way.
+This project is **not** affiliated with or endorsed by [Evertec, Inc.](https://www.evertecinc.com/) or [ATH Móvil](https://portal.athmovil.com/) in any way.
 
+
+## Dependencies
+* [httpx](https://github.com/encode/httpx/) for performing network requests to the ATH Móvil API
+* [phonenumberslite](https://github.com/daviddrysdale/python-phonenumbers) for validating and parsing client phone numbers.
 
 ## References
 
 - https://github.com/evertec/athmovil-javascript-api
+
+- https://github.com/evertec/athmovil-webhooks
 
 - https://docs.djangoproject.com/en/3.0/ref/csrf/#ajax
 

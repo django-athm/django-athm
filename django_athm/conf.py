@@ -7,7 +7,7 @@ from django_athm.views import default_callback
 
 DEFAULTS = {
     "SANDBOX_PUBLIC_TOKEN": "sandboxtoken01875617264",
-    "SANDBOX_MODE": False,
+    "SANDBOX_MODE": True,
     "CALLBACK_VIEW": default_callback,
     "PUBLIC_TOKEN": None,
     "PRIVATE_TOKEN": None,

@@ -9,7 +9,7 @@ class TestSyncHTTPAdapter:
     def test_adapter_get_with_data(self, mock_httpx):
         adapter = utils.SyncHTTPAdapter()
 
-        response = adapter.get_with_data(constants.LIST_URL, data={})
+        response = adapter.get_with_data(constants.REPORT_URL, data={})
 
         assert response["mocked"]
         assert mock_httpx.routes["get_with_data"].called

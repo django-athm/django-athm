@@ -1,8 +1,10 @@
+from enum import Enum
+
 API_BASE_URL = "https://www.athmovil.com"
 
-REFUND_URL = "/rs/v2/refund"
-STATUS_URL = "/rs/v2/transactionStatus"
-LIST_URL = "/transactions/v1/business"
+REFUND_URL = "/api/v4/refundTransaction"
+SEARCH_URL = "/api/v4/searchTransaction"
+REPORT_URL = "/transactions/v4/transactionReport"
 
 ERROR_DICT = {
     "3010": "publicToken is invalid",
@@ -21,7 +23,22 @@ ERROR_DICT = {
     "7040": "error completing refund",
 }
 
-REFUNDED_STATUS = "refunded"
-CANCELLED_STATUS = "cancelled"
-EXPIRED_STATUS = "expired"
-COMPLETED_STATUS = "completed"
+BUTTON_COLOR_DEFAULT = "btn"
+BUTTON_COLOR_LIGHT = "btn-light"
+BUTTON_COLOR_DARK = "btn-dark"
+
+BUTTON_LANGUAGE_SPANISH = "es"
+BUTTON_LANGUAGE_ENGLISH = "en"
+
+
+class TransactionStatus(Enum):
+    refunded = "REFUNDED"
+    cancelled = "CANCELLED"
+    expired = "EXPIRED"
+    completed = "COMPLETED"
+
+
+class TransactionType(Enum):
+    ecommerce = "ECOMMERCE"
+    refund = "REFUND"
+    completed = "COMPLETED"

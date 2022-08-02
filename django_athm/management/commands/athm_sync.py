@@ -1,22 +1,24 @@
+from pprint import pprint
+
 from django.core.management.base import BaseCommand, CommandError
 from django.utils.dateparse import parse_datetime
 from django.utils.timezone import make_aware
 
 from django_athm.conf import settings as app_settings
-from django_athm.constants import COMPLETED_STATUS, REFUNDED_STATUS
-from django_athm.models import ATHM_Item, ATHM_Transaction
+from django_athm.constants import TRANSACTION_STATUS, TRANSACTION_TYPE
+from django_athm.models import ATHM_Client, ATHM_Item, ATHM_Transaction
 
 
 def get_status(transaction):
-    if transaction["transactionType"] == "refund":
-        return REFUNDED_STATUS
-    elif transaction["transactionType"] == "ecommerce":
-        if float(transaction["refundedAmount"]) > 0:
-            return REFUNDED_STATUS
+    if transaction["transactionType"] == TRANSACTION_TYPE.REFUND:
+        return TRANSACTION_STATUS.REFUNDED
+    elif transaction["transactionType"] == TRANSACTION_TYPE.ECOMMERCE:
+        if float(transaction["totalRefundAmount"]) > 0:
+            return TRANSACTION_STATUS.REFUNDED
         else:
-            return COMPLETED_STATUS
-    else:
-        return transaction["status"]
+            return TRANSACTION_STATUS.COMPLETED
+
+    return transaction["transactionType"]
 
 
 def get_defaults(transaction):
@@ -26,7 +28,7 @@ def get_defaults(transaction):
         date=make_aware(parse_datetime(transaction["date"])),
         total=float(transaction["total"]),
         tax=float(transaction["tax"]),
-        refunded_amount=float(transaction["refundedAmount"]),
+        refunded_amount=float(transaction.get("totalRefundAmount", 0)),
         subtotal=float(transaction["subtotal"]),
         metadata_1=transaction.get("metadata1", None),
         metadata_2=transaction.get("metadata2", None),
@@ -94,20 +96,25 @@ class Command(BaseCommand):
         if difference.days < 0:
             raise CommandError("Start date must be before end date!")
 
-        self.stdout.write(
-            self.style.WARNING(
-                f"Getting transactions from {start_date} to {end_date}..."
-            )
-        )
+        self.stdout.write(f"Getting transactions from {start_date} to {end_date}...")
 
         # Call the ATH Móvil API and get all transactions between the selected dates
-        athm_transactions = ATHM_Transaction.list(
-            start_date=str(start_date), end_date=str(end_date)
+        report_data = ATHM_Transaction.get_report(
+            start_date=str(start_date),
+            end_date=str(end_date),
+            public_token=public_token,
+            private_token=private_token,
         )
+
+        pprint(report_data)
+
+        if "errorMessage" in report_data:
+            error_details = report_data["errorMessage"]
+            raise CommandError(error_details)
 
         self.stdout.write(
             self.style.SUCCESS(
-                f"Successfully obtained {len(athm_transactions)} transactions!"
+                f"Successfully obtained {len(report_data)} transactions!"
             )
         )
 
@@ -115,18 +122,17 @@ class Command(BaseCommand):
         total_created = 0
         total_updated = 0
 
-        self.stdout.write(self.style.WARNING("Saving results to database..."))
+        self.stdout.write("Saving results to database...")
 
         # For each transaction, create or update an ATHM_Transaction instance
-        for transaction in athm_transactions:
-            tx_instance, tx_created = ATHM_Transaction.objects.update_or_create(
+        for transaction in report_data:
+            tx_instance, created = ATHM_Transaction.objects.update_or_create(
                 reference_number=transaction["referenceNumber"],
                 defaults=get_defaults(transaction),
             )
 
-            # Delete all related items if this transaction previously existed
-            if not tx_created:
-                ATHM_Item.objects.filter(transaction=tx_instance).delete()
+            # Get or create an ATHM_Client instance
+            client_instance, created = ATHM_Client.objects.get_or_create()
 
             # Accumulate ATHM_Item instances in this list
             item_instances = [
@@ -147,7 +153,7 @@ class Command(BaseCommand):
                 ATHM_Item.objects.bulk_create(item_instances)
 
             # Update counts to display later
-            if tx_created:
+            if created:
                 total_created += 1
             else:
                 total_updated += 1

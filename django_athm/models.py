@@ -1,13 +1,42 @@
 import uuid
 
+import phonenumbers
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
 from django_athm.exceptions import ATHM_RefundError
 
 from .conf import settings
-from .constants import COMPLETED_STATUS, LIST_URL, REFUND_URL, STATUS_URL
+from .constants import REFUND_URL, REPORT_URL, SEARCH_URL, TransactionStatus
 from .utils import get_http_adapter
+
+
+def validate_phone_number(value):
+    parsed_number = phonenumbers.parse(value, "US")
+
+    if not phonenumbers.is_valid_number(parsed_number):
+        raise ValidationError(
+            f"{value} is ",
+            params={"value": value},
+        )
+
+
+class ATHM_Client(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    name = models.CharField(max_length=512)
+    email = models.EmailField(max_length=254, blank=True)
+    phone_number = models.CharField(
+        max_length=32, blank=True, validators=[validate_phone_number]
+    )
+
+    class Meta:
+        verbose_name = _("ATH Móvil Client")
+        verbose_name_plural = _("ATH Móvil Clients")
+
+    def __str__(self):
+        return self.name
 
 
 class ATHM_Transaction(models.Model):
@@ -15,45 +44,69 @@ class ATHM_Transaction(models.Model):
     COMPLETED = "COMPLETED"
     REFUNDED = "REFUNDED"
 
-    TRANSACTION_STATUS_CHOICES = [
-        (PROCESSING, "processing"),
-        (COMPLETED, "completed"),
-        (REFUNDED, "refunded"),
-    ]
+    # NOTE: different from the API's status values
+    class ModelTransactionStatus(models.TextChoices):
+        PROCESSING = "processing", _("processing")
+        COMPLETED = "completed", _("completed")
+        REFUNDED = "refunded", _("refunded")
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     reference_number = models.CharField(unique=True, max_length=64)
     status = models.CharField(
-        max_length=16, choices=TRANSACTION_STATUS_CHOICES, default=PROCESSING
+        max_length=16,
+        choices=ModelTransactionStatus.choices,
+        default=ModelTransactionStatus.PROCESSING,
     )
 
-    # TODO: Use ATH Móvil's date from .inspect()
-    date = models.DateTimeField(auto_now_add=True)
+    date = models.DateTimeField(blank=True)
 
     total = models.FloatField()
     tax = models.FloatField(null=True)
     refunded_amount = models.FloatField(null=True)
     subtotal = models.FloatField(null=True)
 
+    fee = models.FloatField(null=True)
+
+    message = models.CharField(max_length=512, blank=True, null=True)
     metadata_1 = models.CharField(max_length=64, blank=True, null=True)
     metadata_2 = models.CharField(max_length=64, blank=True, null=True)
 
+    client = models.ForeignKey(
+        ATHM_Client,
+        on_delete=models.CASCADE,
+        related_name="transactions",
+        related_query_name="transaction",
+    )
+
     class Meta:
-        verbose_name = _("ATHM Transaction")
-        verbose_name_plural = _("ATHM Transactions")
+        verbose_name = _("ATH Móvil Transaction")
+        verbose_name_plural = _("ATH Móvil Transactions")
 
     def __str__(self):
         return self.reference_number
 
     http_adapter = get_http_adapter()
 
+    @property
+    def net_amount(self):
+        if not self.fee:
+            return self.total
+
+        return float(self.total - self.fee)
+
     @classmethod
-    def list(cls, start_date, end_date):
+    def get_report(cls, start_date, end_date, public_token=None, private_token=None):
+        if not public_token:
+            public_token = settings.PUBLIC_TOKEN
+
+        if not private_token:
+            private_token = settings.PRIVATE_TOKEN
+
         response = cls.http_adapter.get_with_data(
-            url=LIST_URL,
+            url=REPORT_URL,
             data=dict(
-                publicToken=settings.PUBLIC_TOKEN,
-                privateToken=settings.PRIVATE_TOKEN,
+                publicToken=public_token,
+                privateToken=private_token,
                 fromDate=start_date,
                 toDate=end_date,
             ),
@@ -81,17 +134,17 @@ class ATHM_Transaction(models.Model):
             raise ATHM_RefundError(response.get("description"))
 
         # Update the transaction status if refund was successful
-        if response["refundStatus"] == COMPLETED_STATUS:
+        if response["refundStatus"] == TransactionStatus.COMPLETED.value:
             transaction.status = cls.REFUNDED
             transaction.refunded_amount = response["refundedAmount"]
             transaction.save()
 
-        return response
+        return response.json()
 
     @classmethod
-    def inspect(cls, transaction):
+    def search(cls, transaction):
         response = cls.http_adapter.post(
-            STATUS_URL,
+            SEARCH_URL,
             data=dict(
                 publicToken=settings.PUBLIC_TOKEN,
                 privateToken=settings.PRIVATE_TOKEN,
@@ -99,7 +152,7 @@ class ATHM_Transaction(models.Model):
             ),
         )
 
-        return response
+        return response.json()
 
 
 class ATHM_Item(models.Model):
@@ -120,8 +173,8 @@ class ATHM_Item(models.Model):
     metadata = models.CharField(max_length=64, blank=True, null=True)
 
     class Meta:
-        verbose_name = _("ATHM Item")
-        verbose_name_plural = _("ATHM Items")
+        verbose_name = _("ATH Móvil Item")
+        verbose_name_plural = _("ATH Móvil Items")
 
     def __str__(self):
         return self.name

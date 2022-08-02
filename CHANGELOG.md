@@ -8,13 +8,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 - Allow usage of custom Transaction model
-- Allow usage of custom callback View
 - Strict data validation in template and callback view
-- Async support
-    - Django 3 support
-    - httpx async
+- Add support for official webhooks
 - 100% test coverage
 
+## [0.6.0] - 2021-12-04
+
+
+### Added
+- Added `ATHM_Client` model and related logic
+- Added `phonenumberslite` package for parsing phone numbers
+### Changed
+- Change default value for `DJANGO_ATHM_SANDBOX_MODE` setting to `False`
+- Upgraded underlying ATH Móvil API
+- Added `async` to script tag for ATH Móvil script in base template
+- Upgraded jquery in tests folder
+### Fixed
+- Fix tox in Github Actions
+- Fixed `athm_sync` command
+- Remove pip cache in Github Actions
 ## [0.5.0] - 2021-12-04
 
 ### Changed

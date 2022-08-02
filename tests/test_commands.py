@@ -6,7 +6,7 @@ from django.core.management.base import CommandError
 from django.utils.dateparse import parse_datetime
 from django.utils.timezone import make_aware
 
-from django_athm.constants import COMPLETED_STATUS, EXPIRED_STATUS, REFUNDED_STATUS
+from django_athm.constants import EXPIRED_STATUS, REFUNDED_STATUS, TRANSACTION_STATUS
 from django_athm.management.commands.athm_sync import get_status
 from django_athm.models import ATHM_Item, ATHM_Transaction
 
@@ -61,7 +61,7 @@ class TestSyncCommand:
         }
 
         status = get_status(upstream_transaction)
-        assert status == COMPLETED_STATUS
+        assert status == TRANSACTION_STATUS.COMPLETED
 
     def test_get_status_other(self):
         upstream_transaction = {
@@ -212,7 +212,7 @@ class TestSyncCommand:
         transaction_2 = ATHM_Transaction.objects.get(
             reference_number="212831546-402894d56b240610016b2e6c78a6003a"
         )
-        assert transaction_2.status == COMPLETED_STATUS
+        assert transaction_2.status == TRANSACTION_STATUS.COMPLETED
         assert transaction_2.total == 5.00
         assert transaction_2.tax == 1.00
         assert transaction_2.subtotal == 4.00

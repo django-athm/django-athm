@@ -36,11 +36,13 @@ python manage.py migrate
 * In your views, pass a `ATHM_CONFIG` (or whichever key you prefer) to the context:
 
 ```python
+from django_athm.constants import BUTTON_COLOR_DEFAULT, BUTTON_LANGUAGE_SPANISH
+
 def your_view(request):
     context = {
         "ATHM_CONFIG": {
-            "theme": "btn",
-            "language": "es",
+            "theme": BUTTON_COLOR_DEFAULT,
+            "language": BUTTON_LANGUAGE_SPANISH,
             "total": 25.0,
             "subtotal": 24.0,
             "tax": 1.0,
@@ -58,7 +60,7 @@ def your_view(request):
         }
     }
 
-    return render(request, "your-template.html", context=context)
+    return render(request, "your-template-path.html", context=context)
 ```
 
 * In the related templates where you wish to display the Checkout button, load and invoke the `athm_button` custom tag along with your ATHM config from the previous step.
@@ -69,17 +71,25 @@ def your_view(request):
 
 **NOTE**: You must have jQuery loaded in your Django template BEFORE you use the `athm_button` tag.
 
-You can use the following snippet, placing it somewhere above the `athm_button` tag:
+You can use the following snippet to load jQuery, placing it somewhere above the `athm_button` tag:
 
 ```html
-<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
 ```
 
-Also, make sure that the CSRF token tag is available in your template. You may need to decorate your views with `@requires_csrf_token`.
+Also, make sure that the CSRF token tag is available in your template. You may need to decorate your views with `@requires_csrf_token`:
+
+```python
+from django.views.decorators.csrf import requires_csrf_token
+
+@requires_csrf_token
+def your_view(request):
+    ...
+```
 
 * The user clicks on button rendered by your template and then uses the ATH Móvil app to pay the business associated to the public and private tokens you set up in `settings.py`.
 
-* This package will perform a POST `ajax` request on success or failure to the callback view. This will persist the transaction and items in your database.
+* This package will perform a POST `ajax` request on success or failure to the configured callback view. The default view will persist the transaction and items in your database.
 
 * You can obtain your transactions and items from the database:
 
@@ -90,8 +100,24 @@ my_transactions = ATHM_Transaction.objects.all()
 my_items = ATHM_Item.objects.all()
 ```
 
-* Admin actions are available as well! You can refund transactions directly from the Django Admin interface.
+# Useful Constants
 
+These are available from `django_athm.constants`.
+
+```python
+
+BUTTON_COLOR_DEFAULT = "btn"
+BUTTON_COLOR_LIGHT = "btn-light"
+BUTTON_COLOR_DARK = "btn-dark"
+
+BUTTON_LANGUAGE_SPANISH = "es"
+BUTTON_LANGUAGE_ENGLISH = "en"
+```
+
+# Django Admin
+You can refund transactions directly from the Django Admin interface.
+
+# Django Management Commands
 * If you would like to synchronize your database with transactional data from ATH Móvil, you can use the `athm_sync` management command:
 
 ```bash

@@ -2,9 +2,9 @@
 
 <script>
     var callbackPayload = {
-                method: "POST",
-                url: "{% url 'django_athm:athm_callback' %}",
-                headers: {"X-CSRFToken": "{{ csrf_token }}"},
+        method: "POST",
+        url: "{% url 'django_athm:athm_callback' %}",
+        headers: { "X-CSRFToken": "{{ csrf_token }}" },
     }
 
     function onCancelledPayment(response) {
@@ -12,7 +12,7 @@
 
         callbackPayload.data = response
         $.ajax(callbackPayload)
-       
+
     }
 
     function onExpiredPayment(response) {
@@ -27,7 +27,7 @@
         {% athm_response_signal 'completed' %}
 
         callbackPayload.data = response
-        $.ajax(callbackPayload)    
+        $.ajax(callbackPayload)
     }
 
     var ATHM_Checkout = {
@@ -36,13 +36,13 @@
         onExpiredPayment: onExpiredPayment,
 
         env: "{{ env }}",
-        
+
         publicToken: "{{ publicToken }}",
-        
+
         timeout: {{ timeout }},
-        
+
         theme: "{{ theme }}",
-        
+
         lang: "{{ lang|safe }}",
 
         total: "{{ total|safe }}",
@@ -77,6 +77,6 @@
     {% endif %}
 </script>
 
-<script src="https://www.athmovil.com/api/js/v2/athmovilV2.js"></script>
+<script async src="https://www.athmovil.com/api/js/v3/athmovilV3.js"></script>
 
 <div id="ATHMovil_Checkout_Button"></div>
