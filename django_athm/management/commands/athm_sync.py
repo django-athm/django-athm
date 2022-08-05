@@ -1,5 +1,3 @@
-from pprint import pprint
-
 from django.core.management.base import BaseCommand, CommandError
 from django.utils.dateparse import parse_datetime
 from django.utils.timezone import make_aware
@@ -105,8 +103,6 @@ class Command(BaseCommand):
             public_token=public_token,
             private_token=private_token,
         )
-
-        pprint(report_data)
 
         if "errorMessage" in report_data:
             error_details = report_data["errorMessage"]
