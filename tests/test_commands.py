@@ -6,18 +6,18 @@ from django.core.management.base import CommandError
 from django.utils.dateparse import parse_datetime
 from django.utils.timezone import make_aware
 
-from django_athm.constants import EXPIRED_STATUS, REFUNDED_STATUS, TRANSACTION_STATUS
+from django_athm.constants import TransactionStatus
 from django_athm.management.commands.athm_sync import get_status
-from django_athm.models import ATHM_Item, ATHM_Transaction
+from django_athm.models import ATHM_Client, ATHM_Item, ATHM_Transaction
 
 
 class TestSyncCommand:
-    def test_get_status_refund(self):
+    def test_get_status_refund_success(self):
         upstream_transaction = {
-            "transactionType": "refund",
+            "transactionType": "REFUND",
             "referenceNumber": "212831546-7638e92vjhsbjbsdkjqbjkbqdq",
             "date": "2019-06-06 17:12:02.0",
-            "refundedAmount": "1.00",
+            "totalRefundAmount": "1.00",
             "total": "1.00",
             "tax": "1.00",
             "subtotal": "1.00",
@@ -27,14 +27,14 @@ class TestSyncCommand:
         }
 
         status = get_status(upstream_transaction)
-        assert status == REFUNDED_STATUS
+        assert status == ATHM_Transaction.Status.REFUNDED
 
-    def test_get_status_ecommerce_refund(self):
+    def test_get_status_ecommerce_refund_success(self):
         upstream_transaction = {
-            "transactionType": "ecommerce",
+            "transactionType": "ECOMMERCE",
             "referenceNumber": "212831546-7638e92vjhsbjbsdkjqbjkbqdq",
             "date": "2019-06-06 17:12:02.0",
-            "refundedAmount": "1.00",
+            "totalRefundAmount": "1.00",
             "total": "1.00",
             "tax": "1.00",
             "subtotal": "1.00",
@@ -44,14 +44,14 @@ class TestSyncCommand:
         }
 
         status = get_status(upstream_transaction)
-        assert status == REFUNDED_STATUS
+        assert status == ATHM_Transaction.Status.REFUNDED
 
-    def test_get_status_ecommerce_non_refund(self):
+    def test_get_status_ecommerce_non_refund_success(self):
         upstream_transaction = {
-            "transactionType": "ecommerce",
+            "transactionType": "ECOMMERCE",
             "referenceNumber": "212831546-7638e92vjhsbjbsdkjqbjkbqdq",
             "date": "2019-06-06 17:12:02.0",
-            "refundedAmount": "0.00",
+            "totalRefundAmount": "0.00",
             "total": "1.00",
             "tax": "1.00",
             "subtotal": "1.00",
@@ -61,15 +61,15 @@ class TestSyncCommand:
         }
 
         status = get_status(upstream_transaction)
-        assert status == TRANSACTION_STATUS.COMPLETED
+        assert status == ATHM_Transaction.Status.COMPLETED
 
     def test_get_status_other(self):
         upstream_transaction = {
-            "status": EXPIRED_STATUS,
+            "status": TransactionStatus.expired.value,
             "transactionType": "expired",
             "referenceNumber": "212831546-7638e92vjhsbjbsdkjqbjkbqdq",
             "date": "2019-06-06 17:12:02.0",
-            "refundedAmount": "1.00",
+            "totalRefundAmount": "1.00",
             "total": "1.00",
             "tax": "1.00",
             "subtotal": "1.00",
@@ -79,17 +79,20 @@ class TestSyncCommand:
         }
 
         status = get_status(upstream_transaction)
-        assert status == EXPIRED_STATUS
+        assert status == TransactionStatus.expired.value
 
     @pytest.mark.django_db
-    def test_command_output(self, mock_http_adapter_get_with_data):
+    def test_command_output_success(self, mock_http_adapter_get_with_data):
         mock_http_adapter_get_with_data.return_value = [
             {
-                "transactionType": "refund",
+                "transactionType": "REFUND",
                 "referenceNumber": "212831546-7638e92vjhsbjbsdkjqbjkbqdq",
                 "date": "2019-06-06 17:12:02.0",
-                "refundedAmount": "1.00",
+                "name": "Tester Test",
+                "phoneNumber": "(787) 123-4567",
+                "email": "tester@django-athm.com",
                 "total": "1.00",
+                "totalRefundAmount": "1.00",
                 "tax": "1.00",
                 "subtotal": "1.00",
                 "metadata1": "metadata1 test",
@@ -114,12 +117,15 @@ class TestSyncCommand:
                 ],
             },
             {
-                "transactionType": "payment",
+                "transactionType": "ecommerce",
                 "status": "completed",
                 "referenceNumber": "212831546-402894d56b240610016b2e6c78a6003a",
                 "date": "2019-06-06 16:12:02.0",
-                "refundedAmount": "0.00",
+                "name": "Tester Test",
+                "phoneNumber": "(787) 123-4567",
+                "email": "tester@django-athm.com",
                 "total": "5.00",
+                "totalRefundAmount": "5.00",
                 "tax": "1.00",
                 "subtotal": "4.00",
                 "metadata1": "metadata1 test",
@@ -146,7 +152,7 @@ class TestSyncCommand:
         ]
 
         existing_transaction = ATHM_Transaction.objects.create(
-            status="completed",
+            status=ATHM_Transaction.Status.COMPLETED,
             reference_number="212831546-402894d56b240610016b2e6c78a6003a",
             date=make_aware(parse_datetime("2019-06-06 16:12:02.0")),
             refunded_amount=0.00,
@@ -186,22 +192,24 @@ class TestSyncCommand:
             stdout=out,
         )
 
+        output = out.getvalue()
         assert (
             "Getting transactions from 2020-01-01 12:00:00 to 2020-01-02 00:00:00"
-            in out.getvalue()
+            in output
         )
         assert (
-            "Successfully created 1 transactions and updated 1 transactions!"
-            in out.getvalue()
+            "Successfully created 1 transaction(s), updated 1 transaction(s), and created 1 client(s)!"
+            in output
         )
 
         assert ATHM_Transaction.objects.count() == 2
-        assert ATHM_Item.objects.count() == 4
+        assert ATHM_Item.objects.count() == 6
+        assert ATHM_Client.objects.count() == 1
 
         transaction_1 = ATHM_Transaction.objects.get(
             reference_number="212831546-7638e92vjhsbjbsdkjqbjkbqdq"
         )
-        assert transaction_1.status == REFUNDED_STATUS
+        assert transaction_1.status == ATHM_Transaction.Status.REFUNDED
         assert transaction_1.refunded_amount == 1.00
         assert transaction_1.total == 1.00
         assert transaction_1.tax == 1.00
@@ -212,7 +220,7 @@ class TestSyncCommand:
         transaction_2 = ATHM_Transaction.objects.get(
             reference_number="212831546-402894d56b240610016b2e6c78a6003a"
         )
-        assert transaction_2.status == TRANSACTION_STATUS.COMPLETED
+        assert transaction_2.status == ATHM_Transaction.Status.REFUNDED
         assert transaction_2.total == 5.00
         assert transaction_2.tax == 1.00
         assert transaction_2.subtotal == 4.00

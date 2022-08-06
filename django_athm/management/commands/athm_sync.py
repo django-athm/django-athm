@@ -1,20 +1,21 @@
+import phonenumbers
 from django.core.management.base import BaseCommand, CommandError
 from django.utils.dateparse import parse_datetime
 from django.utils.timezone import make_aware
 
 from django_athm.conf import settings as app_settings
-from django_athm.constants import TRANSACTION_STATUS, TRANSACTION_TYPE
+from django_athm.constants import TransactionType
 from django_athm.models import ATHM_Client, ATHM_Item, ATHM_Transaction
 
 
 def get_status(transaction):
-    if transaction["transactionType"] == TRANSACTION_TYPE.REFUND:
-        return TRANSACTION_STATUS.REFUNDED
-    elif transaction["transactionType"] == TRANSACTION_TYPE.ECOMMERCE:
+    if transaction["transactionType"].upper() == TransactionType.refund.value:
+        return ATHM_Transaction.Status.REFUNDED
+    elif transaction["transactionType"].upper() == TransactionType.ecommerce.value:
         if float(transaction["totalRefundAmount"]) > 0:
-            return TRANSACTION_STATUS.REFUNDED
+            return ATHM_Transaction.Status.REFUNDED
         else:
-            return TRANSACTION_STATUS.COMPLETED
+            return ATHM_Transaction.Status.COMPLETED
 
     return transaction["transactionType"]
 
@@ -115,25 +116,41 @@ class Command(BaseCommand):
         )
 
         # Check which transactions are already in the database
-        total_created = 0
-        total_updated = 0
+        total_transaction_created = 0
+        total_transactions_updated = 0
+
+        total_clients_created = 0
 
         self.stdout.write("Saving results to database...")
 
         # For each transaction, create or update an ATHM_Transaction instance
-        for transaction in report_data:
-            tx_instance, created = ATHM_Transaction.objects.update_or_create(
-                reference_number=transaction["referenceNumber"],
-                defaults=get_defaults(transaction),
+        for transaction_data in report_data:
+            (
+                transaction,
+                transaction_created,
+            ) = ATHM_Transaction.objects.update_or_create(
+                reference_number=transaction_data["referenceNumber"],
+                defaults=get_defaults(transaction_data),
+            )
+
+            phone_number_parsed = phonenumbers.parse(
+                transaction_data["phoneNumber"], "US"
+            )
+            phone_number_formatted = phonenumbers.format_number(
+                phone_number_parsed, phonenumbers.PhoneNumberFormat.E164
             )
 
             # Get or create an ATHM_Client instance
-            client_instance, created = ATHM_Client.objects.get_or_create()
+            _, client_created = ATHM_Client.objects.get_or_create(
+                email=transaction_data["email"].strip(),
+                phone_number=phone_number_formatted,
+                defaults=dict(name=transaction_data["name"].strip()),
+            )
 
             # Accumulate ATHM_Item instances in this list
             item_instances = [
                 ATHM_Item(
-                    transaction=tx_instance,
+                    transaction=transaction,
                     name=item["name"],
                     description=item["description"],
                     quantity=int(item["quantity"]),
@@ -141,7 +158,7 @@ class Command(BaseCommand):
                     tax=float(item["price"]),
                     metadata=item["metadata"],
                 )
-                for item in transaction["items"]
+                for item in transaction_data["items"]
             ]
 
             # Bulk create all ATHM_Item instances, if any
@@ -149,13 +166,18 @@ class Command(BaseCommand):
                 ATHM_Item.objects.bulk_create(item_instances)
 
             # Update counts to display later
-            if created:
-                total_created += 1
+            if transaction_created:
+                total_transaction_created += 1
             else:
-                total_updated += 1
+                total_transactions_updated += 1
+
+            if client_created:
+                total_clients_created += 1
 
         self.stdout.write(
             self.style.SUCCESS(
-                f"Successfully created {total_created} transactions and updated {total_updated} transactions!"
+                f"Successfully created {total_transaction_created} transaction(s), "
+                f"updated {total_transactions_updated} transaction(s), "
+                f"and created {total_clients_created} client(s)!"
             )
         )

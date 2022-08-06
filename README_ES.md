@@ -13,7 +13,7 @@ _See this README in English: [README.md](/README.md)_
 
 ## Características
 
-* Persiste referencias a transacciones y artículos en su propia base de datos.
+* Persiste referencias a transacciones al igual que información sobre sus clientes en su propia base de datos.
 * El template tag `athm_button` es customizable y provee acceso conveniente al botón de ATH Móvil.
 * Importe sus transacciones existentes utilizando el comando `athm_sync`.
 * Se pueden utilizar Django signals para manejar alertas sobre transacciones completadas, canceladas o expiradas.
@@ -36,14 +36,20 @@ DJANGO_SETTINGS_MODULE=tests.settings pytest --cov django_athm
 
 ## Legal
 
-Este proyecto no está afiliado ni endosado de ninguna manera por [Evertec, Inc.](https://www.evertecinc.com/) ni [ATH Móvil](https://portal.athmovil.com/).
+Este proyecto **no** está afiliado ni endosado de ninguna manera por [Evertec, Inc.](https://www.evertecinc.com/) ni [ATH Móvil](https://portal.athmovil.com/).
+
+
+## Dependencias
+* [httpx](https://github.com/encode/httpx/) para hacer pedidos a la API de ATH Móvil.
+* [phonenumberslite](https://github.com/daviddrysdale/python-phonenumbers) para validar y mejor almacener los números de teléfonos
 
 
 ## Referencias
 
 - https://github.com/evertec/athmovil-javascript-api
 
-- https://docs.djangoproject.com/en/3.0/ref/csrf/#ajax
+- https://github.com/evertec/athmovil-webhooks
 
-- https://docs.djangoproject.com/en/3.0/howto/custom-template-tags/
+- https://docs.djangoproject.com/en/4.1/ref/csrf/#ajax
 
+- https://docs.djangoproject.com/en/4.1/howto/custom-template-tags/

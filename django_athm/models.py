@@ -8,7 +8,7 @@ from django.utils.translation import gettext_lazy as _
 from django_athm.exceptions import ATHM_RefundError
 
 from .conf import settings
-from .constants import REFUND_URL, REPORT_URL, SEARCH_URL, TransactionStatus
+from .constants import REFUND_URL, REPORT_URL, SEARCH_URL
 from .utils import get_http_adapter
 
 
@@ -40,12 +40,9 @@ class ATHM_Client(models.Model):
 
 
 class ATHM_Transaction(models.Model):
-    PROCESSING = "PROCESSING"
-    COMPLETED = "COMPLETED"
-    REFUNDED = "REFUNDED"
 
     # NOTE: different from the API's status values
-    class ModelTransactionStatus(models.TextChoices):
+    class Status(models.TextChoices):
         PROCESSING = "processing", _("processing")
         COMPLETED = "completed", _("completed")
         REFUNDED = "refunded", _("refunded")
@@ -54,8 +51,8 @@ class ATHM_Transaction(models.Model):
     reference_number = models.CharField(unique=True, max_length=64)
     status = models.CharField(
         max_length=16,
-        choices=ModelTransactionStatus.choices,
-        default=ModelTransactionStatus.PROCESSING,
+        choices=Status.choices,
+        default=Status.PROCESSING,
     )
 
     date = models.DateTimeField(blank=True)
@@ -73,6 +70,7 @@ class ATHM_Transaction(models.Model):
 
     client = models.ForeignKey(
         ATHM_Client,
+        null=True,
         on_delete=models.CASCADE,
         related_name="transactions",
         related_query_name="transaction",
@@ -128,18 +126,18 @@ class ATHM_Transaction(models.Model):
                 referenceNumber=transaction.reference_number,
                 amount=str(amount),
             ),
-        )
+        ).json()
 
         if "errorCode" in response:
             raise ATHM_RefundError(response.get("description"))
 
         # Update the transaction status if refund was successful
-        if response["refundStatus"] == TransactionStatus.COMPLETED.value:
+        if response["refundStatus"] == cls.Status.COMPLETED:
             transaction.status = cls.REFUNDED
             transaction.refunded_amount = response["refundedAmount"]
             transaction.save()
 
-        return response.json()
+        return response
 
     @classmethod
     def search(cls, transaction):

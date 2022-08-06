@@ -12,6 +12,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add support for official webhooks
 - 100% test coverage
 
+
+## [0.7.0-UNRELEASED] - 2022-XX-YY
+
+### Added
+- Added support for Python 3.10
+- Added support for Django versions 4.0 and 4.1
+- Added `ATHM_Client` migration missing in `0.6.0`
+
+### Fixed
+- Fixed tests due to missing required `date` field for `ATHM_Transactions`.
+
+### Removed
+- Removed support for Python versions below 3.8
+- Removed support for Django versions below 3.2
+
+
 ## [0.6.0] - 2021-12-04
 
 

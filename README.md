@@ -13,7 +13,7 @@ _Ver este README en español: [README_ES.md](/README_ES.md)_
 
 ## Features
 
-* Persist itemized transactions data and clients in your own database.
+* Persist itemized transaction data as well as client information in your own database.
 * The customizable `athm_button` template tag provides convenient access to the ATH Móvil Checkout button.
 * Import your existing transactions from ATH Móvil using the `athm_sync` management command.
 * Various signals can be used to get notified of completed, cancelled or expired transactions.
@@ -41,7 +41,7 @@ This project is **not** affiliated with or endorsed by [Evertec, Inc.](https://w
 
 ## Dependencies
 * [httpx](https://github.com/encode/httpx/) for performing network requests to the ATH Móvil API
-* [phonenumberslite](https://github.com/daviddrysdale/python-phonenumbers) for validating and parsing client phone numbers.
+* [phonenumberslite](https://github.com/daviddrysdale/python-phonenumbers) for validating and parsing client phone numbers
 
 ## References
 
@@ -49,7 +49,7 @@ This project is **not** affiliated with or endorsed by [Evertec, Inc.](https://w
 
 - https://github.com/evertec/athmovil-webhooks
 
-- https://docs.djangoproject.com/en/3.0/ref/csrf/#ajax
+- https://docs.djangoproject.com/en/4.1/ref/csrf/#ajax
 
-- https://docs.djangoproject.com/en/3.0/howto/custom-template-tags/
+- https://docs.djangoproject.com/en/4.1/howto/custom-template-tags/
 

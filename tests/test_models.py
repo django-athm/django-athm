@@ -1,7 +1,7 @@
 import pytest
 
 from django_athm import models
-from django_athm.constants import REFUND_URL, TRANSACTION_STATUS
+from django_athm.constants import REFUND_URL, TransactionStatus
 from django_athm.exceptions import ATHM_RefundError
 
 pytestmark = pytest.mark.django_db
@@ -28,7 +28,7 @@ class TestATHM_Transaction:
 
     def test_can_refund_transaction(self, mock_http_adapter_post):
         mock_http_adapter_post.return_value = {
-            "refundStatus": TRANSACTION_STATUS.COMPLETED,
+            "refundStatus": TransactionStatus.completed.value,
             "refundedAmount": "12.80",
         }
 
@@ -44,7 +44,7 @@ class TestATHM_Transaction:
         )
 
         response = models.ATHM_Transaction.refund(transaction, amount=12.80)
-        assert response["refundStatus"] == TRANSACTION_STATUS.COMPLETED
+        assert response["refundStatus"] == TransactionStatus.completed.value
 
         transaction.refresh_from_db()
         assert transaction.status == models.ATHM_Transaction.REFUNDED
@@ -106,7 +106,7 @@ class TestATHM_Transaction:
 
     def test_uses_total_if_no_amount(self, mock_http_adapter_post):
         mock_http_adapter_post.return_value = {
-            "refundStatus": TRANSACTION_STATUS.COMPLETED,
+            "refundStatus": TransactionStatus.completed.value,
             "refundedAmount": "25.50",
         }
 
