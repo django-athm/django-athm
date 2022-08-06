@@ -20,7 +20,7 @@ def dummy_get_response(request):
 class TestAdminCommands:
     def test_athm_transaction_refund_success(self, rf, mock_http_adapter_post):
         mock_http_adapter_post.return_value.json.return_value = {
-            "refundStatus": "completed",
+            "refundStatus": "COMPLETED",
             "refundedAmount": "25.50",
         }
         request = rf.post(reverse("admin:django_athm_athm_transaction_changelist"))
@@ -31,7 +31,7 @@ class TestAdminCommands:
 
         ATHM_Transaction.objects.create(
             reference_number="test-123",
-            status=ATHM_Transaction.COMPLETED,
+            status=ATHM_Transaction.Status.COMPLETED,
             total=25.50,
             subtotal=23.10,
             tax=2.40,
@@ -45,7 +45,7 @@ class TestAdminCommands:
         )
 
         updated_transaction = ATHM_Transaction.objects.get(reference_number="test-123")
-        assert updated_transaction.status == ATHM_Transaction.REFUNDED
+        assert updated_transaction.status == ATHM_Transaction.Status.REFUNDED
         assert updated_transaction.refunded_amount == 25.50
 
         messages = get_messages(request)
@@ -65,7 +65,7 @@ class TestAdminCommands:
 
         ATHM_Transaction.objects.create(
             reference_number="error",
-            status=ATHM_Transaction.COMPLETED,
+            status=ATHM_Transaction.Status.COMPLETED,
             total=25.50,
             subtotal=23.10,
             tax=2.40,

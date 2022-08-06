@@ -8,7 +8,7 @@ from django.utils.translation import gettext_lazy as _
 from django_athm.exceptions import ATHM_RefundError
 
 from .conf import settings
-from .constants import REFUND_URL, REPORT_URL, SEARCH_URL
+from .constants import REFUND_URL, REPORT_URL, SEARCH_URL, TransactionStatus
 from .utils import get_http_adapter
 
 
@@ -132,8 +132,8 @@ class ATHM_Transaction(models.Model):
             raise ATHM_RefundError(response.get("description"))
 
         # Update the transaction status if refund was successful
-        if response["refundStatus"] == cls.Status.COMPLETED:
-            transaction.status = cls.REFUNDED
+        if response["refundStatus"] == TransactionStatus.completed.value:
+            transaction.status = cls.Status.REFUNDED
             transaction.refunded_amount = response["refundedAmount"]
             transaction.save()
 

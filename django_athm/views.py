@@ -2,6 +2,7 @@ import json
 import logging
 
 from django.http import HttpResponse
+from django.utils import timezone
 
 from django_athm import models
 
@@ -36,12 +37,13 @@ def default_callback(request):
 
     transaction = models.ATHM_Transaction.objects.create(
         reference_number=reference_number,
-        status=models.ATHM_Transaction.COMPLETED,
+        status=models.ATHM_Transaction.Status.COMPLETED,
         total=total,
         subtotal=subtotal,
         tax=tax,
         metadata_1=metadata_1,
         metadata_2=metadata_2,
+        date=timezone.now(),
     )
 
     item_instances = []
@@ -62,5 +64,7 @@ def default_callback(request):
 
     if item_instances:
         models.ATHM_Item.objects.bulk_create(item_instances)
+
+    # TODO: Create ATHM_Client instance
 
     return HttpResponse(status=201)

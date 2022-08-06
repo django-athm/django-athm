@@ -1,6 +1,7 @@
 import pytest
 from django.urls import reverse
 
+from django_athm.constants import TransactionStatus, TransactionType
 from django_athm.models import ATHM_Item, ATHM_Transaction
 from django_athm.views import default_callback
 
@@ -9,7 +10,7 @@ class TestDefaultCallbackView:
     @pytest.mark.django_db
     def test_callback_view_with_data(self, rf):
         data = {
-            "status": "completed",
+            "status": TransactionType.completed.value,
             "referenceNumber": "33908215-4028f9e06fd3c5c1016fdef4714a369a",
             "date": "2020-01-25 19:05:53.0",
             "refundedAmount": "1.00",
@@ -29,7 +30,7 @@ class TestDefaultCallbackView:
 
         assert ATHM_Transaction.objects.count() == 1
         transaction = ATHM_Transaction.objects.first()
-        assert transaction.status == "COMPLETED"
+        assert transaction.status == ATHM_Transaction.Status.COMPLETED
         assert (
             transaction.reference_number == "33908215-4028f9e06fd3c5c1016fdef4714a369a"
         )
@@ -43,7 +44,7 @@ class TestDefaultCallbackView:
     @pytest.mark.django_db
     def test_callback_view_with_minimal_data(self, rf):
         data = {
-            "status": "completed",
+            "status": TransactionStatus.completed.value,
             "referenceNumber": "33908215-4028f9e06fd3c5c1016fdef4714a369a",
             "date": "2020-01-25 19:05:53.0",
             "refundedAmount": "1.00",
@@ -63,7 +64,7 @@ class TestDefaultCallbackView:
 
         assert ATHM_Transaction.objects.count() == 1
         transaction = ATHM_Transaction.objects.first()
-        assert transaction.status == "COMPLETED"
+        assert transaction.status == ATHM_Transaction.Status.COMPLETED
         assert (
             transaction.reference_number == "33908215-4028f9e06fd3c5c1016fdef4714a369a"
         )

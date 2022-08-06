@@ -66,7 +66,7 @@ class TestSyncCommand:
     def test_get_status_other(self):
         upstream_transaction = {
             "status": TransactionStatus.expired.value,
-            "transactionType": "expired",
+            "transactionType": TransactionStatus.expired.value,
             "referenceNumber": "212831546-7638e92vjhsbjbsdkjqbjkbqdq",
             "date": "2019-06-06 17:12:02.0",
             "totalRefundAmount": "1.00",
@@ -117,8 +117,8 @@ class TestSyncCommand:
                 ],
             },
             {
-                "transactionType": "ecommerce",
-                "status": "completed",
+                "transactionType": "ECOMMERCE",
+                "status": "COMPLETED",
                 "referenceNumber": "212831546-402894d56b240610016b2e6c78a6003a",
                 "date": "2019-06-06 16:12:02.0",
                 "name": "Tester Test",
