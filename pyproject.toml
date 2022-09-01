@@ -37,7 +37,7 @@ httpx = "^0.23.0"
 phonenumberslite = "^8.12.53"
 
 [tool.poetry.dev-dependencies]
-black = "^22.6.0"
+black = "^22.8.0"
 codecov = "^2.1.11"
 Django = "^4.1"
 flake8 = "^5.0.4"
