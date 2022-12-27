@@ -50,7 +50,7 @@ pytest-django = "^4.5.2"
 pytest-mock = "^3.8.2"
 respx = "^0.19.2"
 setuptools = "^59.4.0"
-tox = "^3.25.1"
+tox = "^4.0.18"
 
 
 [tool.poetry.urls]
