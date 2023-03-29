@@ -25,6 +25,6 @@ def athm_button(athm_config):
         "subtotal": athm_config["subtotal"],
         "items": athm_config["items"],
         "tax": athm_config["tax"],
-        "metadata1": athm_config.get("metadata_1", ""),
-        "metadata2": athm_config.get("metadata_2", ""),
+        "metadata_1": athm_config.get("metadata_1", ""),
+        "metadata_2": athm_config.get("metadata_2", ""),
     }
