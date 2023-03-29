@@ -53,13 +53,13 @@
     }
 
     {% if metadata_1 %}
-        ATHM_Checkout.metadata1 = "{{ metadata_1|safe }}",
+        ATHM_Checkout.metadata1 = "{{ metadata_1|safe }}"
     {% else %}
         ATHM_Checkout.metadata1 = null
     {% endif %}
 
     {% if metadata_2 %}
-        ATHM_Checkout.metadata2 = "{{ metadata_2|safe }}",
+        ATHM_Checkout.metadata2 = "{{ metadata_2|safe }}"
     {% else %}
         ATHM_Checkout.metadata2 = null
     {% endif %}
