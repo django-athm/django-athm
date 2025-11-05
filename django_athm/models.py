@@ -17,7 +17,7 @@ def validate_phone_number(value):
 
     if not phonenumbers.is_valid_number(parsed_number):
         raise ValidationError(
-            f"{value} is ",
+            f"{value} is not a valid phone number",
             params={"value": value},
         )
 
@@ -40,7 +40,6 @@ class ATHM_Client(models.Model):
 
 
 class ATHM_Transaction(models.Model):
-
     # NOTE: different from the API's status values
     class Status(models.TextChoices):
         PROCESSING = "processing", _("processing")
@@ -57,12 +56,12 @@ class ATHM_Transaction(models.Model):
 
     date = models.DateTimeField(blank=True)
 
-    total = models.FloatField()
-    tax = models.FloatField(null=True)
-    refunded_amount = models.FloatField(null=True)
-    subtotal = models.FloatField(null=True)
+    total = models.DecimalField(max_digits=10, decimal_places=2)
+    tax = models.DecimalField(max_digits=10, decimal_places=2, null=True)
+    refunded_amount = models.DecimalField(max_digits=10, decimal_places=2, null=True)
+    subtotal = models.DecimalField(max_digits=10, decimal_places=2, null=True)
 
-    fee = models.FloatField(null=True)
+    fee = models.DecimalField(max_digits=10, decimal_places=2, null=True)
 
     message = models.CharField(max_length=512, blank=True, null=True)
     metadata_1 = models.CharField(max_length=64, blank=True, null=True)
@@ -90,7 +89,7 @@ class ATHM_Transaction(models.Model):
         if not self.fee:
             return self.total
 
-        return float(self.total - self.fee)
+        return self.total - self.fee
 
     @classmethod
     def get_report(cls, start_date, end_date, public_token=None, private_token=None):
@@ -102,12 +101,12 @@ class ATHM_Transaction(models.Model):
 
         response = cls.http_adapter.get_with_data(
             url=REPORT_URL,
-            data=dict(
-                publicToken=public_token,
-                privateToken=private_token,
-                fromDate=start_date,
-                toDate=end_date,
-            ),
+            data={
+                "publicToken": public_token,
+                "privateToken": private_token,
+                "fromDate": start_date,
+                "toDate": end_date,
+            },
         )
 
         return response
@@ -120,12 +119,12 @@ class ATHM_Transaction(models.Model):
 
         response = cls.http_adapter.post(
             REFUND_URL,
-            data=dict(
-                publicToken=settings.PUBLIC_TOKEN,
-                privateToken=settings.PRIVATE_TOKEN,
-                referenceNumber=transaction.reference_number,
-                amount=str(amount),
-            ),
+            data={
+                "publicToken": settings.PUBLIC_TOKEN,
+                "privateToken": settings.PRIVATE_TOKEN,
+                "referenceNumber": transaction.reference_number,
+                "amount": str(amount),
+            },
         ).json()
 
         if "errorCode" in response:
@@ -143,11 +142,11 @@ class ATHM_Transaction(models.Model):
     def search(cls, transaction):
         response = cls.http_adapter.post(
             SEARCH_URL,
-            data=dict(
-                publicToken=settings.PUBLIC_TOKEN,
-                privateToken=settings.PRIVATE_TOKEN,
-                referenceNumber=transaction.reference_number,
-            ),
+            data={
+                "publicToken": settings.PUBLIC_TOKEN,
+                "privateToken": settings.PRIVATE_TOKEN,
+                "referenceNumber": transaction.reference_number,
+            },
         )
 
         return response.json()
@@ -166,8 +165,8 @@ class ATHM_Item(models.Model):
     description = models.CharField(max_length=128)
     quantity = models.PositiveSmallIntegerField(default=1)
 
-    price = models.FloatField()
-    tax = models.FloatField(null=True)
+    price = models.DecimalField(max_digits=10, decimal_places=2)
+    tax = models.DecimalField(max_digits=10, decimal_places=2, null=True)
     metadata = models.CharField(max_length=64, blank=True, null=True)
 
     class Meta:

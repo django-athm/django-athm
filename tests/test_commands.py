@@ -163,24 +163,28 @@ class TestSyncCommand:
             metadata_2="metadata2 test",
         )
 
-        ATHM_Item.objects.create(
-            name="First Item",
-            transaction=existing_transaction,
-            description="This is a description.",
-            quantity=1,
-            price=1.00,
-            tax=1.00,
-            metadata="metadata test",
-        ),
-        ATHM_Item.objects.create(
-            name="Second Item",
-            transaction=existing_transaction,
-            description="This is a description.",
-            quantity=1,
-            price=1.00,
-            tax=1.00,
-            metadata="metadata test",
-        ),
+        (
+            ATHM_Item.objects.create(
+                name="First Item",
+                transaction=existing_transaction,
+                description="This is a description.",
+                quantity=1,
+                price=1.00,
+                tax=1.00,
+                metadata="metadata test",
+            ),
+        )
+        (
+            ATHM_Item.objects.create(
+                name="Second Item",
+                transaction=existing_transaction,
+                description="This is a description.",
+                quantity=1,
+                price=1.00,
+                tax=1.00,
+                metadata="metadata test",
+            ),
+        )
 
         existing_transaction.save()
 
@@ -240,7 +244,7 @@ class TestSyncCommand:
                 stdout=out,
             )
 
-        assert "Start date must be before end date!" == str(error.value)
+        assert str(error.value) == "Start date must be before end date!"
 
     def test_command_output_missing_public_token(self, settings):
         settings.DJANGO_ATHM_PUBLIC_TOKEN = None
@@ -256,8 +260,8 @@ class TestSyncCommand:
             )
 
         assert (
-            "Missing public token! Did you forget to set it in your settings?"
-            == str(error.value)
+            str(error.value)
+            == "Missing public token! Did you forget to set it in your settings?"
         )
 
     def test_command_output_missing_private_token(self, settings):
@@ -274,6 +278,6 @@ class TestSyncCommand:
             )
 
         assert (
-            "Missing private token! Did you forget to set it in your settings?"
-            == str(error.value)
+            str(error.value)
+            == "Missing private token! Did you forget to set it in your settings?"
         )

@@ -28,7 +28,7 @@ def get_callback_function(func):
     raise ImproperlyConfigured(f"{func} must be callable.")
 
 
-class Settings(object):
+class Settings:
     def __getattr__(self, name):
         if name not in DEFAULTS:
             msg = "'%s' object has no attribute '%s'"
@@ -52,7 +52,7 @@ class Settings(object):
 
         return value
 
-    def change_setting(self, setting, value, enter, **kwargs):
+    def change_setting(self, setting, value, enter, **_kwargs):
         if not setting.startswith("DJANGO_ATHM_"):
             return
 

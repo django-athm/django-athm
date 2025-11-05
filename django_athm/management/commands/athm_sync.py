@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 import phonenumbers
 from django.core.management.base import BaseCommand, CommandError
 from django.utils.dateparse import parse_datetime
@@ -11,27 +13,26 @@ from django_athm.models import ATHM_Client, ATHM_Item, ATHM_Transaction
 def get_status(transaction):
     if transaction["transactionType"].upper() == TransactionType.refund.value:
         return ATHM_Transaction.Status.REFUNDED
-    elif transaction["transactionType"].upper() == TransactionType.ecommerce.value:
-        if float(transaction["totalRefundAmount"]) > 0:
+    if transaction["transactionType"].upper() == TransactionType.ecommerce.value:
+        if Decimal(transaction["totalRefundAmount"]) > 0:
             return ATHM_Transaction.Status.REFUNDED
-        else:
-            return ATHM_Transaction.Status.COMPLETED
+        return ATHM_Transaction.Status.COMPLETED
 
     return transaction["transactionType"]
 
 
 def get_defaults(transaction):
-    return dict(
-        reference_number=transaction["referenceNumber"],
-        status=get_status(transaction),
-        date=make_aware(parse_datetime(transaction["date"])),
-        total=float(transaction["total"]),
-        tax=float(transaction["tax"]),
-        refunded_amount=float(transaction.get("totalRefundAmount", 0)),
-        subtotal=float(transaction["subtotal"]),
-        metadata_1=transaction.get("metadata1", None),
-        metadata_2=transaction.get("metadata2", None),
-    )
+    return {
+        "reference_number": transaction["referenceNumber"],
+        "status": get_status(transaction),
+        "date": make_aware(parse_datetime(transaction["date"])),
+        "total": Decimal(transaction["total"]),
+        "tax": Decimal(transaction["tax"]),
+        "refunded_amount": Decimal(transaction.get("totalRefundAmount", 0)),
+        "subtotal": Decimal(transaction["subtotal"]),
+        "metadata_1": transaction.get("metadata1"),
+        "metadata_2": transaction.get("metadata2"),
+    }
 
 
 class Command(BaseCommand):
@@ -72,7 +73,7 @@ class Command(BaseCommand):
             metavar="ATHM_PRIVATE_TOKEN",
         )
 
-    def handle(self, *args, **options):
+    def handle(self, *_args, **options):
         public_token = options["public_token"]
         private_token = options["private_token"]
 
@@ -144,7 +145,7 @@ class Command(BaseCommand):
             _, client_created = ATHM_Client.objects.get_or_create(
                 email=transaction_data["email"].strip(),
                 phone_number=phone_number_formatted,
-                defaults=dict(name=transaction_data["name"].strip()),
+                defaults={"name": transaction_data["name"].strip()},
             )
 
             # Accumulate ATHM_Item instances in this list
@@ -154,8 +155,8 @@ class Command(BaseCommand):
                     name=item["name"],
                     description=item["description"],
                     quantity=int(item["quantity"]),
-                    price=float(item["price"]),
-                    tax=float(item["price"]),
+                    price=Decimal(item["price"]),
+                    tax=Decimal(item["price"]),
                     metadata=item["metadata"],
                 )
                 for item in transaction_data["items"]

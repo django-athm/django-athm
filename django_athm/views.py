@@ -1,5 +1,6 @@
 import json
 import logging
+from decimal import Decimal
 
 from django.http import HttpResponse
 from django.utils import timezone
@@ -11,29 +12,20 @@ logger = logging.getLogger(__name__)
 app_name = "django_athm"
 
 
+def _parse_decimal(value):
+    """Helper to parse decimal values from POST data."""
+    return Decimal(value) if value else None
+
+
 def default_callback(request):
     reference_number = request.POST["referenceNumber"]
-    total = float(request.POST["total"])
+    total = Decimal(request.POST["total"])
 
-    subtotal = request.POST["subtotal"]
-    if subtotal:
-        subtotal = float(subtotal)
-    else:
-        subtotal = None
+    subtotal = _parse_decimal(request.POST["subtotal"])
+    tax = _parse_decimal(request.POST["tax"])
 
-    tax = request.POST["tax"]
-    if tax:
-        tax = float(tax)
-    else:
-        tax = None
-
-    metadata_1 = request.POST["metadata1"]
-    if not metadata_1:
-        metadata_1 = None
-
-    metadata_2 = request.POST["metadata2"]
-    if not metadata_2:
-        metadata_2 = None
+    metadata_1 = request.POST["metadata1"] or None
+    metadata_2 = request.POST["metadata2"] or None
 
     transaction = models.ATHM_Transaction.objects.create(
         reference_number=reference_number,
@@ -56,9 +48,9 @@ def default_callback(request):
                 name=item["name"],
                 description=item["description"],
                 quantity=int(item["quantity"]),
-                price=float(item["price"]),
-                tax=float(item["tax"]) if item["tax"] else None,
-                metadata=item["metadata"] if item["metadata"] else None,
+                price=Decimal(item["price"]),
+                tax=_parse_decimal(item["tax"]),
+                metadata=item["metadata"] or None,
             )
         )
 

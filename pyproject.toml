@@ -1,91 +1,93 @@
-[tool.poetry]
+[project]
 name = "django-athm"
 version = "0.7.0"
 description = "Django + ATH Móvil"
-authors = ["Raúl Negrón <raul.esteban.negron@gmail.com>"]
-maintainers = ["Raúl Negrón <raul.esteban.negron@gmail.com>"]
-license = "MIT"
+authors = [
+    {name = "Raúl Negrón", email = "raul.esteban.negron@gmail.com"}
+]
+maintainers = [
+    {name = "Raúl Negrón", email = "raul.esteban.negron@gmail.com"}
+]
+license = {text = "MIT"}
 readme = "README.md"
-homepage = ""
-repository = "https://github.com/django-athm/django-athm"
-documentation = "https://django-athm.github.io/django-athm/"
+requires-python = ">=3.10"
 keywords = [
     "Django",
     "ATH Móvil",
     "payments",
     "athm"
 ]
-classifiers= [
+classifiers = [
     "Development Status :: 4 - Beta",
     "Environment :: Web Environment",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
     "Topic :: Office/Business :: Financial",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.8",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Framework :: Django",
-    "Framework :: Django :: 3.2",
-    "Framework :: Django :: 4.0",
-    "Framework :: Django :: 4.1",
+    "Framework :: Django :: 4.2",
+    "Framework :: Django :: 5.2",
+]
+dependencies = [
+    "httpx>=0.27.0,<0.28.0",
+    "phonenumberslite>=8.13.0,<9.0.0",
 ]
 
-[tool.poetry.dependencies]
-python = "^3.8"
-httpx = "^0.23.0"
-phonenumberslite = "^8.12.53"
-
-[tool.poetry.dev-dependencies]
-black = "^22.6.0"
-codecov = "^2.1.11"
-Django = "^4.1"
-flake8 = "^5.0.4"
-isort = "^5.7.0"
-mkdocs = "^1.3.1"
-pre-commit = "^2.10.1"
-pytest = "^7.1.2"
-pytest-cov = "^3.0.0"
-pytest-django = "^4.5.2"
-pytest-mock = "^3.8.2"
-respx = "^0.19.2"
-setuptools = "^59.4.0"
-tox = "^3.25.1"
-
-
-[tool.poetry.urls]
+[project.urls]
+homepage = "https://github.com/django-athm/django-athm"
+repository = "https://github.com/django-athm/django-athm"
+documentation = "https://django-athm.github.io/django-athm/"
 issues = "https://github.com/django-athm/django-athm/issues"
+
+[project.optional-dependencies]
+dev = [
+    "Django>=5.2,<5.3",
+    "ruff>=0.8.0",
+    "codecov>=2.1.13",
+    "mkdocs>=1.6.0",
+    "pre-commit>=4.0.0",
+    "pytest>=8.3.0",
+    "pytest-cov>=6.0.0",
+    "pytest-django>=4.9.0",
+    "pytest-mock>=3.14.0",
+    "respx>=0.21.0",
+    "tox>=4.23.0",
+]
 
 [tool.tox]
 legacy_tox_ini = """
 [tox]
 isolated_build = true
 envlist =
-    py{38,39,310}-django{32,40,41}
+    py{310,311,312,313,314}-django{42,52}
     lint
 
 [gh-actions]
 python =
-    3.8: py38
-    3.9: py39
     3.10: py310
-
+    3.11: py311
+    3.12: py312
+    3.13: py313
+    3.14: py314
 
 [testenv]
-whitelist_externals = poetry
 setenv =
     DJANGO_SETTINGS_MODULE = tests.settings
     PYTHONWARNINGS = all
     PYTEST_ADDOPTS = --cov django_athm --cov-append --cov-report=xml --cov-fail-under 90
 deps =
-    pytest
-    pytest-cov == 3.0.0
-    pytest-mock == 3.5.1
-    pytest-django == 4.5.1
-    respx == 0.19.0
-    django32: Django>=3.2,<3.3
-    django40: Django>=4.0,<4.1
-    django41: Django>=4.1,<4.2
+    pytest>=8.3.0
+    pytest-cov>=6.0.0
+    pytest-mock>=3.14.0
+    pytest-django>=4.9.0
+    respx>=0.21.0
+    django42: Django>=4.2,<4.3
+    django52: Django>=5.2,<5.3
 commands =
     pytest {posargs}
 
@@ -97,18 +99,42 @@ commands = coverage erase
 [testenv:lint]
 skip_install = True
 deps =
-    isort
-    black
-    flake8
-
+    ruff>=0.8.0
 commands =
-    isort . --profile=black --check
-    black . --check
-    flake8 django_athm/
+    ruff check .
+    ruff format --check .
 
 """
 
 [build-system]
-requires = ["poetry-core>=1.0.0", "django>=3.2,<4.2"]
-build-backend = "poetry.core.masonry.api"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.ruff]
+line-length = 88
+target-version = "py310"
+
+[tool.ruff.lint]
+select = [
+    "E",      # pycodestyle errors
+    "W",      # pycodestyle warnings
+    "F",      # pyflakes
+    "I",      # isort
+    "B",      # flake8-bugbear
+    "C4",     # flake8-comprehensions
+    "UP",     # pyupgrade
+    "ARG",    # flake8-unused-arguments
+    "SIM",    # flake8-simplify
+]
+ignore = [
+    "E501",   # line too long (handled by formatter)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"**/migrations/*" = ["E501", "ARG001"]
+"tests/*" = ["ARG001"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
 
