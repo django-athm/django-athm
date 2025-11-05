@@ -34,8 +34,8 @@ classifiers = [
     "Framework :: Django :: 5.2",
 ]
 dependencies = [
-    "httpx>=0.27.0,<0.28.0",
-    "phonenumberslite>=8.13.0,<9.0.0",
+    "httpx>=0.28.0,<0.29.0",
+    "phonenumberslite>=9.0.0,<10.0.0",
 ]
 
 [project.urls]
@@ -46,17 +46,17 @@ issues = "https://github.com/django-athm/django-athm/issues"
 
 [project.optional-dependencies]
 dev = [
-    "Django>=5.2,<5.3",
-    "ruff>=0.8.0",
+    "Django>=5.2,<6.0",
+    "ruff>=0.14.0",
     "codecov>=2.1.13",
-    "mkdocs>=1.6.0",
-    "pre-commit>=4.0.0",
-    "pytest>=8.3.0",
-    "pytest-cov>=6.0.0",
-    "pytest-django>=4.9.0",
-    "pytest-mock>=3.14.0",
-    "respx>=0.21.0",
-    "tox>=4.23.0",
+    "mkdocs>=1.6.1",
+    "pre-commit>=4.3.0",
+    "pytest>=8.5.0",
+    "pytest-cov>=7.0.0",
+    "pytest-django>=4.11.0",
+    "pytest-mock>=3.15.0",
+    "respx>=0.22.0",
+    "tox>=4.32.0",
 ]
 
 [tool.tox]
@@ -81,13 +81,13 @@ setenv =
     PYTHONWARNINGS = all
     PYTEST_ADDOPTS = --cov django_athm --cov-append --cov-report=xml --cov-fail-under 90
 deps =
-    pytest>=8.3.0
-    pytest-cov>=6.0.0
-    pytest-mock>=3.14.0
-    pytest-django>=4.9.0
-    respx>=0.21.0
+    pytest>=8.5.0
+    pytest-cov>=7.0.0
+    pytest-mock>=3.15.0
+    pytest-django>=4.11.0
+    respx>=0.22.0
     django42: Django>=4.2,<4.3
-    django52: Django>=5.2,<5.3
+    django52: Django>=5.2,<6.0
 commands =
     pytest {posargs}
 
@@ -99,7 +99,7 @@ commands = coverage erase
 [testenv:lint]
 skip_install = True
 deps =
-    ruff>=0.8.0
+    ruff>=0.14.0
 commands =
     ruff check .
     ruff format --check .

@@ -4,7 +4,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("django_athm", "0003_athm_client_alter_athm_item_options_and_more"),
     ]
