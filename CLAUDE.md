@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 django-athm is a Django integration for ATH Movil, Puerto Rico's mobile payment platform. It provides:
 - Database persistence for transactions, items, and clients
 - Template tags for rendering the ATH Movil checkout button
-- Django signals for payment events (completed, cancelled, expired)
+- Django signals for payment events (completed, cancelled)
 - Management commands for syncing transactions from ATH Movil
 - Admin interface for viewing and refunding transactions
 
@@ -56,7 +56,7 @@ Custom managers provide filtered querysets: `.completed()`, `.refundable()`, `.p
 
 ### Signals (`django_athm/signals.py`)
 - `athm_response_received`: General signal for any response
-- `athm_completed_response`, `athm_cancelled_response`, `athm_expired_response`: Status-specific
+- `athm_completed_response`, `athm_cancelled_response`: Status-specific
 
 ### Template Tags (`django_athm/templatetags/django_athm.py`)
 - `athm_button`: Renders the ATH Movil checkout button with configuration

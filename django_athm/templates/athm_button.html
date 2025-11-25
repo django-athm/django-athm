@@ -20,16 +20,16 @@
         }
     }
 
-    function authorizationATHM(response) {
-        sendToCallback(response);
+    async function authorizationATHM(response) {
+        await sendToCallback(response);
     }
 
-    function cancelATHM(response) {
-        sendToCallback(response);
+    async function cancelATHM(response) {
+        await sendToCallback(response);
     }
 
-    function expiredATHM(response) {
-        sendToCallback(response);
+    async function expiredATHM(response) {
+        await sendToCallback(response);
     }
 
     var ATHM_Checkout = {

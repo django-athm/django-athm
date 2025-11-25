@@ -212,12 +212,10 @@ class TestDefaultCallbackView:
 
     @pytest.mark.django_db
     def test_callback_status_mapping(self, rf):
-        """Test ecommerceStatus to internal status mapping."""
+        """Test ecommerceStatus to internal status mapping for final statuses."""
         status_mapping = {
             "COMPLETED": ATHM_Transaction.Status.COMPLETED,
             "CANCEL": ATHM_Transaction.Status.CANCEL,
-            "OPEN": ATHM_Transaction.Status.OPEN,
-            "CONFIRM": ATHM_Transaction.Status.CONFIRM,
         }
 
         for api_status, expected_status in status_mapping.items():
@@ -236,3 +234,37 @@ class TestDefaultCallbackView:
             assert response.status_code == 201
             transaction = ATHM_Transaction.objects.first()
             assert transaction.status == expected_status, f"Failed for {api_status}"
+
+    @pytest.mark.django_db
+    def test_callback_intermediate_status_open(self, rf):
+        """Test callback returns 200 for OPEN status without creating transaction."""
+        data = {
+            "ecommerceStatus": "OPEN",
+            "total": "10.00",
+            # Note: No referenceNumber - OPEN status callbacks don't have it yet
+        }
+
+        url = reverse("django_athm:athm_callback")
+        request = rf.post(url, data=data)
+        response = default_callback(request)
+
+        # Should return 200 OK without creating any transaction
+        assert response.status_code == 200
+        assert ATHM_Transaction.objects.count() == 0
+
+    @pytest.mark.django_db
+    def test_callback_intermediate_status_confirm(self, rf):
+        """Test callback returns 200 for CONFIRM status without creating transaction."""
+        data = {
+            "ecommerceStatus": "CONFIRM",
+            "total": "10.00",
+            # Note: No referenceNumber - CONFIRM status callbacks don't have it yet
+        }
+
+        url = reverse("django_athm:athm_callback")
+        request = rf.post(url, data=data)
+        response = default_callback(request)
+
+        # Should return 200 OK without creating any transaction
+        assert response.status_code == 200
+        assert ATHM_Transaction.objects.count() == 0

@@ -30,6 +30,16 @@ def default_callback(request):
     and transaction atomicity.
     """
     try:
+        # Check for intermediate statuses (OPEN, CONFIRM) which don't have
+        # complete transaction data yet - return early without creating a record
+        ecommerce_status = request.POST.get("ecommerceStatus", "")
+        if ecommerce_status in ("OPEN", "CONFIRM"):
+            logger.debug(
+                "[django_athm:intermediate_status]",
+                extra={"status": ecommerce_status, "post_data": dict(request.POST)},
+            )
+            return HttpResponse(status=200)
+
         # Extract required fields with validation
         try:
             reference_number = request.POST["referenceNumber"]
@@ -68,7 +78,7 @@ def default_callback(request):
 
         # Extract v4 API fields
         ecommerce_id = request.POST.get("ecommerceId", "")
-        ecommerce_status = request.POST.get("ecommerceStatus", "")
+        # Note: ecommerce_status already extracted at start for intermediate status check
         customer_name = request.POST.get("customerName", "")
         customer_phone = request.POST.get("customerPhone", "")
         customer_email = request.POST.get("customerEmail", "")
