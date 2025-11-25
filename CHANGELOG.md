@@ -7,13 +7,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-- Allow usage of custom Transaction model
+### Changed (BREAKING)
+
+- **Updated to ATH Móvil JavaScript v4 API** - New SDK URL and integration requirements
+- **Renamed JavaScript callback functions** to match new API:
+  - `onCompletedPayment` → `authorizationATHM`
+  - `onCancelledPayment` → `cancelATHM`
+  - `onExpiredPayment` → `expiredATHM`
+- **Changed button container ID** from `ATHMovil_Checkout_Button` to `ATHMovil_Checkout_Button_payment`
+- **Updated Django support:** Now requires Django 4.2 LTS minimum. Supports Django 4.2, 5.1, 5.2
+- **Updated Python support:** Dropped Python 3.8 (for Django 5.1+). Supports Python 3.8-3.13
+- **Removed jQuery dependency** - Now uses native Fetch API for callback requests
+- **Updated transaction status values** - Added `OPEN`, `CONFIRM`, `CANCEL` status choices
+
+### Added
+
+- **Phone number pre-fill support** - Pass `phone_number` in `athm_config` to pre-populate customer phone
+- **New transaction fields:**
+  - `ecommerce_id` (indexed) - ATH Móvil eCommerce transaction ID
+  - `ecommerce_status` - Status from ATH Móvil API
+  - `customer_name` - Customer name from ATH Móvil account
+  - `customer_phone` - Customer phone from ATH Móvil account
+  - `net_amount` - Net amount after fees (changed from computed property to field)
+- **Automatic client creation** - ATHM_Client records now created/updated automatically from transaction callbacks
+- **New API methods:**
+  - `ATHM_Transaction.find_payment()` - Find payment using ATH Móvil v4 API
+  - `ATHM_Transaction.cancel_payment()` - Cancel payment using ATH Móvil v4 API
+- **New API endpoint constants** for v4 API
+- **Django 5.1 and 5.2 support**
+- **Python 3.11, 3.12, and 3.13 support**
 - Strict data validation in template and callback view
-- Add support for official webhooks
-- 100% test coverage
+
+### Fixed
+
+- **Implemented client creation in callback** - Fixed long-standing TODO in `default_callback()` view
+- **Version inconsistency** - Synchronized version between `pyproject.toml` and `__init__.py`
+
+### Removed
+
+- **Dropped Django 3.2, 4.0, 4.1 support** - Minimum version now Django 4.2 LTS
 
 
-## [0.7.0-UNRELEASED] - 2022-XX-YY
+## [0.7.0] - 2022-08-05
 
 ### Added
 - Added support for Python 3.10
