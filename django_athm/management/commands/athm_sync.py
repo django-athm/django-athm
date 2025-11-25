@@ -21,16 +21,32 @@ def get_status(transaction):
 
 
 def get_defaults(transaction):
+    """Build defaults dict for ATHM_Transaction.objects.update_or_create()."""
+
+    def safe_float(value, default=0):
+        """Safely convert to float, return default if empty/invalid."""
+        if not value:
+            return default
+        try:
+            return float(value)
+        except (ValueError, TypeError):
+            return default
+
     return dict(
         reference_number=transaction["referenceNumber"],
         status=get_status(transaction),
         date=make_aware(parse_datetime(transaction["date"])),
         total=float(transaction["total"]),
         tax=float(transaction["tax"]),
-        refunded_amount=float(transaction.get("totalRefundAmount", 0)),
+        refunded_amount=safe_float(transaction.get("totalRefundAmount")),
         subtotal=float(transaction["subtotal"]),
-        metadata_1=transaction.get("metadata1", None),
-        metadata_2=transaction.get("metadata2", None),
+        metadata_1=transaction.get("metadata1") or None,
+        metadata_2=transaction.get("metadata2") or None,
+        # v4 API fields
+        ecommerce_id=transaction.get("ecommerceId", "") or "",
+        ecommerce_status=transaction.get("ecommerceStatus", "") or "",
+        net_amount=safe_float(transaction.get("netAmount")),
+        fee=safe_float(transaction.get("fee")),
     )
 
 
@@ -141,22 +157,36 @@ class Command(BaseCommand):
             )
 
             # Get or create an ATHM_Client instance
-            _, client_created = ATHM_Client.objects.get_or_create(
+            client, client_created = ATHM_Client.objects.get_or_create(
                 email=transaction_data["email"].strip(),
                 phone_number=phone_number_formatted,
                 defaults=dict(name=transaction_data["name"].strip()),
             )
 
+            # Link client to transaction if not already linked
+            if transaction.client != client:
+                transaction.client = client
+                transaction.save(update_fields=["client"])
+
+            # Helper for safe float conversion
+            def safe_item_float(value):
+                if not value:
+                    return None
+                try:
+                    return float(value)
+                except (ValueError, TypeError):
+                    return None
+
             # Accumulate ATHM_Item instances in this list
             item_instances = [
                 ATHM_Item(
                     transaction=transaction,
-                    name=item["name"],
-                    description=item["description"],
-                    quantity=int(item["quantity"]),
-                    price=float(item["price"]),
-                    tax=float(item["price"]),
-                    metadata=item["metadata"],
+                    name=item.get("name", "")[:32],
+                    description=item.get("description", "")[:128],
+                    quantity=int(item.get("quantity", 1)),
+                    price=float(item.get("price", 0)),
+                    tax=safe_item_float(item.get("tax")),
+                    metadata=item.get("metadata") or None,
                 )
                 for item in transaction_data["items"]
             ]
