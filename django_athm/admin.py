@@ -86,33 +86,83 @@ class ATHM_TransactionAdmin(admin.ModelAdmin):
             self.message_user(request, f"An error ocurred: {err}")
 
     def sync(self, request, queryset):
-        try:
-            for transaction in queryset:
+        synced_count = 0
+        error_count = 0
+        status_mapping = {
+            "COMPLETED": models.ATHM_Transaction.Status.COMPLETED,
+            "CANCEL": models.ATHM_Transaction.Status.CANCEL,
+            "CANCELLED": models.ATHM_Transaction.Status.CANCEL,
+            "OPEN": models.ATHM_Transaction.Status.OPEN,
+            "CONFIRM": models.ATHM_Transaction.Status.CONFIRM,
+            "REFUNDED": models.ATHM_Transaction.Status.REFUNDED,
+        }
+
+        for transaction in queryset:
+            try:
                 # Fetch latest data from ATH Móvil API
                 api_data = models.ATHM_Transaction.search(transaction)
 
+                # Check for API error response
+                if api_data and "errorCode" in api_data:
+                    logger.warning(
+                        "[django_athm:sync_api_error]",
+                        extra={
+                            "transaction": transaction.id,
+                            "error_code": api_data.get("errorCode"),
+                            "description": api_data.get("description"),
+                        },
+                    )
+                    error_count += 1
+                    continue
+
                 # Update transaction with latest data if found
                 if api_data and "status" in api_data:
-                    # Map API status to internal status if needed
-                    status_mapping = {
-                        "COMPLETED": models.ATHM_Transaction.Status.COMPLETED,
-                        "CANCEL": models.ATHM_Transaction.Status.CANCEL,
-                        "OPEN": models.ATHM_Transaction.Status.OPEN,
-                        "CONFIRM": models.ATHM_Transaction.Status.CONFIRM,
-                    }
-                    if api_data["status"] in status_mapping:
-                        transaction.status = status_mapping[api_data["status"]]
+                    api_status = api_data["status"]
+                    if api_status in status_mapping:
+                        transaction.status = status_mapping[api_status]
                         transaction.save(update_fields=["status"])
+                        synced_count += 1
+                        logger.debug(
+                            "[django_athm:sync_success]",
+                            extra={"transaction": transaction.id, "status": api_status},
+                        )
+                    else:
+                        logger.warning(
+                            "[django_athm:sync_unknown_status]",
+                            extra={
+                                "transaction": transaction.id,
+                                "status": api_status,
+                            },
+                        )
+                        error_count += 1
+                else:
+                    logger.warning(
+                        "[django_athm:sync_no_data]",
+                        extra={"transaction": transaction.id},
+                    )
+                    error_count += 1
 
-                logger.debug(
-                    "[django_athm:sync success]", extra={"transaction": transaction.id}
+            except Exception as err:
+                logger.exception(
+                    "[django_athm:sync_error]",
+                    extra={"transaction": transaction.id, "error": str(err)},
                 )
+                error_count += 1
 
+        # Report results to user
+        if error_count == 0:
             self.message_user(
-                request, f"Successfully synced {queryset.count()} transactions!"
+                request, f"Successfully synced {synced_count} transactions!"
             )
-        except Exception as err:
-            self.message_user(request, f"An error ocurred: {err}")
+        elif synced_count > 0:
+            self.message_user(
+                request,
+                f"Synced {synced_count} transactions with {error_count} errors.",
+            )
+        else:
+            self.message_user(
+                request, f"Failed to sync transactions: {error_count} errors occurred."
+            )
 
     refund.short_description = "Fully refund selected transactions"
     sync.short_description = (
