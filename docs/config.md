@@ -22,17 +22,86 @@ Your private token from the ATH Móvil Business app.
 
 ### DJANGO_ATHM_CALLBACK_VIEW
 
-A Django view that receives the POST request with payment data after a transaction completes, is cancelled, or expires. The default callback creates `ATHM_Transaction` and `ATHM_Item` objects from the request data.
+A Django view that receives the POST request with payment data after a transaction completes, is cancelled, or expires.
 
 * Type: Callable or import path string
 * Required: No
 * Default: `django_athm.views.default_callback`
 
+**What the default callback does:**
+
+1. Parses POST data from ATH Movil
+2. Creates `ATHM_Transaction` and `ATHM_Item` records
+3. Creates or updates `ATHM_Client` records if customer info is provided
+4. Dispatches [signals](signals.md) for your handlers to respond
+
 **Example with custom callback:**
 
 ```python
+# settings.py
 DJANGO_ATHM_CALLBACK_VIEW = "myapp.views.my_payment_callback"
 ```
+
+#### Implementing a Custom Callback
+
+If you need full control over callback processing, implement a custom view:
+
+```python
+# myapp/views.py
+from django.http import HttpResponse, JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_POST
+from django.db import transaction
+
+from django_athm.models import ATHM_Transaction
+from django_athm.signals import (
+    athm_response_received,
+    athm_completed_response,
+    athm_cancelled_response,
+)
+
+@csrf_exempt
+@require_POST
+@transaction.atomic
+def my_payment_callback(request):
+    """Custom callback with manual signal dispatch."""
+    reference_number = request.POST.get("referenceNumber")
+    total = request.POST.get("total")
+    status = request.POST.get("ecommerceStatus", "COMPLETED")
+
+    if not reference_number or not total:
+        return JsonResponse({"error": "Missing required fields"}, status=400)
+
+    # Your custom validation/processing logic here
+
+    transaction_obj = ATHM_Transaction.objects.create(
+        reference_number=reference_number,
+        total=float(total),
+        status=ATHM_Transaction.Status.COMPLETED,
+        # ... other fields as needed
+    )
+
+    # Dispatch signals manually if you want handlers to run
+    athm_response_received.send(
+        sender=ATHM_Transaction,
+        transaction=transaction_obj,
+    )
+
+    if status == "COMPLETED":
+        athm_completed_response.send(
+            sender=ATHM_Transaction,
+            transaction=transaction_obj,
+        )
+    elif status in ("CANCEL", "CANCELLED"):
+        athm_cancelled_response.send(
+            sender=ATHM_Transaction,
+            transaction=transaction_obj,
+        )
+
+    return HttpResponse(status=201)
+```
+
+**Note:** The `@csrf_exempt` decorator is required because ATH Movil sends callbacks without CSRF tokens.
 
 ## athm_button Template Tag
 

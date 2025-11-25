@@ -89,7 +89,7 @@ The CSRF token must be available in your template. Use the `@requires_csrf_token
 3. Customer receives a push notification on their ATH Movil app
 4. Customer approves (or cancels) the payment in their app
 5. django-athm receives a callback and creates a transaction record
-6. Your application can respond to payment events via [signals](signals.md)
+6. Your application responds to payment events via [signals](signals.md) or a [custom callback](config.md#django_athm_callback_view)
 
 ## Accessing Transaction Data
 

@@ -2,6 +2,35 @@
 
 django-athm provides Django signals to notify your application of payment events. Use these to trigger business logic like sending confirmation emails, updating order status, or logging events.
 
+## Receiving Transaction Updates
+
+django-athm provides two ways to receive transaction updates from ATH Movil:
+
+| Approach | Best For | Complexity |
+|----------|----------|------------|
+| **Signals** (recommended) | Most applications | Low |
+| **Custom Callback** | Full control over request handling | Medium |
+
+### Signals (Recommended)
+
+Use Django signals when you want to:
+
+- React to specific payment statuses (completed, cancelled)
+- Keep your payment logic decoupled from callback processing
+- Use the default transaction/item creation behavior
+
+The default callback automatically dispatches signals after creating transaction records. Simply connect your handlers as shown below.
+
+### Custom Callback
+
+Use a custom callback when you need to:
+
+- Modify how transactions are created or validated
+- Integrate with external systems before saving data
+- Implement custom authentication or request validation
+
+**Important:** Custom callbacks must dispatch signals manually if you want signal handlers to run. See [Configuration - Custom Callback](config.md#django_athm_callback_view) for implementation details.
+
 ## Available Signals
 
 All signals are available from `django_athm.signals`:
