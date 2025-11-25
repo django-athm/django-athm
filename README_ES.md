@@ -1,7 +1,7 @@
 # django-athm
 
 ![Build Status](https://github.com/django-athm/django-athm/actions/workflows/ci.yaml/badge.svg)
-[![Codecov status](https://codecov.io/gh/django-athm/django-athm/branch/main/graph/badge.svg)](https://codecov.io/gh/django-athm/django-athm)
+[![codecov](https://codecov.io/github/django-athm/django-athm/graph/badge.svg?token=n1uO3iKBPG)](https://codecov.io/github/django-athm/django-athm)
 ![PyPI - Python Version](https://img.shields.io/pypi/pyversions/django-athm)
 ![PyPI - Django Version](https://img.shields.io/pypi/djversions/django-athm)
 [![PyPI version](https://img.shields.io/pypi/v/django-athm.svg)](https://pypi.org/project/django-athm/)
