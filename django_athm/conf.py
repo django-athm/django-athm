@@ -9,7 +9,6 @@ DEFAULTS = {
     "CALLBACK_VIEW": default_callback,
     "PUBLIC_TOKEN": None,
     "PRIVATE_TOKEN": None,
-    "PHONE_NUMBER": None,
 }
 
 
