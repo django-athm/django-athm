@@ -23,16 +23,16 @@ def athm_button(athm_config):
             f"Total amount must be between $1.00 and $1,500.00, got ${total}"
         )
 
-    # Validate required metadata fields (ATH Móvil API requires both)
+    # Validate required metadata fields (ATH Movil API requires both)
     metadata_1 = athm_config.get("metadata_1", "")
     metadata_2 = athm_config.get("metadata_2", "")
 
     if not metadata_1:
-        raise ValueError("metadata_1 is required by ATH Móvil API")
+        raise ValueError("metadata_1 is required by ATH Movil API")
     if not metadata_2:
-        raise ValueError("metadata_2 is required by ATH Móvil API")
+        raise ValueError("metadata_2 is required by ATH Movil API")
 
-    # Truncate metadata to 40 characters max (ATH Móvil API limit)
+    # Truncate metadata to 40 characters max (ATH Movil API limit)
     if len(metadata_1) > 40:
         logger.warning(
             f"metadata_1 exceeds 40 character limit, truncating: {metadata_1}"
@@ -45,23 +45,31 @@ def athm_button(athm_config):
         )
         metadata_2 = metadata_2[:40]
 
-    # Get phone_number (defaults to settings if not provided per-transaction)
-    phone_number = athm_config.get("phone_number", app_settings.PHONE_NUMBER)
+    # ATH Movil v4 API Bug Workarounds:
+    # - phone_number: Causes BTRA_0041 error if provided (popup always asks for it)
+    # - theme: Only "btn" works (btn-light, btn-dark are broken)
+    # - language: Only "es" works (en is broken)
+    # These limitations are on ATH Movil's side. We ignore user values with a warning.
 
-    # Validate phone_number is provided (either in config or settings)
-    if not phone_number:
-        raise ValueError(
-            "phone_number is required by ATH Móvil API. "
-            "Provide it in athm_config or set DJANGO_ATHM_PHONE_NUMBER in settings."
+    if athm_config.get("phone_number"):
+        logger.warning(
+            "phone_number is ignored due to ATH Movil v4 API bug (BTRA_0041). "
+            "The checkout modal will prompt the customer for their phone number."
         )
 
-    # Convert phone_number to numeric type (API expects Number, not String)
-    try:
-        phone_number = (
-            int(phone_number) if isinstance(phone_number, str) else phone_number
+    theme = athm_config.get("theme", BUTTON_COLOR_DEFAULT)
+    if theme != BUTTON_COLOR_DEFAULT:
+        logger.warning(
+            f"theme '{theme}' is ignored due to ATH Movil v4 API bug. "
+            f"Only '{BUTTON_COLOR_DEFAULT}' is currently supported."
         )
-    except (ValueError, TypeError) as err:
-        raise ValueError(f"phone_number must be numeric, got: {phone_number}") from err
+
+    language = athm_config.get("language", BUTTON_LANGUAGE_SPANISH)
+    if language != BUTTON_LANGUAGE_SPANISH:
+        logger.warning(
+            f"language '{language}' is ignored due to ATH Movil v4 API bug. "
+            f"Only '{BUTTON_LANGUAGE_SPANISH}' is currently supported."
+        )
 
     # Validate timeout range (120-600 seconds per API docs)
     timeout = athm_config.get("timeout", 600)
@@ -71,19 +79,16 @@ def athm_button(athm_config):
         )
         timeout = 600
 
-    athm_config = {
-        "env": "production",  # Only valid value per ATH Móvil API (no sandbox mode exists)
+    return {
+        "env": "production",  # Only valid value per ATH Movil API (no sandbox mode)
         "publicToken": athm_config.get("public_token", app_settings.PUBLIC_TOKEN),
-        "lang": athm_config.get("language", BUTTON_LANGUAGE_SPANISH),
+        "lang": BUTTON_LANGUAGE_SPANISH,  # Hardcoded due to ATH Movil bug
         "timeout": timeout,
-        "theme": athm_config.get("theme", BUTTON_COLOR_DEFAULT),
+        "theme": BUTTON_COLOR_DEFAULT,  # Hardcoded due to ATH Movil bug
         "total": total,
         "subtotal": athm_config["subtotal"],
         "items": athm_config["items"],
         "tax": athm_config["tax"],
         "metadata1": metadata_1,
         "metadata2": metadata_2,
-        "phone_number": phone_number,
     }
-
-    return athm_config
