@@ -2,7 +2,7 @@
 
 ## Upgrading to v1.0.0-beta1
 
-Version 1.0.0-beta1 updates django-athm to use ATH Móvil's v4 JavaScript API with several breaking changes.
+Version 1.0.0-beta1 updates django-athm to use ATH Móvil's v4 JavaScript API ([v1.2.3 in this doc](https://github.com/evertec/athmovil-javascript-api?tab=readme-ov-file#change-log)) with several breaking changes.
 
 ### Breaking Changes
 
@@ -67,11 +67,7 @@ django-athm automatically ignores these values and logs warnings if you provide 
 }
 ```
 
-#### 4. DJANGO_ATHM_PHONE_NUMBER Setting Removed
-
-The global `DJANGO_ATHM_PHONE_NUMBER` setting has been removed. Remove it from your settings if present.
-
-#### 5. Python/Django Version Support
+#### 4. Python/Django Version Support
 
 - **Minimum Python**: 3.8
 - **Minimum Django**: 4.2
@@ -133,13 +129,3 @@ ATHM_Transaction.find_payment(ecommerce_id)
 # Cancel a pending payment
 ATHM_Transaction.cancel_payment(ecommerce_id)
 ```
-
-### Upgrade Checklist
-
-1. [ ] Update `django-athm` to v1.0.0-beta1
-2. [ ] Run `python manage.py migrate django_athm`
-3. [ ] Remove `DJANGO_ATHM_SANDBOX_MODE` from settings (if present)
-4. [ ] Remove `DJANGO_ATHM_PHONE_NUMBER` from settings (if present)
-5. [ ] Remove `phone_number`, `theme`, and `language` from `athm_config` (broken in v4 API)
-6. [ ] Add `metadata_1` and `metadata_2` to all `athm_config` dictionaries
-7. [ ] Test checkout flow in production environment
