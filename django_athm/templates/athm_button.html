@@ -36,28 +36,15 @@
         env: "{{ env }}",
         publicToken: "{{ publicToken }}",
         timeout: {{ timeout }},
+        orderType: "",
         theme: "{{ theme }}",
         lang: "{{ lang|safe }}",
         total: {{ total }},
-        phoneNumber: {{ phone_number }},
         metadata1: "{{ metadata1|safe }}",
         metadata2: "{{ metadata2|safe }}",
-        {% autoescape off %}
-            items: {{ items }}
-        {% endautoescape %}
+        items: {{ items }},
+        phoneNumber: ""
     }
-
-    {% if tax %}
-        ATHM_Checkout.tax = {{ tax }};
-    {% else %}
-        ATHM_Checkout.tax = null;
-    {% endif %}
-
-    {% if subtotal %}
-        ATHM_Checkout.subtotal = {{ subtotal }};
-    {% else %}
-        ATHM_Checkout.subtotal = null;
-    {% endif %}
 </script>
 
 <script src="https://payments.athmovil.com/api/js/athmovil_base.js"></script>

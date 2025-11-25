@@ -76,6 +76,42 @@ Dropped support for:
 - Python 3.7 and earlier
 - Django 3.2, 4.0, 4.1
 
+#### 5. Monetary Fields Changed to DecimalField
+
+All monetary fields have been changed from `FloatField` to `DecimalField` for improved precision in financial calculations.
+
+**Affected fields on ATHM_Transaction:**
+- `total`
+- `subtotal`
+- `tax`
+- `fee`
+- `net_amount`
+- `refunded_amount`
+
+**Affected fields on ATHM_Item:**
+- `price`
+- `tax`
+
+**Impact:** If you have code that expects `float` values, update it to handle `Decimal` values:
+
+```python
+from decimal import Decimal
+
+# Before
+if transaction.total > 100.0:
+    ...
+
+# After
+if transaction.total > Decimal("100.00"):
+    ...
+```
+
+#### 6. Removed athm_expired_response Signal
+
+The `athm_expired_response` signal has been removed. Expired payments are handled client-side by the ATH Movil JavaScript SDK timeout and do not trigger a server callback.
+
+If you were using this signal, remove the handler as it was never dispatched.
+
 ### Database Migrations
 
 Run migrations to add new fields to the ATHM_Transaction model:

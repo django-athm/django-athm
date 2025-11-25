@@ -1,5 +1,6 @@
 import json
 import logging
+from decimal import Decimal, InvalidOperation
 
 from django.core.exceptions import ValidationError
 from django.db import transaction
@@ -32,14 +33,14 @@ def default_callback(request):
         # Extract required fields with validation
         try:
             reference_number = request.POST["referenceNumber"]
-            total = float(request.POST["total"])
+            total = Decimal(request.POST["total"])
         except KeyError as e:
             logger.error(
                 "[django_athm:missing_required_field]",
                 extra={"field": str(e), "post_data": dict(request.POST)},
             )
             return JsonResponse({"error": f"Missing required field: {e}"}, status=400)
-        except (ValueError, TypeError) as e:
+        except (InvalidOperation, TypeError) as e:
             logger.error(
                 "[django_athm:invalid_field_value]",
                 extra={"error": str(e), "post_data": dict(request.POST)},
@@ -47,19 +48,19 @@ def default_callback(request):
             return JsonResponse({"error": "Invalid field value format"}, status=400)
 
         # Extract optional numeric fields with error handling
-        def safe_float(value):
-            """Safely convert to float, return None if empty/invalid."""
+        def safe_decimal(value):
+            """Safely convert to Decimal, return None if empty/invalid."""
             if not value:
                 return None
             try:
-                return float(value)
-            except (ValueError, TypeError):
+                return Decimal(value)
+            except (InvalidOperation, TypeError):
                 return None
 
-        subtotal = safe_float(request.POST.get("subtotal"))
-        tax = safe_float(request.POST.get("tax"))
-        fee = safe_float(request.POST.get("fee"))
-        net_amount = safe_float(request.POST.get("netAmount"))
+        subtotal = safe_decimal(request.POST.get("subtotal"))
+        tax = safe_decimal(request.POST.get("tax"))
+        fee = safe_decimal(request.POST.get("fee"))
+        net_amount = safe_decimal(request.POST.get("netAmount"))
 
         # Extract metadata fields
         metadata_1 = request.POST.get("metadata1") or None
@@ -183,12 +184,12 @@ def default_callback(request):
                         name=item.get("name", "")[:32],  # Enforce max length
                         description=item.get("description", "")[:128],
                         quantity=int(item.get("quantity", 1)),
-                        price=float(item.get("price", 0)),
-                        tax=safe_float(item.get("tax")),
+                        price=Decimal(str(item.get("price", 0))),
+                        tax=safe_decimal(item.get("tax")),
                         metadata=item.get("metadata") or None,
                     )
                 )
-            except (KeyError, ValueError, TypeError) as e:
+            except (KeyError, ValueError, TypeError, InvalidOperation) as e:
                 logger.warning(
                     "[django_athm:invalid_item]",
                     extra={"error": str(e), "item": item},

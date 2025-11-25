@@ -1,3 +1,5 @@
+from decimal import Decimal, InvalidOperation
+
 import phonenumbers
 from django.core.management.base import BaseCommand, CommandError
 from django.utils.dateparse import parse_datetime
@@ -12,7 +14,7 @@ def get_status(transaction):
     if transaction["transactionType"].upper() == TransactionType.refund.value:
         return ATHM_Transaction.Status.REFUNDED
     elif transaction["transactionType"].upper() == TransactionType.ecommerce.value:
-        if float(transaction["totalRefundAmount"]) > 0:
+        if Decimal(str(transaction["totalRefundAmount"])) > 0:
             return ATHM_Transaction.Status.REFUNDED
         else:
             return ATHM_Transaction.Status.COMPLETED
@@ -23,30 +25,30 @@ def get_status(transaction):
 def get_defaults(transaction):
     """Build defaults dict for ATHM_Transaction.objects.update_or_create()."""
 
-    def safe_float(value, default=0):
-        """Safely convert to float, return default if empty/invalid."""
+    def safe_decimal(value, default=None):
+        """Safely convert to Decimal, return default if empty/invalid."""
         if not value:
             return default
         try:
-            return float(value)
-        except (ValueError, TypeError):
+            return Decimal(str(value))
+        except (InvalidOperation, TypeError):
             return default
 
     return dict(
         reference_number=transaction["referenceNumber"],
         status=get_status(transaction),
         date=make_aware(parse_datetime(transaction["date"])),
-        total=float(transaction["total"]),
-        tax=float(transaction["tax"]),
-        refunded_amount=safe_float(transaction.get("totalRefundAmount")),
-        subtotal=float(transaction["subtotal"]),
+        total=Decimal(str(transaction["total"])),
+        tax=Decimal(str(transaction["tax"])),
+        refunded_amount=safe_decimal(transaction.get("totalRefundAmount")),
+        subtotal=Decimal(str(transaction["subtotal"])),
         metadata_1=transaction.get("metadata1") or None,
         metadata_2=transaction.get("metadata2") or None,
         # v4 API fields
         ecommerce_id=transaction.get("ecommerceId", "") or "",
         ecommerce_status=transaction.get("ecommerceStatus", "") or "",
-        net_amount=safe_float(transaction.get("netAmount")),
-        fee=safe_float(transaction.get("fee")),
+        net_amount=safe_decimal(transaction.get("netAmount")),
+        fee=safe_decimal(transaction.get("fee")),
     )
 
 
@@ -168,13 +170,13 @@ class Command(BaseCommand):
                 transaction.client = client
                 transaction.save(update_fields=["client"])
 
-            # Helper for safe float conversion
-            def safe_item_float(value):
+            # Helper for safe Decimal conversion
+            def safe_item_decimal(value):
                 if not value:
                     return None
                 try:
-                    return float(value)
-                except (ValueError, TypeError):
+                    return Decimal(str(value))
+                except (InvalidOperation, TypeError):
                     return None
 
             # Accumulate ATHM_Item instances in this list
@@ -184,8 +186,8 @@ class Command(BaseCommand):
                     name=item.get("name", "")[:32],
                     description=item.get("description", "")[:128],
                     quantity=int(item.get("quantity", 1)),
-                    price=float(item.get("price", 0)),
-                    tax=safe_item_float(item.get("tax")),
+                    price=Decimal(str(item.get("price", 0))),
+                    tax=safe_item_decimal(item.get("tax")),
                     metadata=item.get("metadata") or None,
                 )
                 for item in transaction_data["items"]

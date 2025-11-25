@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Updated Python support:** Dropped Python 3.8 (for Django 5.1+). Supports Python 3.8-3.13
 - **Removed jQuery dependency** - Now uses native Fetch API for callback requests
 - **Updated transaction status values** - Added `OPEN`, `CONFIRM`, `CANCEL` status choices
+- **Monetary fields changed to DecimalField** - All monetary fields (`total`, `subtotal`, `tax`, `fee`, `net_amount`, `refunded_amount`, `price`) now use `DecimalField` instead of `FloatField` for improved precision
 
 ### Added
 
@@ -46,6 +47,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 
 - **Dropped Django 3.2, 4.0, 4.1 support** - Minimum version now Django 4.2 LTS
+- **Removed `athm_expired_response` signal** - Expired payments are handled client-side by the JS SDK timeout
+- **Removed `ATHM_ReportError` exception** - Was defined but never used
 
 
 ## [0.7.0] - 2022-08-05

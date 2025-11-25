@@ -150,12 +150,12 @@ class ATHM_Transaction(models.Model):
 
     date = models.DateTimeField(blank=True)
 
-    total = models.FloatField()
-    tax = models.FloatField(null=True)
-    refunded_amount = models.FloatField(null=True)
-    subtotal = models.FloatField(null=True)
+    total = models.DecimalField(max_digits=10, decimal_places=2)
+    tax = models.DecimalField(max_digits=10, decimal_places=2, null=True)
+    refunded_amount = models.DecimalField(max_digits=10, decimal_places=2, null=True)
+    subtotal = models.DecimalField(max_digits=10, decimal_places=2, null=True)
 
-    fee = models.FloatField(null=True)
+    fee = models.DecimalField(max_digits=10, decimal_places=2, null=True)
 
     message = models.CharField(max_length=512, blank=True, null=True)
     metadata_1 = models.CharField(
@@ -191,8 +191,12 @@ class ATHM_Transaction(models.Model):
         null=True,
         help_text=_("Customer phone from ATH Móvil account"),
     )
-    net_amount = models.FloatField(
-        blank=True, null=True, help_text=_("Net amount after fees")
+    net_amount = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        blank=True,
+        null=True,
+        help_text=_("Net amount after fees"),
     )
 
     client = models.ForeignKey(
@@ -268,7 +272,7 @@ class ATHM_Transaction(models.Model):
                 referenceNumber=transaction.reference_number,
                 amount=str(amount),
             ),
-        ).json()
+        )
 
         if "errorCode" in response:
             raise ATHM_RefundError(response.get("description"))
@@ -292,7 +296,7 @@ class ATHM_Transaction(models.Model):
             ),
         )
 
-        return response.json()
+        return response
 
     @classmethod
     def find_payment(cls, ecommerce_id, public_token=None):
@@ -314,7 +318,7 @@ class ATHM_Transaction(models.Model):
             data=dict(ecommerceId=ecommerce_id, publicToken=public_token),
         )
 
-        return response.json()
+        return response
 
     @classmethod
     def cancel_payment(cls, ecommerce_id, public_token=None):
@@ -336,7 +340,7 @@ class ATHM_Transaction(models.Model):
             data=dict(ecommerceId=ecommerce_id, publicToken=public_token),
         )
 
-        return response.json()
+        return response
 
 
 class ATHM_Item(models.Model):
@@ -352,8 +356,8 @@ class ATHM_Item(models.Model):
     description = models.CharField(max_length=128)
     quantity = models.PositiveSmallIntegerField(default=1)
 
-    price = models.FloatField()
-    tax = models.FloatField(null=True)
+    price = models.DecimalField(max_digits=10, decimal_places=2)
+    tax = models.DecimalField(max_digits=10, decimal_places=2, null=True)
     metadata = models.CharField(
         max_length=40, blank=True, null=True, help_text=_("Max 40 characters")
     )

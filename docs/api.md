@@ -14,12 +14,12 @@ Represents a payment transaction from ATH Movil.
 | `reference_number` | CharField | Unique ATH Movil reference number |
 | `status` | CharField | Transaction status (see Status choices below) |
 | `date` | DateTimeField | Transaction date |
-| `total` | FloatField | Total amount |
-| `subtotal` | FloatField | Subtotal before tax |
-| `tax` | FloatField | Tax amount |
-| `fee` | FloatField | ATH Movil fee |
-| `net_amount` | FloatField | Net amount after fees |
-| `refunded_amount` | FloatField | Amount refunded (if any) |
+| `total` | DecimalField | Total amount |
+| `subtotal` | DecimalField | Subtotal before tax |
+| `tax` | DecimalField | Tax amount |
+| `fee` | DecimalField | ATH Movil fee |
+| `net_amount` | DecimalField | Net amount after fees |
+| `refunded_amount` | DecimalField | Amount refunded (if any) |
 | `message` | CharField | Optional message |
 | `metadata_1` | CharField | Metadata field 1 (max 40 chars) |
 | `metadata_2` | CharField | Metadata field 2 (max 40 chars) |
@@ -182,8 +182,8 @@ Represents a line item in a transaction.
 | `name` | CharField | Item name (max 32 chars) |
 | `description` | CharField | Item description (max 128 chars) |
 | `quantity` | PositiveSmallIntegerField | Quantity |
-| `price` | FloatField | Price per item |
-| `tax` | FloatField | Tax for this item |
+| `price` | DecimalField | Price per item |
+| `tax` | DecimalField | Tax for this item |
 | `metadata` | CharField | Item metadata (max 40 chars) |
 
 ---
@@ -193,7 +193,7 @@ Represents a line item in a transaction.
 All exceptions are available from `django_athm.exceptions`:
 
 ```python
-from django_athm.exceptions import ATHM_Error, ATHM_RefundError, ATHM_ReportError
+from django_athm.exceptions import ATHM_Error, ATHM_RefundError
 ```
 
 ### ATHM_Error
@@ -212,10 +212,6 @@ try:
 except ATHM_RefundError as e:
     print(f"Refund failed: {e}")
 ```
-
-### ATHM_ReportError
-
-Raised when fetching a report fails.
 
 ---
 

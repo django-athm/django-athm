@@ -84,7 +84,7 @@ class TestATHM_TransactionRefund:
     """Tests for ATHM_Transaction refund functionality."""
 
     def test_can_refund_transaction(self, mock_http_adapter_post):
-        mock_http_adapter_post.return_value.json.return_value = {
+        mock_http_adapter_post.return_value = {
             "refundStatus": TransactionStatus.completed.value,
             "refundedAmount": "12.80",
         }
@@ -117,7 +117,7 @@ class TestATHM_TransactionRefund:
         )
 
     def test_fail_to_refund_transaction(self, mock_http_adapter_post):
-        mock_http_adapter_post.return_value.json.return_value = {
+        mock_http_adapter_post.return_value = {
             "errorCode": "5010",
             "description": "Transaction does not exist",
         }
@@ -150,7 +150,7 @@ class TestATHM_TransactionRefund:
         )
 
     def test_uses_total_if_no_amount(self, mock_http_adapter_post):
-        mock_http_adapter_post.return_value.json.return_value = {
+        mock_http_adapter_post.return_value = {
             "refundStatus": TransactionStatus.completed.value,
             "refundedAmount": "25.50",
         }
@@ -185,7 +185,7 @@ class TestATHM_TransactionAPIMethodsV4:
 
     def test_find_payment(self, mock_http_adapter_post):
         """Test find_payment calls correct endpoint."""
-        mock_http_adapter_post.return_value.json.return_value = {
+        mock_http_adapter_post.return_value = {
             "status": "success",
             "data": {
                 "ecommerceStatus": "COMPLETED",
@@ -207,7 +207,7 @@ class TestATHM_TransactionAPIMethodsV4:
 
     def test_find_payment_with_custom_token(self, mock_http_adapter_post):
         """Test find_payment with custom public token."""
-        mock_http_adapter_post.return_value.json.return_value = {"status": "success"}
+        mock_http_adapter_post.return_value = {"status": "success"}
 
         models.ATHM_Transaction.find_payment("ecom-123", public_token="custom-token")
 
@@ -221,7 +221,7 @@ class TestATHM_TransactionAPIMethodsV4:
 
     def test_cancel_payment(self, mock_http_adapter_post):
         """Test cancel_payment calls correct endpoint."""
-        mock_http_adapter_post.return_value.json.return_value = {
+        mock_http_adapter_post.return_value = {
             "status": "success",
             "data": {"ecommerceStatus": "CANCEL"},
         }
@@ -239,7 +239,7 @@ class TestATHM_TransactionAPIMethodsV4:
 
     def test_search_transaction(self, mock_http_adapter_post):
         """Test search calls correct endpoint with transaction."""
-        mock_http_adapter_post.return_value.json.return_value = {
+        mock_http_adapter_post.return_value = {
             "referenceNumber": "ref-search-test",
             "total": "50.00",
         }

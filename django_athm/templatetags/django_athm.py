@@ -1,6 +1,8 @@
+import json
 import logging
 
 from django import template
+from django.utils.safestring import mark_safe
 
 from django_athm.conf import settings as app_settings
 from django_athm.constants import BUTTON_COLOR_DEFAULT, BUTTON_LANGUAGE_SPANISH
@@ -88,7 +90,7 @@ def athm_button(context, athm_config):
         "theme": BUTTON_COLOR_DEFAULT,  # Hardcoded due to ATH Movil bug
         "total": total,
         "subtotal": athm_config["subtotal"],
-        "items": athm_config["items"],
+        "items": mark_safe(json.dumps(athm_config["items"])),
         "tax": athm_config["tax"],
         "metadata1": metadata_1,
         "metadata2": metadata_2,

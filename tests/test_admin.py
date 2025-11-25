@@ -19,7 +19,7 @@ def dummy_get_response(request):
 
 class TestAdminCommands:
     def test_athm_transaction_refund_success(self, rf, mock_http_adapter_post):
-        mock_http_adapter_post.return_value.json.return_value = {
+        mock_http_adapter_post.return_value = {
             "refundStatus": "COMPLETED",
             "refundedAmount": "25.50",
         }
@@ -53,7 +53,7 @@ class TestAdminCommands:
         assert str(list(messages)[0]) == "Successfully refunded 1 transactions!"
 
     def test_athm_transaction_refund_failed(self, rf, mock_http_adapter_post):
-        mock_http_adapter_post.return_value.json.return_value = {
+        mock_http_adapter_post.return_value = {
             "errorCode": "5010",
             "description": "Transaction does not exist",
         }
@@ -84,7 +84,7 @@ class TestAdminCommands:
 
     def test_athm_transaction_sync_success(self, rf, mock_http_adapter_post):
         """Test successful sync updates transaction status."""
-        mock_http_adapter_post.return_value.json.return_value = {
+        mock_http_adapter_post.return_value = {
             "status": "COMPLETED",
         }
         request = rf.post(reverse("admin:django_athm_athm_transaction_changelist"))
@@ -113,7 +113,7 @@ class TestAdminCommands:
 
     def test_athm_transaction_sync_api_error(self, rf, mock_http_adapter_post):
         """Test sync handles API error response."""
-        mock_http_adapter_post.return_value.json.return_value = {
+        mock_http_adapter_post.return_value = {
             "errorCode": "5010",
             "description": "Transaction does not exist",
         }
@@ -146,7 +146,7 @@ class TestAdminCommands:
 
     def test_athm_transaction_sync_unknown_status(self, rf, mock_http_adapter_post):
         """Test sync handles unknown status from API."""
-        mock_http_adapter_post.return_value.json.return_value = {
+        mock_http_adapter_post.return_value = {
             "status": "UNKNOWN_STATUS",
         }
         request = rf.post(reverse("admin:django_athm_athm_transaction_changelist"))
@@ -180,7 +180,7 @@ class TestAdminCommands:
         self, rf, mock_http_adapter_post
     ):
         """Test sync handles response without status field."""
-        mock_http_adapter_post.return_value.json.return_value = {
+        mock_http_adapter_post.return_value = {
             "someOtherField": "value",
         }
         request = rf.post(reverse("admin:django_athm_athm_transaction_changelist"))
@@ -212,7 +212,7 @@ class TestAdminCommands:
         self, rf, mock_http_adapter_post
     ):
         """Test sync handles multiple transactions."""
-        mock_http_adapter_post.return_value.json.return_value = {
+        mock_http_adapter_post.return_value = {
             "status": "COMPLETED",
         }
         request = rf.post(reverse("admin:django_athm_athm_transaction_changelist"))
@@ -246,7 +246,7 @@ class TestAdminCommands:
 
     def test_athm_transaction_sync_refunded_status(self, rf, mock_http_adapter_post):
         """Test sync correctly maps REFUNDED status."""
-        mock_http_adapter_post.return_value.json.return_value = {
+        mock_http_adapter_post.return_value = {
             "status": "REFUNDED",
         }
         request = rf.post(reverse("admin:django_athm_athm_transaction_changelist"))
