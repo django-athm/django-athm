@@ -6,11 +6,10 @@ from django.utils.module_loading import import_string
 from django_athm.views import default_callback
 
 DEFAULTS = {
-    "SANDBOX_PUBLIC_TOKEN": "sandboxtoken01875617264",
-    "SANDBOX_MODE": True,
     "CALLBACK_VIEW": default_callback,
     "PUBLIC_TOKEN": None,
     "PRIVATE_TOKEN": None,
+    "PHONE_NUMBER": None,
 }
 
 
@@ -28,7 +27,7 @@ def get_callback_function(func):
     raise ImproperlyConfigured(f"{func} must be callable.")
 
 
-class Settings(object):
+class Settings:
     def __getattr__(self, name):
         if name not in DEFAULTS:
             msg = "'%s' object has no attribute '%s'"
