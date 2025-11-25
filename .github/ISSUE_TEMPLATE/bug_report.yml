@@ -1,0 +1,30 @@
+name: Bug Report
+description: Report a bug or unexpected behavior
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What's the bug? What did you expect vs. what happened?
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to Reproduce
+      description: Minimal code sample (remove sensitive tokens!)
+      render: python
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Version Info
+      description: django-athm version and Python version
+      placeholder: "django-athm 1.0.0, Python 3.11"
+    validations:
+      required: true

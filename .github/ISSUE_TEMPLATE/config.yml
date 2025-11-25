@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Question or Discussion
+    url: https://github.com/django-athm/django-athm/discussions
+    about: Ask questions or discuss ideas with the community
+  - name: Documentation
+    url: https://django-athm.github.io/django-athm/
+    about: Check the documentation for usage guides and API reference
