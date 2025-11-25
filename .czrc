@@ -1,0 +1,13 @@
+{
+  "commitizen": {
+    "name": "cz_conventional_commits",
+    "version": "0.7.0",
+    "version_files": [
+      "django_athm/__init__.py:__version__",
+      "pyproject.toml:version"
+    ],
+    "tag_format": "v$version",
+    "update_changelog_on_bump": true,
+    "changelog_file": "CHANGELOG.md"
+  }
+}
