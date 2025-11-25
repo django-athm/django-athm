@@ -1,9 +1,4 @@
-{% load athm_response_signal %}
-
 <script>
-    // Django-ATHM version {{ version }}
-    console.log('django-athm version: {{ version }} ({{ env }} mode)');
-
     async function sendToCallback(response) {
         const csrftoken = "{{ csrf_token }}";
 
@@ -26,17 +21,14 @@
     }
 
     function authorizationATHM(response) {
-        {% athm_response_signal 'completed' %}
         sendToCallback(response);
     }
 
     function cancelATHM(response) {
-        {% athm_response_signal 'cancelled' %}
         sendToCallback(response);
     }
 
     function expiredATHM(response) {
-        {% athm_response_signal 'expired' %}
         sendToCallback(response);
     }
 
@@ -70,4 +62,4 @@
 
 <script src="https://payments.athmovil.com/api/js/athmovil_base.js"></script>
 
-<div id="ATHMovil_Checkout_Button_payment" data-django-athm-version="{{ version }}" data-django-athm-env="{{ env }}"></div>
+<div id="ATHMovil_Checkout_Button_payment"></div>
