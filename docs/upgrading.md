@@ -106,11 +106,19 @@ if transaction.total > Decimal("100.00"):
     ...
 ```
 
-#### 6. Removed athm_expired_response Signal
+#### 6. New athm_expired_response Signal
 
-The `athm_expired_response` signal has been removed. Expired payments are handled client-side by the ATH Movil JavaScript SDK timeout and do not trigger a server callback.
+A new `athm_expired_response` signal is now dispatched when checkout sessions expire. This allows you to distinguish between explicit user cancellation and session timeout.
 
-If you were using this signal, remove the handler as it was never dispatched.
+```python
+from django.dispatch import receiver
+from django_athm.signals import athm_expired_response
+
+@receiver(athm_expired_response)
+def handle_expired_payment(sender, **kwargs):
+    transaction = kwargs.get("transaction")
+    # Handle expired session (e.g., notify user, offer retry)
+```
 
 ### Database Migrations
 

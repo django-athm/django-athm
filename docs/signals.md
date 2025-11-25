@@ -40,6 +40,7 @@ from django_athm.signals import (
     athm_response_received,
     athm_completed_response,
     athm_cancelled_response,
+    athm_expired_response,
 )
 ```
 
@@ -66,6 +67,14 @@ Dispatched when a payment is **cancelled** by the customer.
 **When it fires:** When the customer declines or cancels the payment in their ATH Movil app.
 
 **Use case:** Release reserved inventory, notify customer of cancellation.
+
+### athm_expired_response
+
+Dispatched when a payment **times out** before the customer completes it.
+
+**When it fires:** When the checkout session expires (after the configured timeout, default 600 seconds).
+
+**Use case:** Distinguish between explicit user cancellation and session timeout, implement retry logic for expired sessions.
 
 ## Connecting to Signals
 
@@ -117,6 +126,7 @@ from django_athm.signals import (
     athm_response_received,
     athm_completed_response,
     athm_cancelled_response,
+    athm_expired_response,
 )
 
 logger = logging.getLogger(__name__)
@@ -150,6 +160,16 @@ def handle_cancelled_payment(sender, **kwargs):
     # Your business logic here
     # - Release inventory
     # - Notify customer
+
+@receiver(athm_expired_response)
+def handle_expired_payment(sender, **kwargs):
+    """Handle expired checkout sessions."""
+    transaction = kwargs.get("transaction")
+    logger.warning(f"Payment expired: {transaction.reference_number}")
+
+    # Your business logic here
+    # - Notify customer about timeout
+    # - Offer to retry payment
 ```
 
 ## Registering Signal Handlers

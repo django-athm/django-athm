@@ -89,9 +89,9 @@ def athm_button(context, athm_config):
         "timeout": timeout,
         "theme": BUTTON_COLOR_DEFAULT,  # Hardcoded due to ATH Movil bug
         "total": total,
-        "subtotal": athm_config["subtotal"],
-        "items": mark_safe(json.dumps(athm_config["items"])),
-        "tax": athm_config["tax"],
+        "subtotal": athm_config.get("subtotal", 0),
+        "items": mark_safe(json.dumps(athm_config.get("items", []))),
+        "tax": athm_config.get("tax", 0),
         "metadata1": metadata_1,
         "metadata2": metadata_2,
     }

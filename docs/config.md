@@ -58,6 +58,7 @@ from django_athm.signals import (
     athm_response_received,
     athm_completed_response,
     athm_cancelled_response,
+    athm_expired_response,
 )
 
 @csrf_exempt
@@ -92,6 +93,11 @@ def my_payment_callback(request):
             sender=ATHM_Transaction,
             transaction=transaction_obj,
         )
+    elif status == "EXPIRED":
+        athm_expired_response.send(
+            sender=ATHM_Transaction,
+            transaction=transaction_obj,
+        )
     elif status in ("CANCEL", "CANCELLED"):
         athm_cancelled_response.send(
             sender=ATHM_Transaction,
@@ -112,9 +118,6 @@ The `athm_button` template tag renders the ATH Móvil checkout button. Pass a co
 | Field | Type | Description |
 |-------|------|-------------|
 | `total` | float | Total amount to charge. Must be between $1.00 and $1,500.00 |
-| `subtotal` | float | Subtotal before tax |
-| `tax` | float | Tax amount |
-| `items` | list | List of item dictionaries (see Items section below) |
 | `metadata_1` | string | Required metadata field (max 40 characters, auto-truncated) |
 | `metadata_2` | string | Required metadata field (max 40 characters, auto-truncated) |
 
@@ -122,6 +125,9 @@ The `athm_button` template tag renders the ATH Móvil checkout button. Pass a co
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
+| `subtotal` | float | 0 | Subtotal before tax |
+| `tax` | float | 0 | Tax amount |
+| `items` | list | [] | List of item dictionaries (see Items section below) |
 | `public_token` | string | `DJANGO_ATHM_PUBLIC_TOKEN` | Override the public token for this transaction |
 | `timeout` | int | 600 | Seconds before checkout times out (120-600) |
 

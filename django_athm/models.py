@@ -202,7 +202,7 @@ class ATHM_Transaction(models.Model):
     client = models.ForeignKey(
         ATHM_Client,
         null=True,
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
         related_name="transactions",
         related_query_name="transaction",
     )

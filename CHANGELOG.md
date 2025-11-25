@@ -37,17 +37,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **New API endpoint constants** for v4 API
 - **Django 5.1 and 5.2 support**
 - **Python 3.11, 3.12, and 3.13 support**
+- **New `athm_expired_response` signal** - Dispatched when checkout sessions expire, allowing distinction between user cancellation and timeout
+- **Optional subtotal, tax, and items** - Template tag now treats these fields as optional with sensible defaults
 - Strict data validation in template and callback view
 
 ### Fixed
 
 - **Implemented client creation in callback** - Fixed long-standing TODO in `default_callback()` view
 - **Version inconsistency** - Synchronized version between `pyproject.toml` and `__init__.py`
+- **Idempotent callbacks** - Duplicate callbacks now return 200 instead of causing database errors
+- **Signal dispatch timing** - Signals now dispatched after items are created, ensuring handlers see complete transaction data
+- **EXPIRED status handling** - EXPIRED ecommerceStatus now correctly maps to CANCEL internal status
+- **Transaction date parsing** - Now parses date from ATH response instead of using server time
+- **Items not duplicated on sync** - Running `athm_sync` multiple times no longer creates duplicate items
+- **Client lookup consistency** - Sync command now uses phone-only lookup, matching callback behavior
+- **Client deletion safety** - Deleting an ATHM_Client no longer cascades to delete transaction history
 
 ### Removed
 
 - **Dropped Django 3.2, 4.0, 4.1 support** - Minimum version now Django 4.2 LTS
-- **Removed `athm_expired_response` signal** - Expired payments are handled client-side by the JS SDK timeout
 - **Removed `ATHM_ReportError` exception** - Was defined but never used
 
 

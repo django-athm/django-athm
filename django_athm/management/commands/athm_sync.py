@@ -1,3 +1,4 @@
+import logging
 from decimal import Decimal, InvalidOperation
 
 import phonenumbers
@@ -9,6 +10,8 @@ from django_athm.conf import settings as app_settings
 from django_athm.constants import TransactionType
 from django_athm.models import ATHM_Client, ATHM_Item, ATHM_Transaction
 
+logger = logging.getLogger(__name__)
+
 
 def get_status(transaction):
     if transaction["transactionType"].upper() == TransactionType.refund.value:
@@ -19,7 +22,12 @@ def get_status(transaction):
         else:
             return ATHM_Transaction.Status.COMPLETED
 
-    return transaction["transactionType"]
+    # Log warning for unknown transaction types and default to COMPLETED
+    logger.warning(
+        "[django_athm:unknown_transaction_type]",
+        extra={"transaction_type": transaction["transactionType"]},
+    )
+    return ATHM_Transaction.Status.COMPLETED
 
 
 def get_defaults(transaction):
@@ -158,12 +166,21 @@ class Command(BaseCommand):
                 phone_number_parsed, phonenumbers.PhoneNumberFormat.E164
             )
 
-            # Get or create an ATHM_Client instance
+            # Get or create an ATHM_Client instance (lookup by phone only for consistency)
             client, client_created = ATHM_Client.objects.get_or_create(
-                email=transaction_data["email"].strip(),
                 phone_number=phone_number_formatted,
-                defaults=dict(name=transaction_data["name"].strip()),
+                defaults=dict(
+                    name=transaction_data["name"].strip(),
+                    email=transaction_data["email"].strip(),
+                ),
             )
+
+            # Update email if client exists with different email
+            if not client_created:
+                new_email = transaction_data["email"].strip()
+                if client.email != new_email:
+                    client.email = new_email
+                    client.save(update_fields=["email"])
 
             # Link client to transaction if not already linked
             if transaction.client != client:
@@ -178,6 +195,9 @@ class Command(BaseCommand):
                     return Decimal(str(value))
                 except (InvalidOperation, TypeError):
                     return None
+
+            # Clear existing items before re-creating (prevents duplicates on re-sync)
+            transaction.items.all().delete()
 
             # Accumulate ATHM_Item instances in this list
             item_instances = [

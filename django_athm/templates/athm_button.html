@@ -1,15 +1,18 @@
 <script>
     async function sendToCallback(response) {
-        const csrftoken = "{{ csrf_token }}";
+        // Ensure items array is JSON-stringified for URLSearchParams
+        const payload = {...response};
+        if (payload.items && typeof payload.items !== 'string') {
+            payload.items = JSON.stringify(payload.items);
+        }
 
         try {
             const result = await fetch("{% url 'django_athm:athm_callback' %}", {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                    'X-CSRFToken': csrftoken
+                    'Content-Type': 'application/x-www-form-urlencoded'
                 },
-                body: new URLSearchParams(response)
+                body: new URLSearchParams(payload)
             });
 
             if (!result.ok) {

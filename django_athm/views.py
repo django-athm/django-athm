@@ -6,6 +6,8 @@ from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.http import HttpResponse, JsonResponse
 from django.utils import timezone
+from django.utils.dateparse import parse_datetime
+from django.utils.timezone import is_aware, make_aware
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
@@ -13,6 +15,7 @@ from django_athm import models
 from django_athm.signals import (
     athm_cancelled_response,
     athm_completed_response,
+    athm_expired_response,
     athm_response_received,
 )
 
@@ -118,6 +121,7 @@ def default_callback(request):
                 "COMPLETED": models.ATHM_Transaction.Status.COMPLETED,
                 "CANCEL": models.ATHM_Transaction.Status.CANCEL,
                 "CANCELLED": models.ATHM_Transaction.Status.CANCEL,
+                "EXPIRED": models.ATHM_Transaction.Status.CANCEL,
                 "OPEN": models.ATHM_Transaction.Status.OPEN,
                 "CONFIRM": models.ATHM_Transaction.Status.CONFIRM,
                 "REFUNDED": models.ATHM_Transaction.Status.REFUNDED,
@@ -126,52 +130,48 @@ def default_callback(request):
                 ecommerce_status, models.ATHM_Transaction.Status.COMPLETED
             )
 
-        # Create transaction
-        transaction_obj = models.ATHM_Transaction.objects.create(
+        # Parse transaction date from ATH response, fallback to now()
+        transaction_date = timezone.now()
+        date_str = request.POST.get("date", "")
+        if date_str:
+            # Handle ATH date format "2020-01-25 19:05:53.0"
+            parsed = parse_datetime(date_str.rstrip(".0"))
+            if parsed:
+                transaction_date = parsed if is_aware(parsed) else make_aware(parsed)
+
+        # Create or update transaction (idempotent for duplicate callbacks)
+        transaction_obj, created = models.ATHM_Transaction.objects.update_or_create(
             reference_number=reference_number,
-            status=internal_status,
-            total=total,
-            subtotal=subtotal,
-            tax=tax,
-            fee=fee,
-            metadata_1=metadata_1,
-            metadata_2=metadata_2,
-            ecommerce_id=ecommerce_id,
-            ecommerce_status=ecommerce_status,
-            customer_name=customer_name,
-            customer_phone=customer_phone,
-            net_amount=net_amount,
-            client=client,
-            date=timezone.now(),
+            defaults={
+                "status": internal_status,
+                "total": total,
+                "subtotal": subtotal,
+                "tax": tax,
+                "fee": fee,
+                "metadata_1": metadata_1,
+                "metadata_2": metadata_2,
+                "ecommerce_id": ecommerce_id,
+                "ecommerce_status": ecommerce_status,
+                "customer_name": customer_name,
+                "customer_phone": customer_phone,
+                "net_amount": net_amount,
+                "client": client,
+                "date": transaction_date,
+            },
         )
 
         logger.info(
-            "[django_athm:transaction_created]",
+            "[django_athm:transaction_created]"
+            if created
+            else "[django_athm:transaction_updated]",
             extra={
                 "transaction_id": str(transaction_obj.id),
                 "reference_number": reference_number,
                 "total": total,
                 "status": internal_status,
+                "created": created,
             },
         )
-
-        # Dispatch signals for payment events
-        athm_response_received.send(
-            sender=models.ATHM_Transaction,
-            transaction=transaction_obj,
-        )
-
-        # Dispatch status-specific signals
-        if internal_status == models.ATHM_Transaction.Status.COMPLETED:
-            athm_completed_response.send(
-                sender=models.ATHM_Transaction,
-                transaction=transaction_obj,
-            )
-        elif internal_status == models.ATHM_Transaction.Status.CANCEL:
-            athm_cancelled_response.send(
-                sender=models.ATHM_Transaction,
-                transaction=transaction_obj,
-            )
 
         # Parse and create items with error handling
         items_data = request.POST.get("items", "[]")
@@ -184,6 +184,10 @@ def default_callback(request):
             )
             # Continue without items if JSON is invalid
             items = []
+
+        # Clear existing items if this is an update (duplicate callback)
+        if not created:
+            transaction_obj.items.all().delete()
 
         item_instances = []
         for item in items:
@@ -216,7 +220,32 @@ def default_callback(request):
                 },
             )
 
-        return HttpResponse(status=201)
+        # Dispatch signals after all data is persisted
+        athm_response_received.send(
+            sender=models.ATHM_Transaction,
+            transaction=transaction_obj,
+        )
+
+        # Dispatch status-specific signals
+        if internal_status == models.ATHM_Transaction.Status.COMPLETED:
+            athm_completed_response.send(
+                sender=models.ATHM_Transaction,
+                transaction=transaction_obj,
+            )
+        elif internal_status == models.ATHM_Transaction.Status.CANCEL:
+            # Distinguish between explicit cancel and timeout expiration
+            if ecommerce_status == "EXPIRED":
+                athm_expired_response.send(
+                    sender=models.ATHM_Transaction,
+                    transaction=transaction_obj,
+                )
+            else:
+                athm_cancelled_response.send(
+                    sender=models.ATHM_Transaction,
+                    transaction=transaction_obj,
+                )
+
+        return HttpResponse(status=200 if not created else 201)
 
     except Exception as e:
         logger.exception(
