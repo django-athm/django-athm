@@ -395,6 +395,127 @@ class TestATHM_TransactionQuerySet:
         assert tx.client.name == "Test Client"
 
 
+class TestATHM_TransactionQuerySetByDateRange:
+    """Tests for ATHM_Transaction.objects.by_date_range() QuerySet method."""
+
+    @pytest.fixture
+    def dated_transactions(self):
+        """Create transactions with different dates."""
+        from datetime import timedelta
+
+        base_date = timezone.now().replace(hour=12, minute=0, second=0, microsecond=0)
+
+        # Transaction from 5 days ago
+        old = models.ATHM_Transaction.objects.create(
+            reference_number="old-transaction",
+            status=models.ATHM_Transaction.Status.COMPLETED,
+            date=base_date - timedelta(days=5),
+            total=100.00,
+        )
+
+        # Transaction from yesterday
+        yesterday = models.ATHM_Transaction.objects.create(
+            reference_number="yesterday-transaction",
+            status=models.ATHM_Transaction.Status.COMPLETED,
+            date=base_date - timedelta(days=1),
+            total=200.00,
+        )
+
+        # Transaction from today
+        today = models.ATHM_Transaction.objects.create(
+            reference_number="today-transaction",
+            status=models.ATHM_Transaction.Status.COMPLETED,
+            date=base_date,
+            total=300.00,
+        )
+
+        # Transaction from tomorrow (future)
+        tomorrow = models.ATHM_Transaction.objects.create(
+            reference_number="tomorrow-transaction",
+            status=models.ATHM_Transaction.Status.OPEN,
+            date=base_date + timedelta(days=1),
+            total=400.00,
+        )
+
+        return {
+            "base_date": base_date,
+            "old": old,
+            "yesterday": yesterday,
+            "today": today,
+            "tomorrow": tomorrow,
+        }
+
+    def test_by_date_range_returns_transactions_within_range(self, dated_transactions):
+        """Test by_date_range returns transactions within the specified range."""
+        from datetime import timedelta
+
+        base = dated_transactions["base_date"]
+        start = base - timedelta(days=2)
+        end = base
+
+        results = models.ATHM_Transaction.objects.by_date_range(start, end)
+        refs = set(t.reference_number for t in results)
+
+        assert "yesterday-transaction" in refs
+        assert "today-transaction" in refs
+        assert "old-transaction" not in refs
+        assert "tomorrow-transaction" not in refs
+
+    def test_by_date_range_includes_boundary_dates(self, dated_transactions):
+        """Test by_date_range includes transactions on boundary dates."""
+        from datetime import timedelta
+
+        base = dated_transactions["base_date"]
+        start = base - timedelta(days=5)  # Exactly matches old transaction
+        end = base  # Exactly matches today transaction
+
+        results = models.ATHM_Transaction.objects.by_date_range(start, end)
+        refs = set(t.reference_number for t in results)
+
+        assert "old-transaction" in refs
+        assert "today-transaction" in refs
+
+    def test_by_date_range_returns_empty_for_no_matches(self, dated_transactions):
+        """Test by_date_range returns empty queryset when no transactions match."""
+        from datetime import timedelta
+
+        base = dated_transactions["base_date"]
+        start = base - timedelta(days=100)
+        end = base - timedelta(days=50)
+
+        results = models.ATHM_Transaction.objects.by_date_range(start, end)
+        assert results.count() == 0
+
+    def test_by_date_range_single_day(self, dated_transactions):
+        """Test by_date_range for a single day returns only that day's transactions."""
+        from datetime import timedelta
+
+        base = dated_transactions["base_date"]
+        start = base - timedelta(days=1)
+        end = base - timedelta(days=1)
+
+        results = models.ATHM_Transaction.objects.by_date_range(start, end)
+        assert results.count() == 1
+        assert results.first().reference_number == "yesterday-transaction"
+
+    def test_by_date_range_chainable_with_other_querysets(self, dated_transactions):
+        """Test by_date_range can be chained with other QuerySet methods."""
+        from datetime import timedelta
+
+        base = dated_transactions["base_date"]
+        start = base - timedelta(days=2)
+        end = base + timedelta(days=2)
+
+        # Chain with completed() filter
+        results = models.ATHM_Transaction.objects.by_date_range(start, end).completed()
+        refs = set(t.reference_number for t in results)
+
+        assert "yesterday-transaction" in refs
+        assert "today-transaction" in refs
+        # tomorrow has OPEN status, not COMPLETED
+        assert "tomorrow-transaction" not in refs
+
+
 class TestATHM_TransactionProperties:
     """Tests for ATHM_Transaction model properties."""
 
