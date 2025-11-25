@@ -34,6 +34,11 @@ def athm_button(context, athm_config):
     if not metadata_2:
         raise ValueError("metadata_2 is required by ATH Movil API")
 
+    # Validate items array (ATH Movil API requires at least one item)
+    items = athm_config.get("items", [])
+    if not items:
+        raise ValueError("items array is required by ATH Movil API")
+
     # Truncate metadata to 40 characters max (ATH Movil API limit)
     if len(metadata_1) > 40:
         logger.warning(
@@ -90,7 +95,7 @@ def athm_button(context, athm_config):
         "theme": BUTTON_COLOR_DEFAULT,  # Hardcoded due to ATH Movil bug
         "total": total,
         "subtotal": athm_config.get("subtotal", 0),
-        "items": mark_safe(json.dumps(athm_config.get("items", []))),
+        "items": mark_safe(json.dumps(items)),
         "tax": athm_config.get("tax", 0),
         "metadata1": metadata_1,
         "metadata2": metadata_2,

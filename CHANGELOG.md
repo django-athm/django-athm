@@ -38,7 +38,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Django 5.1 and 5.2 support**
 - **Python 3.11, 3.12, and 3.13 support**
 - **New `athm_expired_response` signal** - Dispatched when checkout sessions expire, allowing distinction between user cancellation and timeout
-- **Optional subtotal, tax, and items** - Template tag now treats these fields as optional with sensible defaults
+- **Optional subtotal and tax** - Template tag now treats these fields as optional with sensible defaults
 - Strict data validation in template and callback view
 
 ### Fixed

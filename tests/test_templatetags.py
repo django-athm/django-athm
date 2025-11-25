@@ -163,6 +163,23 @@ class TestTemplateButtonMetadataValidation:
         assert "truncating" not in caplog.text
 
 
+class TestTemplateButtonItemsValidation:
+    """Tests for items array validation."""
+
+    def test_missing_items_raises_error(self):
+        """Test missing items raises ValueError."""
+        config = get_valid_config()
+        del config["items"]
+        with pytest.raises(ValueError, match="items array is required"):
+            athm_button(get_mock_context(), config)
+
+    def test_empty_items_raises_error(self):
+        """Test empty items array raises ValueError."""
+        config = get_valid_config(items=[])
+        with pytest.raises(ValueError, match="items array is required"):
+            athm_button(get_mock_context(), config)
+
+
 class TestATHMovilV4APIBugWorkarounds:
     """Tests for ATH Movil v4 API bug workarounds.
 
