@@ -134,3 +134,4 @@ scratchpad
 
 .vscode
 .claude
+.ruff_cache/
