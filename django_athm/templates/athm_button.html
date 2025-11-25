@@ -1,82 +1,73 @@
 {% load athm_response_signal %}
 
 <script>
-    var callbackPayload = {
-        method: "POST",
-        url: "{% url 'django_athm:athm_callback' %}",
-        headers: { "X-CSRFToken": "{{ csrf_token }}" },
+    // Django-ATHM version {{ version }}
+    console.log('django-athm version: {{ version }} ({{ env }} mode)');
+
+    async function sendToCallback(response) {
+        const csrftoken = "{{ csrf_token }}";
+
+        try {
+            const result = await fetch("{% url 'django_athm:athm_callback' %}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': csrftoken
+                },
+                body: new URLSearchParams(response)
+            });
+
+            if (!result.ok) {
+                console.error('Callback failed:', result.status);
+            }
+        } catch (error) {
+            console.error('Network error:', error);
+        }
     }
 
-    function onCancelledPayment(response) {
-        {% athm_response_signal 'cancelled' %}
-
-        callbackPayload.data = response
-        $.ajax(callbackPayload)
-
-    }
-
-    function onExpiredPayment(response) {
-        {% athm_response_signal 'expired' %}
-
-        callbackPayload.data = response
-        $.ajax(callbackPayload)
-
-    }
-
-    function onCompletedPayment(response) {
+    function authorizationATHM(response) {
         {% athm_response_signal 'completed' %}
+        sendToCallback(response);
+    }
 
-        callbackPayload.data = response
-        $.ajax(callbackPayload)
+    function cancelATHM(response) {
+        {% athm_response_signal 'cancelled' %}
+        sendToCallback(response);
+    }
+
+    function expiredATHM(response) {
+        {% athm_response_signal 'expired' %}
+        sendToCallback(response);
     }
 
     var ATHM_Checkout = {
-        onCompletedPayment: onCompletedPayment,
-        onCancelledPayment: onCancelledPayment,
-        onExpiredPayment: onExpiredPayment,
-
         env: "{{ env }}",
-
         publicToken: "{{ publicToken }}",
-
         timeout: {{ timeout }},
-
         theme: "{{ theme }}",
-
         lang: "{{ lang|safe }}",
-
-        total: "{{ total|safe }}",
-
+        total: {{ total }},
+        phoneNumber: {{ phone_number }},
+        metadata1: "{{ metadata1|safe }}",
+        metadata2: "{{ metadata2|safe }}",
         {% autoescape off %}
             items: {{ items }}
         {% endautoescape %}
     }
 
-    {% if metadata_1 %}
-        ATHM_Checkout.metadata1 = "{{ metadata_1|safe }}",
-    {% else %}
-        ATHM_Checkout.metadata1 = null
-    {% endif %}
-
-    {% if metadata_2 %}
-        ATHM_Checkout.metadata2 = "{{ metadata_2|safe }}",
-    {% else %}
-        ATHM_Checkout.metadata2 = null
-    {% endif %}
-
     {% if tax %}
-        ATHM_Checkout.tax = "{{ tax }}"
+        ATHM_Checkout.tax = {{ tax }};
     {% else %}
-        ATHM_Checkout.tax = null
+        ATHM_Checkout.tax = null;
     {% endif %}
 
     {% if subtotal %}
-        ATHM_Checkout.subtotal = "{{ subtotal }}"
+        ATHM_Checkout.subtotal = {{ subtotal }};
     {% else %}
-        ATHM_Checkout.subtotal = null
+        ATHM_Checkout.subtotal = null;
     {% endif %}
 </script>
 
-<script async src="https://www.athmovil.com/api/js/v3/athmovilV3.js"></script>
+<script src="https://payments.athmovil.com/api/js/athmovil_base.js"></script>
 
-<div id="ATHMovil_Checkout_Button"></div>
+<div id="ATHMovil_Checkout_Button_payment" data-django-athm-version="{{ version }}" data-django-athm-env="{{ env }}"></div>
