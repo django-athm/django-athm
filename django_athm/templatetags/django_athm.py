@@ -10,8 +10,8 @@ register = template.Library()
 logger = logging.getLogger(__name__)
 
 
-@register.inclusion_tag("athm_button.html")
-def athm_button(athm_config):
+@register.inclusion_tag("athm_button.html", takes_context=True)
+def athm_button(context, athm_config):
     logger.debug("[django_athm:template:athm_button]")
 
     # Validate and process data
@@ -80,6 +80,7 @@ def athm_button(athm_config):
         timeout = 600
 
     return {
+        "csrf_token": context.get("csrf_token", ""),
         "env": "production",  # Only valid value per ATH Movil API (no sandbox mode)
         "publicToken": athm_config.get("public_token", app_settings.PUBLIC_TOKEN),
         "lang": BUTTON_LANGUAGE_SPANISH,  # Hardcoded due to ATH Movil bug
