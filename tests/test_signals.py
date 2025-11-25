@@ -13,7 +13,6 @@ class TestTemplateSignals:
         assert sender == "django_athm"
 
     def test_cancelled_signal(self):
-
         template_to_render = Template(
             "{% load athm_response_signal %} {% athm_response_signal 'cancelled' %}"
         )
@@ -26,7 +25,6 @@ class TestTemplateSignals:
         template_to_render.render(context=Context())
 
     def test_completed_signal(self):
-
         template_to_render = Template(
             "{% load athm_response_signal %} {% athm_response_signal 'completed' %}"
         )

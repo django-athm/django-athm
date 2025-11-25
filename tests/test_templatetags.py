@@ -17,6 +17,9 @@ class TestTemplateButton:
                         "total": 25.0,
                         "subtotal": 24.0,
                         "tax": 1.0,
+                        "metadata_1": "Test metadata 1",
+                        "metadata_2": "Test metadata 2",
+                        "phone_number": 7871234567,
                         "items": [
                             {
                                 "name": "First Item",
@@ -32,12 +35,11 @@ class TestTemplateButton:
             )
         )
 
-        assert '<div id="ATHMovil_Checkout_Button"></div>' in rendered_template
+        assert '<div id="ATHMovil_Checkout_Button_payment"' in rendered_template
 
     def test_athm_button_template_without_settings(self, settings):
         del settings.DJANGO_ATHM_PUBLIC_TOKEN
         del settings.DJANGO_ATHM_PRIVATE_TOKEN
-        del settings.DJANGO_ATHM_SANDBOX_MODE
 
         template_to_render = Template(
             """
@@ -53,6 +55,9 @@ class TestTemplateButton:
                         "total": 25.0,
                         "subtotal": 24.0,
                         "tax": 1.0,
+                        "metadata_1": "Test metadata 1",
+                        "metadata_2": "Test metadata 2",
+                        "phone_number": 7871234567,
                         "items": [
                             {
                                 "name": "First Item",
@@ -68,4 +73,4 @@ class TestTemplateButton:
             )
         )
 
-        assert '<div id="ATHMovil_Checkout_Button"></div>' in rendered_template
+        assert '<div id="ATHMovil_Checkout_Button_payment"' in rendered_template
