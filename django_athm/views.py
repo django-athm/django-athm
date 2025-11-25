@@ -9,6 +9,11 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
 from django_athm import models
+from django_athm.signals import (
+    athm_cancelled_response,
+    athm_completed_response,
+    athm_response_received,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -101,8 +106,10 @@ def default_callback(request):
             status_mapping = {
                 "COMPLETED": models.ATHM_Transaction.Status.COMPLETED,
                 "CANCEL": models.ATHM_Transaction.Status.CANCEL,
+                "CANCELLED": models.ATHM_Transaction.Status.CANCEL,
                 "OPEN": models.ATHM_Transaction.Status.OPEN,
                 "CONFIRM": models.ATHM_Transaction.Status.CONFIRM,
+                "REFUNDED": models.ATHM_Transaction.Status.REFUNDED,
             }
             internal_status = status_mapping.get(
                 ecommerce_status, models.ATHM_Transaction.Status.COMPLETED
@@ -136,6 +143,24 @@ def default_callback(request):
                 "status": internal_status,
             },
         )
+
+        # Dispatch signals for payment events
+        athm_response_received.send(
+            sender=models.ATHM_Transaction,
+            transaction=transaction_obj,
+        )
+
+        # Dispatch status-specific signals
+        if internal_status == models.ATHM_Transaction.Status.COMPLETED:
+            athm_completed_response.send(
+                sender=models.ATHM_Transaction,
+                transaction=transaction_obj,
+            )
+        elif internal_status == models.ATHM_Transaction.Status.CANCEL:
+            athm_cancelled_response.send(
+                sender=models.ATHM_Transaction,
+                transaction=transaction_obj,
+            )
 
         # Parse and create items with error handling
         items_data = request.POST.get("items", "[]")
