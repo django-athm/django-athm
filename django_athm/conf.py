@@ -34,9 +34,6 @@ class Settings:
 
         value = self.get_setting(name)
 
-        if is_callable(value):
-            value = value()
-
         # Cache the result
         setattr(self, name, value)
         return value
