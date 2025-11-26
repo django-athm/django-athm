@@ -1,12 +1,12 @@
-import json
 import logging
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal
 
-from django.core.exceptions import ValidationError
+from athm import ATHMovilClient
+from athm.exceptions import ATHMovilError
+from django.conf import settings as django_settings
 from django.db import transaction
 from django.http import HttpResponse, JsonResponse
 from django.utils import timezone
-from django.utils.dateparse import parse_datetime
 from django.utils.timezone import is_aware, make_aware
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
@@ -29,115 +29,85 @@ app_name = "django_athm"
 @transaction.atomic
 def default_callback(request):
     """
-    Handle ATH Móvil payment callback with comprehensive error handling
-    and transaction atomicity.
+    Handle ATH Movil payment callback with server-side verification.
+
+    Only the ecommerceId from POST is trusted. All other transaction data
+    is fetched from ATH Movil's API via find_payment() for verification.
     """
     try:
-        # Check for intermediate statuses (OPEN, CONFIRM) which don't have
-        # complete transaction data yet - return early without creating a record
+        # Check for intermediate statuses (OPEN, CONFIRM) - return early
         ecommerce_status = request.POST.get("ecommerceStatus", "")
         if ecommerce_status in ("OPEN", "CONFIRM"):
             logger.debug(
                 "[django_athm:intermediate_status]",
-                extra={"status": ecommerce_status, "post_data": dict(request.POST)},
+                extra={"status": ecommerce_status},
             )
             return HttpResponse(status=200)
 
-        # Extract required fields with validation
-        try:
-            reference_number = request.POST["referenceNumber"]
-            total = Decimal(request.POST["total"])
-        except KeyError as e:
-            logger.error(
-                "[django_athm:missing_required_field]",
-                extra={"field": str(e), "post_data": dict(request.POST)},
-            )
-            return JsonResponse({"error": f"Missing required field: {e}"}, status=400)
-        except (InvalidOperation, TypeError) as e:
-            logger.error(
-                "[django_athm:invalid_field_value]",
-                extra={"error": str(e), "post_data": dict(request.POST)},
-            )
-            return JsonResponse({"error": "Invalid field value format"}, status=400)
-
-        # Extract optional numeric fields with error handling
-        def safe_decimal(value):
-            """Safely convert to Decimal, return None if empty/invalid."""
-            if not value:
-                return None
-            try:
-                return Decimal(value)
-            except (InvalidOperation, TypeError):
-                return None
-
-        subtotal = safe_decimal(request.POST.get("subtotal"))
-        tax = safe_decimal(request.POST.get("tax"))
-        fee = safe_decimal(request.POST.get("fee"))
-        net_amount = safe_decimal(request.POST.get("netAmount"))
-
-        # Extract metadata fields
-        metadata_1 = request.POST.get("metadata1") or None
-        metadata_2 = request.POST.get("metadata2") or None
-
-        # Extract v4 API fields
+        # Extract ecommerceId - the only field we trust from POST
         ecommerce_id = request.POST.get("ecommerceId", "")
-        # Note: ecommerce_status already extracted at start for intermediate status check
-        customer_name = request.POST.get("customerName", "")
-        customer_phone = request.POST.get("customerPhone", "")
-        customer_email = request.POST.get("customerEmail", "")
+        if not ecommerce_id:
+            logger.error("[django_athm:missing_ecommerce_id]")
+            return JsonResponse({"error": "Missing ecommerceId"}, status=400)
 
-        # Create or update client from customer info
-        client = None
-        if customer_phone:
-            try:
-                client, created = models.ATHM_Client.objects.get_or_create(
-                    phone_number=customer_phone,
-                    defaults={
-                        "name": customer_name or "Unknown",
-                        "email": customer_email or "",
-                    },
-                )
-                # Update name/email if client already exists but has different info
-                if not created and customer_name:
-                    if client.name != customer_name or (
-                        customer_email and client.email != customer_email
-                    ):
-                        client.name = customer_name
-                        if customer_email:
-                            client.email = customer_email
-                        client.save()
-            except ValidationError as e:
-                logger.warning(
-                    "[django_athm:invalid_phone]",
-                    extra={"phone": customer_phone, "error": str(e)},
-                )
-                # Continue without client if phone validation fails
-                client = None
+        # Server-side verification - fetch transaction data from API
+        try:
+            client = ATHMovilClient(
+                public_token=django_settings.DJANGO_ATHM_PUBLIC_TOKEN,
+                private_token=django_settings.DJANGO_ATHM_PRIVATE_TOKEN,
+            )
+            verification = client.find_payment(ecommerce_id=ecommerce_id)
+            data = verification.data
+        except ATHMovilError as e:
+            logger.error(
+                "[django_athm:verification_failed]",
+                extra={"ecommerce_id": ecommerce_id, "error": str(e)},
+            )
+            return JsonResponse(
+                {"error": "Transaction verification failed"}, status=400
+            )
+
+        # Extract verified data from API response
+        reference_number = data.reference_number
+        if not reference_number:
+            logger.error(
+                "[django_athm:missing_reference_number]",
+                extra={"ecommerce_id": ecommerce_id},
+            )
+            return JsonResponse({"error": "Transaction not yet completed"}, status=400)
+
+        total = data.total or Decimal("0")
+        subtotal = data.sub_total
+        tax = data.tax
+        fee = data.fee
+        net_amount = data.net_amount
+        metadata_1 = data.metadata1
+        metadata_2 = data.metadata2
+
+        # Get ecommerce_status from verified response
+        ecommerce_status = data.ecommerce_status.value if data.ecommerce_status else ""
 
         # Map ecommerce status to internal status
-        internal_status = models.ATHM_Transaction.Status.COMPLETED
-        if ecommerce_status:
-            status_mapping = {
-                "COMPLETED": models.ATHM_Transaction.Status.COMPLETED,
-                "CANCEL": models.ATHM_Transaction.Status.CANCEL,
-                "CANCELLED": models.ATHM_Transaction.Status.CANCEL,
-                "EXPIRED": models.ATHM_Transaction.Status.CANCEL,
-                "OPEN": models.ATHM_Transaction.Status.OPEN,
-                "CONFIRM": models.ATHM_Transaction.Status.CONFIRM,
-                "REFUNDED": models.ATHM_Transaction.Status.REFUNDED,
-            }
-            internal_status = status_mapping.get(
-                ecommerce_status, models.ATHM_Transaction.Status.COMPLETED
-            )
+        status_mapping = {
+            "COMPLETED": models.ATHM_Transaction.Status.COMPLETED,
+            "CANCEL": models.ATHM_Transaction.Status.CANCEL,
+            "CANCELLED": models.ATHM_Transaction.Status.CANCEL,
+            "EXPIRED": models.ATHM_Transaction.Status.CANCEL,
+            "OPEN": models.ATHM_Transaction.Status.OPEN,
+            "CONFIRM": models.ATHM_Transaction.Status.CONFIRM,
+            "REFUNDED": models.ATHM_Transaction.Status.REFUNDED,
+        }
+        internal_status = status_mapping.get(
+            ecommerce_status, models.ATHM_Transaction.Status.COMPLETED
+        )
 
-        # Parse transaction date from ATH response, fallback to now()
-        transaction_date = timezone.now()
-        date_str = request.POST.get("date", "")
-        if date_str:
-            # Handle ATH date format "2020-01-25 19:05:53.0"
-            parsed = parse_datetime(date_str.rstrip(".0"))
-            if parsed:
-                transaction_date = parsed if is_aware(parsed) else make_aware(parsed)
+        # Use transaction date from API response, fallback to now
+        transaction_date = data.transaction_date
+        if transaction_date:
+            if not is_aware(transaction_date):
+                transaction_date = make_aware(transaction_date)
+        else:
+            transaction_date = timezone.now()
 
         # Create or update transaction (idempotent for duplicate callbacks)
         transaction_obj, created = models.ATHM_Transaction.objects.update_or_create(
@@ -152,10 +122,7 @@ def default_callback(request):
                 "metadata_2": metadata_2,
                 "ecommerce_id": ecommerce_id,
                 "ecommerce_status": ecommerce_status,
-                "customer_name": customer_name,
-                "customer_phone": customer_phone,
                 "net_amount": net_amount,
-                "client": client,
                 "date": transaction_date,
             },
         )
@@ -167,58 +134,40 @@ def default_callback(request):
             extra={
                 "transaction_id": str(transaction_obj.id),
                 "reference_number": reference_number,
-                "total": total,
+                "total": str(total),
                 "status": internal_status,
                 "created": created,
             },
         )
 
-        # Parse and create items with error handling
-        items_data = request.POST.get("items", "[]")
-        try:
-            items = json.loads(items_data)
-        except json.JSONDecodeError as e:
-            logger.error(
-                "[django_athm:invalid_items_json]",
-                extra={"error": str(e), "items_data": items_data},
-            )
-            # Continue without items if JSON is invalid
-            items = []
-
-        # Clear existing items if this is an update (duplicate callback)
+        # Process items from verified API response
         if not created:
             transaction_obj.items.all().delete()
 
-        item_instances = []
-        for item in items:
-            try:
+        if data.items:
+            item_instances = []
+            for item in data.items:
                 item_instances.append(
                     models.ATHM_Item(
                         transaction=transaction_obj,
-                        name=item.get("name", "")[:32],  # Enforce max length
-                        description=item.get("description", "")[:128],
-                        quantity=int(item.get("quantity", 1)),
-                        price=Decimal(str(item.get("price", 0))),
-                        tax=safe_decimal(item.get("tax")),
-                        metadata=item.get("metadata") or None,
+                        name=(item.name or "")[:32],
+                        description=(item.description or "")[:128],
+                        quantity=int(item.quantity or 1),
+                        price=item.price or Decimal("0"),
+                        tax=item.tax,
+                        metadata=item.metadata,
                     )
                 )
-            except (KeyError, ValueError, TypeError, InvalidOperation) as e:
-                logger.warning(
-                    "[django_athm:invalid_item]",
-                    extra={"error": str(e), "item": item},
-                )
-                # Skip invalid items but continue processing
 
-        if item_instances:
-            models.ATHM_Item.objects.bulk_create(item_instances)
-            logger.debug(
-                "[django_athm:items_created]",
-                extra={
-                    "transaction_id": str(transaction_obj.id),
-                    "item_count": len(item_instances),
-                },
-            )
+            if item_instances:
+                models.ATHM_Item.objects.bulk_create(item_instances)
+                logger.debug(
+                    "[django_athm:items_created]",
+                    extra={
+                        "transaction_id": str(transaction_obj.id),
+                        "item_count": len(item_instances),
+                    },
+                )
 
         # Dispatch signals after all data is persisted
         athm_response_received.send(
@@ -233,7 +182,6 @@ def default_callback(request):
                 transaction=transaction_obj,
             )
         elif internal_status == models.ATHM_Transaction.Status.CANCEL:
-            # Distinguish between explicit cancel and timeout expiration
             if ecommerce_status == "EXPIRED":
                 athm_expired_response.send(
                     sender=models.ATHM_Transaction,
@@ -245,12 +193,12 @@ def default_callback(request):
                     transaction=transaction_obj,
                 )
 
-        return HttpResponse(status=200 if not created else 201)
+        return HttpResponse(status=201 if created else 200)
 
     except Exception as e:
         logger.exception(
             "[django_athm:callback_error]",
-            extra={"error": str(e), "post_data": dict(request.POST)},
+            extra={"error": str(e)},
         )
         return JsonResponse(
             {"error": "Internal server error processing payment callback"},

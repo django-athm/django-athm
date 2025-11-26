@@ -1,5 +1,10 @@
 <script>
     async function sendToCallback(response) {
+        // ATH Móvil SDK may call callbacks with undefined during initialization - ignore these
+        if (!response) {
+            return;
+        }
+
         // Ensure items array is JSON-stringified for URLSearchParams
         const payload = {...response};
         if (payload.items && typeof payload.items !== 'string') {
@@ -51,5 +56,70 @@
 </script>
 
 <script src="https://payments.athmovil.com/api/js/athmovil_base.js"></script>
+
+<script type="text/javascript">
+    // Never trust windowOpen.closed for cross-origin popups
+    // Instead, rely ONLY on API polling for status
+    let patchInterval = null;
+
+    // Completely disable statusWindow - it's based on unreliable .closed
+    window.statusWindow = async function() {
+        console.log("[ATHM PATCH] statusWindow disabled - using API polling only");
+        return;
+    };
+
+    // Disable the mousedown handler
+    Object.defineProperty(document, 'onmousedown', {
+        set: function() {},
+        get: function() { return null; }
+    });
+
+    // Patch sendATHMPayment to add faster, reliable polling
+    const originalSend = sendATHMPayment;
+    window.sendATHMPayment = function() {
+        const result = originalSend.apply(this, arguments);
+
+        // Start our own faster polling (every 5 seconds instead of 30)
+        setTimeout(() => {
+            console.log("[ATHM PATCH] Starting fast API polling");
+
+            patchInterval = setInterval(async () => {
+                try {
+                    const status = await findPaymentATHM();
+                    console.log("[ATHM PATCH] Poll status:", status?.ecommerceStatus);
+
+                    if (!status) return;
+
+                    switch (status.ecommerceStatus) {
+                        case "COMPLETED":
+                        case "CONFIRM":
+                            console.log("[ATHM PATCH] Payment confirmed!");
+                            clearInterval(patchInterval);
+                            clearInterval(findPaymentInterval); // Clear SDK's slow polling
+                            authorizationATHM();
+                            break;
+                        case "CANCEL":
+                            console.log("[ATHM PATCH] Payment cancelled");
+                            clearInterval(patchInterval);
+                            clearInterval(findPaymentInterval);
+                            cancelATHM();
+                            break;
+                        case "EXPIRED":
+                            console.log("[ATHM PATCH] Payment expired");
+                            clearInterval(patchInterval);
+                            clearInterval(findPaymentInterval);
+                            expiredATHM();
+                            break;
+                        // "OPEN" means still waiting - keep polling
+                    }
+                } catch (e) {
+                    console.error("[ATHM PATCH] Polling error:", e);
+                }
+            }, 5000); // Poll every 5 seconds
+        }, 5000); // Start after 5 seconds
+
+        return result;
+    };
+</script>
 
 <div id="ATHMovil_Checkout_Button_payment"></div>

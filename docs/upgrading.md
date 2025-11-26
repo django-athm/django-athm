@@ -69,12 +69,23 @@ django-athm automatically ignores these values and logs warnings if you provide 
 
 #### 4. Python/Django Version Support
 
-- **Minimum Python**: 3.8
-- **Minimum Django**: 4.2
+- **Minimum Python**: 3.10
+- **Minimum Django**: 5.1
 
 Dropped support for:
-- Python 3.7 and earlier
-- Django 3.2, 4.0, 4.1
+- Python 3.9 and earlier
+- Django 4.2 and earlier
+
+#### 4a. Server-Side Transaction Verification
+
+The callback view now verifies all transactions with ATH Movil's API before persisting data. Only `ecommerceId` from the callback POST is trusted; all other transaction data (total, reference_number, status, etc.) is fetched from the API via `find_payment()`.
+
+This change:
+- **Prevents spoofed payment data** - Malicious actors can no longer POST fake transaction data
+- **Requires valid API credentials** - `DJANGO_ATHM_PUBLIC_TOKEN` and `DJANGO_ATHM_PRIVATE_TOKEN` must be configured
+- **Adds new dependency** - [athm-python](https://github.com/django-athm/athm-python) v0.3.0 handles API communication
+
+If verification fails (network error, invalid credentials, etc.), the callback returns HTTP 400 and no transaction is created.
 
 #### 5. Monetary Fields Changed to DecimalField
 

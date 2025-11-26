@@ -41,8 +41,9 @@ Este proyecto **no** está afiliado ni endosado de ninguna manera por [Evertec, 
 
 
 ## Dependencias
-* [httpx](https://github.com/encode/httpx/) para hacer pedidos a la API de ATH Móvil.
-* [phonenumberslite](https://github.com/daviddrysdale/python-phonenumbers) para validar y mejor almacener los números de teléfonos
+* [athm-python](https://github.com/django-athm/athm-python) para comunicación con la API de ATH Movil y verificación de transacciones
+* [httpx](https://github.com/encode/httpx/) para hacer pedidos a la API de ATH Movil
+* [phonenumberslite](https://github.com/daviddrysdale/python-phonenumbers) para validar y mejor almacenar los números de teléfonos
 
 
 ## Referencias

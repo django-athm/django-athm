@@ -1,38 +1,148 @@
-from unittest.mock import MagicMock
+from datetime import datetime
+from decimal import Decimal
+from unittest.mock import MagicMock, patch
 
 import pytest
 from django.urls import reverse
 
-from django_athm.models import ATHM_Client, ATHM_Item, ATHM_Transaction
+from django_athm.models import ATHM_Item, ATHM_Transaction
 from django_athm.signals import (
+    athm_cancelled_response,
     athm_completed_response,
     athm_expired_response,
+    athm_response_received,
 )
 from django_athm.views import default_callback
 
 
+def create_mock_transaction_data(
+    ecommerce_id="abc-123-def-456",
+    reference_number="33908215-4028f9e06fd3c5c1016fdef4714a369a",
+    total=Decimal("100.00"),
+    sub_total=Decimal("93.00"),
+    tax=Decimal("7.00"),
+    fee=Decimal("2.50"),
+    net_amount=Decimal("97.50"),
+    ecommerce_status="COMPLETED",
+    metadata1="Metadata 1",
+    metadata2="Metadata 2",
+    transaction_date=None,
+    items=None,
+):
+    """Create a mock TransactionData object."""
+    mock_data = MagicMock()
+    mock_data.ecommerce_id = ecommerce_id
+    mock_data.reference_number = reference_number
+    mock_data.total = total
+    mock_data.sub_total = sub_total
+    mock_data.tax = tax
+    mock_data.fee = fee
+    mock_data.net_amount = net_amount
+    mock_data.metadata1 = metadata1
+    mock_data.metadata2 = metadata2
+    mock_data.transaction_date = transaction_date
+    mock_data.items = items
+
+    # Mock the ecommerce_status enum
+    mock_status = MagicMock()
+    mock_status.value = ecommerce_status
+    mock_data.ecommerce_status = mock_status if ecommerce_status else None
+
+    return mock_data
+
+
+def create_mock_verification_response(data):
+    """Create a mock TransactionResponse."""
+    mock_response = MagicMock()
+    mock_response.data = data
+    mock_response.status = (
+        data.ecommerce_status.value if data.ecommerce_status else None
+    )
+    return mock_response
+
+
 class TestDefaultCallbackView:
-    """Tests for the ATH Movil v4 API callback view."""
+    """Tests for the ATH Movil callback view with server-side verification."""
+
+    @pytest.fixture
+    def mock_athm_client(self):
+        """Mock ATHMovilClient for all tests."""
+        with patch("django_athm.views.ATHMovilClient") as mock_class:
+            mock_instance = MagicMock()
+            mock_class.return_value = mock_instance
+            yield mock_instance
 
     @pytest.mark.django_db
-    def test_callback_view_with_v4_fields(self, rf):
-        """Test callback with full v4 API response fields."""
+    def test_callback_requires_ecommerce_id(self, rf):
+        """Test callback returns 400 when ecommerceId is missing."""
         data = {
             "ecommerceStatus": "COMPLETED",
+            # Missing ecommerceId
+        }
+
+        url = reverse("django_athm:athm_callback")
+        request = rf.post(url, data=data)
+        response = default_callback(request)
+
+        assert response.status_code == 400
+        assert ATHM_Transaction.objects.count() == 0
+
+    @pytest.mark.django_db
+    def test_callback_verifies_with_api(self, rf, mock_athm_client):
+        """Test callback calls find_payment with ecommerceId."""
+        mock_data = create_mock_transaction_data()
+        mock_athm_client.find_payment.return_value = create_mock_verification_response(
+            mock_data
+        )
+
+        data = {"ecommerceId": "abc-123-def-456"}
+
+        url = reverse("django_athm:athm_callback")
+        request = rf.post(url, data=data)
+        default_callback(request)
+
+        mock_athm_client.find_payment.assert_called_once_with(
+            ecommerce_id="abc-123-def-456"
+        )
+
+    @pytest.mark.django_db
+    def test_callback_verification_failure_returns_400(self, rf, mock_athm_client):
+        """Test callback returns 400 when API verification fails."""
+        from athm.exceptions import ATHMovilError
+
+        mock_athm_client.find_payment.side_effect = ATHMovilError("API error")
+
+        data = {"ecommerceId": "abc-123-def-456"}
+
+        url = reverse("django_athm:athm_callback")
+        request = rf.post(url, data=data)
+        response = default_callback(request)
+
+        assert response.status_code == 400
+        assert ATHM_Transaction.objects.count() == 0
+
+    @pytest.mark.django_db
+    def test_callback_uses_verified_data(self, rf, mock_athm_client):
+        """Test callback creates transaction with verified API data."""
+        mock_data = create_mock_transaction_data(
+            reference_number="verified-ref-123",
+            total=Decimal("150.00"),
+            sub_total=Decimal("140.00"),
+            tax=Decimal("10.00"),
+            fee=Decimal("3.75"),
+            net_amount=Decimal("146.25"),
+            metadata1="Verified Meta 1",
+            metadata2="Verified Meta 2",
+        )
+        mock_athm_client.find_payment.return_value = create_mock_verification_response(
+            mock_data
+        )
+
+        # POST data is ignored except for ecommerceId
+        data = {
             "ecommerceId": "abc-123-def-456",
-            "referenceNumber": "33908215-4028f9e06fd3c5c1016fdef4714a369a",
-            "date": "2020-01-25 19:05:53.0",
-            "total": "100.00",
-            "tax": "7.00",
-            "subtotal": "93.00",
-            "fee": "2.50",
-            "netAmount": "97.50",
-            "metadata1": "Metadata 1",
-            "metadata2": "Metadata 2",
-            "customerName": "John Doe",
-            "customerPhone": "+17875551234",
-            "customerEmail": "john@example.com",
-            "items": '[{"name":"First Item","description":"This is a description.","quantity":"1","price":"100.00","tax":"7.00","metadata":"metadata test"}]',
+            "referenceNumber": "fake-ref-ignored",
+            "total": "999.99",  # Should be ignored
         }
 
         url = reverse("django_athm:athm_callback")
@@ -40,198 +150,90 @@ class TestDefaultCallbackView:
         response = default_callback(request)
 
         assert response.status_code == 201
-
-        # Verify transaction created with all v4 fields
         assert ATHM_Transaction.objects.count() == 1
+
         transaction = ATHM_Transaction.objects.first()
+        # All data should come from verified API response, not POST
+        assert transaction.reference_number == "verified-ref-123"
+        assert transaction.total == Decimal("150.00")
+        assert transaction.subtotal == Decimal("140.00")
+        assert transaction.tax == Decimal("10.00")
+        assert transaction.fee == Decimal("3.75")
+        assert transaction.net_amount == Decimal("146.25")
+        assert transaction.metadata_1 == "Verified Meta 1"
+        assert transaction.metadata_2 == "Verified Meta 2"
         assert transaction.status == ATHM_Transaction.Status.COMPLETED
-        assert (
-            transaction.reference_number == "33908215-4028f9e06fd3c5c1016fdef4714a369a"
-        )
-        assert transaction.ecommerce_id == "abc-123-def-456"
-        assert transaction.ecommerce_status == "COMPLETED"
-        assert transaction.total == 100.0
-        assert transaction.tax == 7.0
-        assert transaction.subtotal == 93.0
-        assert transaction.fee == 2.5
-        assert transaction.net_amount == 97.5
-        assert transaction.customer_name == "John Doe"
-        assert transaction.customer_phone == "+17875551234"
-
-        # Verify client was created
-        assert ATHM_Client.objects.count() == 1
-        client = ATHM_Client.objects.first()
-        assert client.name == "John Doe"
-        assert client.email == "john@example.com"
-        assert transaction.client == client
-
-        # Verify items created
-        assert ATHM_Item.objects.count() == 1
-        item = ATHM_Item.objects.first()
-        assert item.name == "First Item"
-        assert item.price == 100.0
-        assert item.tax == 7.0
 
     @pytest.mark.django_db
-    def test_callback_view_with_minimal_data(self, rf):
-        """Test callback with only required fields."""
+    def test_callback_intermediate_status_open(self, rf):
+        """Test callback returns 200 for OPEN status without verification."""
         data = {
-            "referenceNumber": "33908215-4028f9e06fd3c5c1016fdef4714a369a",
-            "total": "1.0",
+            "ecommerceStatus": "OPEN",
+            "ecommerceId": "abc-123",
         }
 
         url = reverse("django_athm:athm_callback")
         request = rf.post(url, data=data)
         response = default_callback(request)
 
-        assert response.status_code == 201
-
-        assert ATHM_Transaction.objects.count() == 1
-        transaction = ATHM_Transaction.objects.first()
-        # Default status is COMPLETED when ecommerceStatus not provided
-        assert transaction.status == ATHM_Transaction.Status.COMPLETED
-        assert (
-            transaction.reference_number == "33908215-4028f9e06fd3c5c1016fdef4714a369a"
-        )
-        assert transaction.total == 1.0
-        assert transaction.client is None  # No customer data provided
+        # Should return 200 OK without creating transaction or calling API
+        assert response.status_code == 200
+        assert ATHM_Transaction.objects.count() == 0
 
     @pytest.mark.django_db
-    def test_callback_creates_client(self, rf):
-        """Test that callback creates ATHM_Client from customer data."""
+    def test_callback_intermediate_status_confirm(self, rf):
+        """Test callback returns 200 for CONFIRM status without verification."""
         data = {
-            "referenceNumber": "ref-create-client",
-            "total": "50.00",
-            "customerName": "Jane Smith",
-            "customerPhone": "+17879876543",
-            "customerEmail": "jane@example.com",
+            "ecommerceStatus": "CONFIRM",
+            "ecommerceId": "abc-123",
         }
 
         url = reverse("django_athm:athm_callback")
         request = rf.post(url, data=data)
         response = default_callback(request)
 
-        assert response.status_code == 201
-
-        # Client should be created
-        assert ATHM_Client.objects.count() == 1
-        client = ATHM_Client.objects.first()
-        assert client.name == "Jane Smith"
-        assert client.email == "jane@example.com"
-        assert "+17879876543" in client.phone_number
-
-        # Transaction should be linked to client
-        transaction = ATHM_Transaction.objects.first()
-        assert transaction.client == client
+        assert response.status_code == 200
+        assert ATHM_Transaction.objects.count() == 0
 
     @pytest.mark.django_db
-    def test_callback_updates_existing_client(self, rf):
-        """Test that callback updates existing client info."""
-        # Create existing client
-        client = ATHM_Client.objects.create(
-            phone_number="+17875551234",
-            name="Old Name",
-            email="old@example.com",
+    def test_callback_missing_reference_number_returns_400(self, rf, mock_athm_client):
+        """Test callback returns 400 when API returns no reference_number."""
+        mock_data = create_mock_transaction_data(reference_number=None)
+        mock_athm_client.find_payment.return_value = create_mock_verification_response(
+            mock_data
         )
 
-        data = {
-            "referenceNumber": "ref-update-client",
-            "total": "25.00",
-            "customerName": "New Name",
-            "customerPhone": "+17875551234",
-            "customerEmail": "new@example.com",
-        }
-
-        url = reverse("django_athm:athm_callback")
-        request = rf.post(url, data=data)
-        response = default_callback(request)
-
-        assert response.status_code == 201
-
-        # Should still have only 1 client (updated, not created)
-        assert ATHM_Client.objects.count() == 1
-        client.refresh_from_db()
-        assert client.name == "New Name"
-        assert client.email == "new@example.com"
-
-    @pytest.mark.django_db
-    def test_callback_with_empty_phone(self, rf):
-        """Test that callback handles empty phone gracefully (no client created)."""
-        data = {
-            "referenceNumber": "ref-empty-phone",
-            "total": "10.00",
-            "customerName": "Test User",
-            "customerPhone": "",  # Empty phone
-        }
-
-        url = reverse("django_athm:athm_callback")
-        request = rf.post(url, data=data)
-        response = default_callback(request)
-
-        # Should succeed without client (empty phone triggers no client creation)
-        assert response.status_code == 201
-        assert ATHM_Transaction.objects.count() == 1
-        assert ATHM_Client.objects.count() == 0  # No client created for empty phone
-        transaction = ATHM_Transaction.objects.first()
-        assert transaction.client is None
-
-    @pytest.mark.django_db
-    def test_callback_missing_required_fields(self, rf):
-        """Test callback returns 400 when required fields missing."""
-        # Missing referenceNumber
-        data = {
-            "total": "10.00",
-        }
+        data = {"ecommerceId": "abc-123-def-456"}
 
         url = reverse("django_athm:athm_callback")
         request = rf.post(url, data=data)
         response = default_callback(request)
 
         assert response.status_code == 400
-
-        # Missing total
-        data = {
-            "referenceNumber": "ref-missing-total",
-        }
-        request = rf.post(url, data=data)
-        response = default_callback(request)
-
-        assert response.status_code == 400
+        assert ATHM_Transaction.objects.count() == 0
 
     @pytest.mark.django_db
-    def test_callback_with_invalid_json_items(self, rf):
-        """Test callback handles invalid JSON in items field."""
-        data = {
-            "referenceNumber": "ref-invalid-json",
-            "total": "10.00",
-            "items": "not valid json",  # Invalid JSON
-        }
-
-        url = reverse("django_athm:athm_callback")
-        request = rf.post(url, data=data)
-        response = default_callback(request)
-
-        # Should succeed but with no items
-        assert response.status_code == 201
-        assert ATHM_Transaction.objects.count() == 1
-        assert ATHM_Item.objects.count() == 0
-
-    @pytest.mark.django_db
-    def test_callback_status_mapping(self, rf):
-        """Test ecommerceStatus to internal status mapping for final statuses."""
+    def test_callback_status_mapping(self, rf, mock_athm_client):
+        """Test ecommerceStatus to internal status mapping."""
         status_mapping = {
             "COMPLETED": ATHM_Transaction.Status.COMPLETED,
             "CANCEL": ATHM_Transaction.Status.CANCEL,
+            "EXPIRED": ATHM_Transaction.Status.CANCEL,
+            "REFUNDED": ATHM_Transaction.Status.REFUNDED,
         }
 
         for api_status, expected_status in status_mapping.items():
-            ATHM_Transaction.objects.all().delete()  # Clean up
+            ATHM_Transaction.objects.all().delete()
 
-            data = {
-                "referenceNumber": f"ref-status-{api_status.lower()}",
-                "total": "10.00",
-                "ecommerceStatus": api_status,
-            }
+            mock_data = create_mock_transaction_data(
+                reference_number=f"ref-{api_status.lower()}",
+                ecommerce_status=api_status,
+            )
+            mock_athm_client.find_payment.return_value = (
+                create_mock_verification_response(mock_data)
+            )
+
+            data = {"ecommerceId": f"ecom-{api_status.lower()}"}
 
             url = reverse("django_athm:athm_callback")
             request = rf.post(url, data=data)
@@ -242,48 +244,17 @@ class TestDefaultCallbackView:
             assert transaction.status == expected_status, f"Failed for {api_status}"
 
     @pytest.mark.django_db
-    def test_callback_intermediate_status_open(self, rf):
-        """Test callback returns 200 for OPEN status without creating transaction."""
-        data = {
-            "ecommerceStatus": "OPEN",
-            "total": "10.00",
-            # Note: No referenceNumber - OPEN status callbacks don't have it yet
-        }
-
-        url = reverse("django_athm:athm_callback")
-        request = rf.post(url, data=data)
-        response = default_callback(request)
-
-        # Should return 200 OK without creating any transaction
-        assert response.status_code == 200
-        assert ATHM_Transaction.objects.count() == 0
-
-    @pytest.mark.django_db
-    def test_callback_intermediate_status_confirm(self, rf):
-        """Test callback returns 200 for CONFIRM status without creating transaction."""
-        data = {
-            "ecommerceStatus": "CONFIRM",
-            "total": "10.00",
-            # Note: No referenceNumber - CONFIRM status callbacks don't have it yet
-        }
-
-        url = reverse("django_athm:athm_callback")
-        request = rf.post(url, data=data)
-        response = default_callback(request)
-
-        # Should return 200 OK without creating any transaction
-        assert response.status_code == 200
-        assert ATHM_Transaction.objects.count() == 0
-
-    @pytest.mark.django_db
-    def test_callback_idempotent_duplicate_reference(self, rf):
+    def test_callback_idempotent_duplicate_reference(self, rf, mock_athm_client):
         """Test callback is idempotent - duplicate reference_number returns 200."""
-        data = {
-            "referenceNumber": "ref-idempotent-test",
-            "total": "50.00",
-            "ecommerceStatus": "COMPLETED",
-            "items": '[{"name":"Item 1","description":"Desc","quantity":"1","price":"50.00"}]',
-        }
+        mock_data = create_mock_transaction_data(
+            reference_number="ref-idempotent",
+            total=Decimal("50.00"),
+        )
+        mock_athm_client.find_payment.return_value = create_mock_verification_response(
+            mock_data
+        )
+
+        data = {"ecommerceId": "abc-123"}
 
         url = reverse("django_athm:athm_callback")
         request = rf.post(url, data=data)
@@ -291,107 +262,165 @@ class TestDefaultCallbackView:
 
         assert response.status_code == 201
         assert ATHM_Transaction.objects.count() == 1
-        assert ATHM_Item.objects.count() == 1
 
-        # Second callback with same reference_number should return 200 (not 500)
-        data["total"] = "75.00"  # Update total
-        data["items"] = (
-            '[{"name":"Item 2","description":"New desc","quantity":"2","price":"37.50"}]'
+        # Second callback with updated data
+        mock_data_updated = create_mock_transaction_data(
+            reference_number="ref-idempotent",
+            total=Decimal("75.00"),
         )
+        mock_athm_client.find_payment.return_value = create_mock_verification_response(
+            mock_data_updated
+        )
+
         request = rf.post(url, data=data)
         response = default_callback(request)
 
         assert response.status_code == 200  # Updated, not created
-        assert ATHM_Transaction.objects.count() == 1  # Still only 1 transaction
+        assert ATHM_Transaction.objects.count() == 1
 
-        # Transaction should be updated
         transaction = ATHM_Transaction.objects.first()
-        assert transaction.total == 75.0
-
-        # Items should be replaced, not duplicated
-        assert ATHM_Item.objects.count() == 1
-        item = ATHM_Item.objects.first()
-        assert item.name == "Item 2"
-        assert item.quantity == 2
+        assert transaction.total == Decimal("75.00")
 
     @pytest.mark.django_db
-    def test_callback_expired_status_mapping(self, rf):
-        """Test EXPIRED ecommerceStatus maps to CANCEL status."""
-        data = {
-            "referenceNumber": "ref-expired-test",
-            "total": "10.00",
-            "ecommerceStatus": "EXPIRED",
-        }
+    def test_callback_with_items(self, rf, mock_athm_client):
+        """Test callback creates items from verified API response."""
+        mock_item = MagicMock()
+        mock_item.name = "Test Item"
+        mock_item.description = "Test Description"
+        mock_item.quantity = 2
+        mock_item.price = Decimal("50.00")
+        mock_item.tax = Decimal("5.00")
+        mock_item.metadata = "item-meta"
+
+        mock_data = create_mock_transaction_data(items=[mock_item])
+        mock_athm_client.find_payment.return_value = create_mock_verification_response(
+            mock_data
+        )
+
+        data = {"ecommerceId": "abc-123"}
 
         url = reverse("django_athm:athm_callback")
         request = rf.post(url, data=data)
         response = default_callback(request)
 
         assert response.status_code == 201
-        transaction = ATHM_Transaction.objects.first()
-        assert transaction.status == ATHM_Transaction.Status.CANCEL
-        assert transaction.ecommerce_status == "EXPIRED"
+        assert ATHM_Item.objects.count() == 1
+
+        item = ATHM_Item.objects.first()
+        assert item.name == "Test Item"
+        assert item.description == "Test Description"
+        assert item.quantity == 2
+        assert item.price == Decimal("50.00")
+        assert item.tax == Decimal("5.00")
+        assert item.metadata == "item-meta"
 
     @pytest.mark.django_db
-    def test_callback_expired_signal_dispatched(self, rf):
-        """Test athm_expired_response signal is dispatched for EXPIRED status."""
+    def test_callback_completed_signal_dispatched(self, rf, mock_athm_client):
+        """Test athm_completed_response signal is dispatched for COMPLETED status."""
         handler = MagicMock()
-        athm_expired_response.connect(handler)
+        athm_completed_response.connect(handler)
 
         try:
-            data = {
-                "referenceNumber": "ref-expired-signal",
-                "total": "10.00",
-                "ecommerceStatus": "EXPIRED",
-            }
+            mock_data = create_mock_transaction_data(ecommerce_status="COMPLETED")
+            mock_athm_client.find_payment.return_value = (
+                create_mock_verification_response(mock_data)
+            )
+
+            data = {"ecommerceId": "abc-123"}
 
             url = reverse("django_athm:athm_callback")
             request = rf.post(url, data=data)
             default_callback(request)
 
-            # Verify expired signal was called
+            assert handler.called
+            assert handler.call_count == 1
+        finally:
+            athm_completed_response.disconnect(handler)
+
+    @pytest.mark.django_db
+    def test_callback_expired_signal_dispatched(self, rf, mock_athm_client):
+        """Test athm_expired_response signal is dispatched for EXPIRED status."""
+        handler = MagicMock()
+        athm_expired_response.connect(handler)
+
+        try:
+            mock_data = create_mock_transaction_data(
+                reference_number="ref-expired",
+                ecommerce_status="EXPIRED",
+            )
+            mock_athm_client.find_payment.return_value = (
+                create_mock_verification_response(mock_data)
+            )
+
+            data = {"ecommerceId": "abc-123"}
+
+            url = reverse("django_athm:athm_callback")
+            request = rf.post(url, data=data)
+            default_callback(request)
+
             assert handler.called
             assert handler.call_count == 1
         finally:
             athm_expired_response.disconnect(handler)
 
     @pytest.mark.django_db
-    def test_callback_completed_signal_dispatched_after_items(self, rf):
-        """Test signals are dispatched after items are created."""
-        received_transaction = {}
-
-        def handler(sender, transaction, **kwargs):
-            # Capture items count at signal dispatch time
-            received_transaction["items_count"] = transaction.items.count()
-
-        athm_completed_response.connect(handler)
+    def test_callback_cancelled_signal_dispatched(self, rf, mock_athm_client):
+        """Test athm_cancelled_response signal is dispatched for CANCEL status."""
+        handler = MagicMock()
+        athm_cancelled_response.connect(handler)
 
         try:
-            data = {
-                "referenceNumber": "ref-signal-after-items",
-                "total": "100.00",
-                "ecommerceStatus": "COMPLETED",
-                "items": '[{"name":"Test Item","description":"Desc","quantity":"1","price":"100.00"}]',
-            }
+            mock_data = create_mock_transaction_data(
+                reference_number="ref-cancel",
+                ecommerce_status="CANCEL",
+            )
+            mock_athm_client.find_payment.return_value = (
+                create_mock_verification_response(mock_data)
+            )
+
+            data = {"ecommerceId": "abc-123"}
 
             url = reverse("django_athm:athm_callback")
             request = rf.post(url, data=data)
             default_callback(request)
 
-            # Items should be available when signal handler runs
-            assert received_transaction["items_count"] == 1
+            assert handler.called
+            assert handler.call_count == 1
         finally:
-            athm_completed_response.disconnect(handler)
+            athm_cancelled_response.disconnect(handler)
 
     @pytest.mark.django_db
-    def test_callback_parses_ath_date(self, rf):
-        """Test callback parses date from ATH response instead of using now()."""
-        data = {
-            "referenceNumber": "ref-date-parse",
-            "total": "10.00",
-            "date": "2020-01-25 19:05:53.0",
-            "ecommerceStatus": "COMPLETED",
-        }
+    def test_callback_response_received_signal_dispatched(self, rf, mock_athm_client):
+        """Test athm_response_received signal is always dispatched."""
+        handler = MagicMock()
+        athm_response_received.connect(handler)
+
+        try:
+            mock_data = create_mock_transaction_data()
+            mock_athm_client.find_payment.return_value = (
+                create_mock_verification_response(mock_data)
+            )
+
+            data = {"ecommerceId": "abc-123"}
+
+            url = reverse("django_athm:athm_callback")
+            request = rf.post(url, data=data)
+            default_callback(request)
+
+            assert handler.called
+        finally:
+            athm_response_received.disconnect(handler)
+
+    @pytest.mark.django_db
+    def test_callback_with_transaction_date(self, rf, mock_athm_client):
+        """Test callback uses transaction_date from API response."""
+        test_date = datetime(2024, 6, 15, 14, 30, 0)
+        mock_data = create_mock_transaction_data(transaction_date=test_date)
+        mock_athm_client.find_payment.return_value = create_mock_verification_response(
+            mock_data
+        )
+
+        data = {"ecommerceId": "abc-123"}
 
         url = reverse("django_athm:athm_callback")
         request = rf.post(url, data=data)
@@ -399,36 +428,59 @@ class TestDefaultCallbackView:
 
         assert response.status_code == 201
         transaction = ATHM_Transaction.objects.first()
-
-        # Date should be parsed from ATH, not timezone.now()
-        assert transaction.date.year == 2020
-        assert transaction.date.month == 1
-        assert transaction.date.day == 25
-        assert transaction.date.hour == 19
-        assert transaction.date.minute == 5
-        assert transaction.date.second == 53
+        assert transaction.date.year == 2024
+        assert transaction.date.month == 6
+        assert transaction.date.day == 15
 
     @pytest.mark.django_db
-    def test_callback_date_fallback_to_now(self, rf):
-        """Test callback falls back to now() when date not provided."""
-        from django.utils import timezone
+    def test_callback_items_replaced_on_update(self, rf, mock_athm_client):
+        """Test items are replaced, not duplicated, on duplicate callback."""
+        mock_item1 = MagicMock()
+        mock_item1.name = "Item 1"
+        mock_item1.description = ""
+        mock_item1.quantity = 1
+        mock_item1.price = Decimal("50.00")
+        mock_item1.tax = None
+        mock_item1.metadata = None
 
-        before = timezone.now()
+        mock_data = create_mock_transaction_data(
+            reference_number="ref-items-replace",
+            items=[mock_item1],
+        )
+        mock_athm_client.find_payment.return_value = create_mock_verification_response(
+            mock_data
+        )
 
-        data = {
-            "referenceNumber": "ref-no-date",
-            "total": "10.00",
-            "ecommerceStatus": "COMPLETED",
-        }
-
+        data = {"ecommerceId": "abc-123"}
         url = reverse("django_athm:athm_callback")
+
+        # First callback
         request = rf.post(url, data=data)
-        response = default_callback(request)
+        default_callback(request)
+        assert ATHM_Item.objects.count() == 1
 
-        after = timezone.now()
+        # Second callback with different item
+        mock_item2 = MagicMock()
+        mock_item2.name = "Item 2"
+        mock_item2.description = ""
+        mock_item2.quantity = 2
+        mock_item2.price = Decimal("25.00")
+        mock_item2.tax = None
+        mock_item2.metadata = None
 
-        assert response.status_code == 201
-        transaction = ATHM_Transaction.objects.first()
+        mock_data_updated = create_mock_transaction_data(
+            reference_number="ref-items-replace",
+            items=[mock_item2],
+        )
+        mock_athm_client.find_payment.return_value = create_mock_verification_response(
+            mock_data_updated
+        )
 
-        # Date should be between before and after
-        assert before <= transaction.date <= after
+        request = rf.post(url, data=data)
+        default_callback(request)
+
+        # Should have 1 item (replaced, not added)
+        assert ATHM_Item.objects.count() == 1
+        item = ATHM_Item.objects.first()
+        assert item.name == "Item 2"
+        assert item.quantity == 2

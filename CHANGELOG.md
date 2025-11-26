@@ -15,11 +15,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `onCancelledPayment` → `cancelATHM`
   - `onExpiredPayment` → `expiredATHM`
 - **Changed button container ID** from `ATHMovil_Checkout_Button` to `ATHMovil_Checkout_Button_payment`
-- **Updated Django support:** Now requires Django 4.2 LTS minimum. Supports Django 4.2, 5.1, 5.2
-- **Updated Python support:** Dropped Python 3.8 (for Django 5.1+). Supports Python 3.8-3.13
+- **Updated Django support:** Now requires Django 5.1 minimum. Supports Django 5.1, 5.2. Dropped Django 4.2.
+- **Updated Python support:** Now requires Python 3.10 minimum. Supports Python 3.10-3.13. Dropped Python 3.8, 3.9.
 - **Removed jQuery dependency** - Now uses native Fetch API for callback requests
 - **Updated transaction status values** - Added `OPEN`, `CONFIRM`, `CANCEL` status choices
 - **Monetary fields changed to DecimalField** - All monetary fields (`total`, `subtotal`, `tax`, `fee`, `net_amount`, `refunded_amount`, `price`) now use `DecimalField` instead of `FloatField` for improved precision
+- **Server-side transaction verification** - Callback view now verifies all transactions with ATH Movil API via `find_payment()`. Only `ecommerceId` from POST is trusted; all other data fetched from API.
+- **New dependency: athm-python** - Added [athm-python](https://github.com/django-athm/athm-python) v0.3.0 for API communication
 
 ### Added
 

@@ -69,10 +69,16 @@ The JavaScript SDK URL has been updated:
 
 #### 4. Django/Python Version Support Updated
 
-- **Minimum Django:** 4.2 LTS (dropped support for 3.2, 4.0, 4.1)
-- **Minimum Python:** 3.8
-- **Supported Django:** 4.2 LTS, 5.1, 5.2
-- **Supported Python:** 3.8-3.13
+- **Minimum Django:** 5.1 (dropped support for 4.2)
+- **Minimum Python:** 3.10
+- **Supported Django:** 5.1, 5.2
+- **Supported Python:** 3.10-3.13
+
+#### 5. Server-Side Transaction Verification
+
+The callback view now verifies all transactions with ATH Movil's API before persisting. Only `ecommerceId` from the POST callback is trusted; all other transaction data is fetched from the API via `find_payment()`. This prevents spoofed payment data.
+
+**New dependency:** [athm-python](https://github.com/django-athm/athm-python) for API communication.
 
 ### New Features in v1.0
 
@@ -181,7 +187,8 @@ This project is **not** affiliated with or endorsed by [Evertec, Inc.](https://w
 
 
 ## Dependencies
-* [httpx](https://github.com/encode/httpx/) for performing network requests to the ATH Móvil API
+* [athm-python](https://github.com/django-athm/athm-python) for ATH Movil API communication and server-side transaction verification
+* [httpx](https://github.com/encode/httpx/) for performing network requests to the ATH Movil API
 * [phonenumberslite](https://github.com/daviddrysdale/python-phonenumbers) for validating and parsing client phone numbers
 
 ## References
