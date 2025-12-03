@@ -6,3 +6,7 @@ class ATHM_Error(Exception):
 
 class ATHM_RefundError(ATHM_Error):
     pass
+
+
+class ATHM_ReportError(ATHM_Error):
+    pass

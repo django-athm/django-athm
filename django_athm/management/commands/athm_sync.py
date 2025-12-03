@@ -1,6 +1,3 @@
-import logging
-from decimal import Decimal, InvalidOperation
-
 import phonenumbers
 from django.core.management.base import BaseCommand, CommandError
 from django.utils.dateparse import parse_datetime
@@ -10,53 +7,30 @@ from django_athm.conf import settings as app_settings
 from django_athm.constants import TransactionType
 from django_athm.models import ATHM_Client, ATHM_Item, ATHM_Transaction
 
-logger = logging.getLogger(__name__)
-
 
 def get_status(transaction):
     if transaction["transactionType"].upper() == TransactionType.refund.value:
         return ATHM_Transaction.Status.REFUNDED
     elif transaction["transactionType"].upper() == TransactionType.ecommerce.value:
-        if Decimal(str(transaction["totalRefundAmount"])) > 0:
+        if float(transaction["totalRefundAmount"]) > 0:
             return ATHM_Transaction.Status.REFUNDED
         else:
             return ATHM_Transaction.Status.COMPLETED
 
-    # Log warning for unknown transaction types and default to COMPLETED
-    logger.warning(
-        "[django_athm:unknown_transaction_type]",
-        extra={"transaction_type": transaction["transactionType"]},
-    )
-    return ATHM_Transaction.Status.COMPLETED
+    return transaction["transactionType"]
 
 
 def get_defaults(transaction):
-    """Build defaults dict for ATHM_Transaction.objects.update_or_create()."""
-
-    def safe_decimal(value, default=None):
-        """Safely convert to Decimal, return default if empty/invalid."""
-        if not value:
-            return default
-        try:
-            return Decimal(str(value))
-        except (InvalidOperation, TypeError):
-            return default
-
     return dict(
         reference_number=transaction["referenceNumber"],
         status=get_status(transaction),
         date=make_aware(parse_datetime(transaction["date"])),
-        total=Decimal(str(transaction["total"])),
-        tax=Decimal(str(transaction["tax"])),
-        refunded_amount=safe_decimal(transaction.get("totalRefundAmount")),
-        subtotal=Decimal(str(transaction["subtotal"])),
-        metadata_1=transaction.get("metadata1") or None,
-        metadata_2=transaction.get("metadata2") or None,
-        # v4 API fields
-        ecommerce_id=transaction.get("ecommerceId", "") or "",
-        ecommerce_status=transaction.get("ecommerceStatus", "") or "",
-        net_amount=safe_decimal(transaction.get("netAmount")),
-        fee=safe_decimal(transaction.get("fee")),
+        total=float(transaction["total"]),
+        tax=float(transaction["tax"]),
+        refunded_amount=float(transaction.get("totalRefundAmount", 0)),
+        subtotal=float(transaction["subtotal"]),
+        metadata_1=transaction.get("metadata1", None),
+        metadata_2=transaction.get("metadata2", None),
     )
 
 
@@ -166,49 +140,23 @@ class Command(BaseCommand):
                 phone_number_parsed, phonenumbers.PhoneNumberFormat.E164
             )
 
-            # Get or create an ATHM_Client instance (lookup by phone only for consistency)
-            client, client_created = ATHM_Client.objects.get_or_create(
+            # Get or create an ATHM_Client instance
+            _, client_created = ATHM_Client.objects.get_or_create(
+                email=transaction_data["email"].strip(),
                 phone_number=phone_number_formatted,
-                defaults=dict(
-                    name=transaction_data["name"].strip(),
-                    email=transaction_data["email"].strip(),
-                ),
+                defaults=dict(name=transaction_data["name"].strip()),
             )
-
-            # Update email if client exists with different email
-            if not client_created:
-                new_email = transaction_data["email"].strip()
-                if client.email != new_email:
-                    client.email = new_email
-                    client.save(update_fields=["email"])
-
-            # Link client to transaction if not already linked
-            if transaction.client != client:
-                transaction.client = client
-                transaction.save(update_fields=["client"])
-
-            # Helper for safe Decimal conversion
-            def safe_item_decimal(value):
-                if not value:
-                    return None
-                try:
-                    return Decimal(str(value))
-                except (InvalidOperation, TypeError):
-                    return None
-
-            # Clear existing items before re-creating (prevents duplicates on re-sync)
-            transaction.items.all().delete()
 
             # Accumulate ATHM_Item instances in this list
             item_instances = [
                 ATHM_Item(
                     transaction=transaction,
-                    name=item.get("name", "")[:32],
-                    description=item.get("description", "")[:128],
-                    quantity=int(item.get("quantity", 1)),
-                    price=Decimal(str(item.get("price", 0))),
-                    tax=safe_item_decimal(item.get("tax")),
-                    metadata=item.get("metadata") or None,
+                    name=item["name"],
+                    description=item["description"],
+                    quantity=int(item["quantity"]),
+                    price=float(item["price"]),
+                    tax=float(item["price"]),
+                    metadata=item["metadata"],
                 )
                 for item in transaction_data["items"]
             ]

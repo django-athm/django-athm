@@ -1,6 +1,7 @@
 {
     "ATHM_CONFIG": {
-        "public_token": "public-token",
+        "env": "sandbox",
+        "public_token": "sandboxtoken01875617264",
         "timeout": 600,
         "theme": "btn",
         "language": "es",
@@ -9,8 +10,6 @@
         "subtotal": 24.0,
         "tax": 1.0,
         "metadata_1": "This is metadata 1",
-        "metadata_2": "This is metadata 2",
-        "phone_number": 7871234567,
         "items": [
             {
                 "name": "First Item",

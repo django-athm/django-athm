@@ -3,8 +3,6 @@ from pathlib import Path
 
 from django.http import HttpResponse
 from django.shortcuts import render
-from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.http import require_POST
 
 athm_config_fixture = (
     Path(__file__).resolve().parent.parent.parent / "fixtures" / "athm_config.json"
@@ -16,8 +14,6 @@ def home_view(request):
         return render(request, "home.html", context=json.load(fp))
 
 
-@csrf_exempt
-@require_POST
 def custom_test_callback(request):
-    """Test callback for configuration tests."""
+    """Test callback function for testing custom callback views."""
     return HttpResponse(status=200)

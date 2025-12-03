@@ -9,57 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed (BREAKING)
 
-- **Updated to ATH Móvil JavaScript v4 API** - New SDK URL and integration requirements
-- **Renamed JavaScript callback functions** to match new API:
-  - `onCompletedPayment` → `authorizationATHM`
-  - `onCancelledPayment` → `cancelATHM`
-  - `onExpiredPayment` → `expiredATHM`
-- **Changed button container ID** from `ATHMovil_Checkout_Button` to `ATHMovil_Checkout_Button_payment`
 - **Updated Django support:** Now requires Django 5.1 minimum. Supports Django 5.1, 5.2. Dropped Django 4.2.
 - **Updated Python support:** Now requires Python 3.10 minimum. Supports Python 3.10-3.13. Dropped Python 3.8, 3.9.
-- **Removed jQuery dependency** - Now uses native Fetch API for callback requests
-- **Updated transaction status values** - Added `OPEN`, `CONFIRM`, `CANCEL` status choices
-- **Monetary fields changed to DecimalField** - All monetary fields (`total`, `subtotal`, `tax`, `fee`, `net_amount`, `refunded_amount`, `price`) now use `DecimalField` instead of `FloatField` for improved precision
-- **Server-side transaction verification** - Callback view now verifies all transactions with ATH Movil API via `find_payment()`. Only `ecommerceId` from POST is trusted; all other data fetched from API.
-- **New dependency: athm-python** - Added [athm-python](https://github.com/django-athm/athm-python) v0.3.0 for API communication
-
-### Added
-
-- **Phone number pre-fill support** - Pass `phone_number` in `athm_config` to pre-populate customer phone
-- **New transaction fields:**
-  - `ecommerce_id` (indexed) - ATH Móvil eCommerce transaction ID
-  - `ecommerce_status` - Status from ATH Móvil API
-  - `customer_name` - Customer name from ATH Móvil account
-  - `customer_phone` - Customer phone from ATH Móvil account
-  - `net_amount` - Net amount after fees (changed from computed property to field)
-- **Automatic client creation** - ATHM_Client records now created/updated automatically from transaction callbacks
-- **New API methods:**
-  - `ATHM_Transaction.find_payment()` - Find payment using ATH Móvil v4 API
-  - `ATHM_Transaction.cancel_payment()` - Cancel payment using ATH Móvil v4 API
-- **New API endpoint constants** for v4 API
-- **Django 5.1 and 5.2 support**
-- **Python 3.11, 3.12, and 3.13 support**
-- **New `athm_expired_response` signal** - Dispatched when checkout sessions expire, allowing distinction between user cancellation and timeout
-- **Optional subtotal and tax** - Template tag now treats these fields as optional with sensible defaults
-- Strict data validation in template and callback view
-
-### Fixed
-
-- **Implemented client creation in callback** - Fixed long-standing TODO in `default_callback()` view
-- **Version inconsistency** - Synchronized version between `pyproject.toml` and `__init__.py`
-- **Idempotent callbacks** - Duplicate callbacks now return 200 instead of causing database errors
-- **Signal dispatch timing** - Signals now dispatched after items are created, ensuring handlers see complete transaction data
-- **EXPIRED status handling** - EXPIRED ecommerceStatus now correctly maps to CANCEL internal status
-- **Transaction date parsing** - Now parses date from ATH response instead of using server time
-- **Items not duplicated on sync** - Running `athm_sync` multiple times no longer creates duplicate items
-- **Client lookup consistency** - Sync command now uses phone-only lookup, matching callback behavior
-- **Client deletion safety** - Deleting an ATHM_Client no longer cascades to delete transaction history
-
-### Removed
-
-- **Dropped Django 3.2, 4.0, 4.1 support** - Minimum version now Django 4.2 LTS
-- **Removed `ATHM_ReportError` exception** - Was defined but never used
-
+- **New dependency: athm-python** - Added [athm-python](https://github.com/django-athm/athm-python) v0.4.0 for API communication
 
 ## [0.7.0] - 2022-08-05
 

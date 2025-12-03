@@ -8,6 +8,7 @@ BASE_DIR = os.path.dirname(PROJECT_DIR)
 
 DJANGO_ATHM_PUBLIC_TOKEN = "public-token"
 DJANGO_ATHM_PRIVATE_TOKEN = "private-token"
+DJANGO_ATHM_SANDBOX_MODE = True
 
 SECRET_KEY = "its-a-secret-to-everybody"
 
@@ -16,6 +17,8 @@ SITE_ID = 1
 TIME_ZONE = "UTC"
 
 USE_TZ = True
+
+ROOT_URLCONF = "tests.urls"
 
 INSTALLED_APPS = [
     "django.contrib.admin",

@@ -2,14 +2,9 @@ from enum import Enum
 
 API_BASE_URL = "https://www.athmovil.com"
 
-# ATH Móvil API endpoints
-REFUND_URL = "https://payments.athmovil.com/api/business-transaction/ecommerce/refund"
-SEARCH_URL = API_BASE_URL + "/api/v4/searchTransaction"
-REPORT_URL = API_BASE_URL + "/transactions/v4/transactionReport"
-FIND_PAYMENT_URL = "https://payments.athmovil.com/api/business-transaction/ecommerce/business/findPayment"
-CANCEL_PAYMENT_URL = (
-    "https://payments.athmovil.com/api/business-transaction/ecommerce/business/cancel"
-)
+REFUND_URL = "/api/v4/refundTransaction"
+SEARCH_URL = "/api/v4/searchTransaction"
+REPORT_URL = "/transactions/v4/transactionReport"
 
 ERROR_DICT = {
     "3010": "publicToken is invalid",

@@ -1,0 +1,68 @@
+[
+    {
+        "transactionType": "ECOMMERCE",
+        "status": "COMPLETED",
+        "date": "2021-07-08 00:36:39.0",
+        "referenceNumber": "402894d56b240610016b2e6c78a6003a",
+        "dailyTransactionID": 35,
+        "name": "Valeria Herrero",
+        "phoneNumber": "(787) 123-4567",
+        "email": "valher@gmail.com",
+        "message": "",
+        "total": 1.0,
+        "tax": 0.0,
+        "subtotal": 0.0,
+        "fee": 0.0,
+        "netAmount": 1.0,
+        "totalRefundAmount": 1.0,
+        "metadata1": "metadata1 test",
+        "metadata2": "metadata2 test",
+        "items": [
+            {
+                "name": "Item",
+                "description": "Description",
+                "quantity": 1,
+                "price": 1.0,
+                "tax": 0.0,
+                "metadata": "Metadata"
+            },
+            {
+                "name": "item",
+                "description": "desc",
+                "quantity": 1,
+                "price": 1.0,
+                "tax": 0.0,
+                "metadata": "Metadata"
+            }
+        ]
+    },
+    {
+        "transactionType": "ECOMMERCE",
+        "status": "COMPLETED",
+        "date": "2021-07-08 00:35:43.0",
+        "referenceNumber": "402894d56b240610016b2e6c78a6003a ",
+        "dailyTransactionID": 33,
+        "name": "Valeria Herrero",
+        "phoneNumber": "(787) 123-4567",
+        "email": "valher@gmail.com",
+        "message": "",
+        "total": 5.0,
+        "tax": 1.0,
+        "subtotal": 2.0,
+        "fee": 0.0,
+        "netAmount": 5.0,
+        "totalRefundAmount": 5.0,
+        "metadata1": "metadata1 test",
+        "metadata2": "metadata1 test",
+        "items": [
+            {
+                "name": "Nombre de arreglo",
+                "description": "Prueba de items",
+                "quantity": 3,
+                "price": 2.0,
+                "tax": 1.0,
+                "metadata": "prueba metadata"
+            }
+        ]
+    }
+]

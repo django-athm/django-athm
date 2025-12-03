@@ -64,7 +64,6 @@ class TestSyncCommand:
         assert status == ATHM_Transaction.Status.COMPLETED
 
     def test_get_status_other(self):
-        """Test unknown transaction types default to COMPLETED with a warning."""
         upstream_transaction = {
             "status": TransactionStatus.expired.value,
             "transactionType": TransactionStatus.expired.value,
@@ -80,7 +79,7 @@ class TestSyncCommand:
         }
 
         status = get_status(upstream_transaction)
-        assert status == ATHM_Transaction.Status.COMPLETED
+        assert status == TransactionStatus.expired.value
 
     @pytest.mark.django_db
     def test_command_output_success(self, mock_http_adapter_get_with_data):
@@ -208,7 +207,7 @@ class TestSyncCommand:
         )
 
         assert ATHM_Transaction.objects.count() == 2
-        assert ATHM_Item.objects.count() == 4
+        assert ATHM_Item.objects.count() == 6
         assert ATHM_Client.objects.count() == 1
 
         transaction_1 = ATHM_Transaction.objects.get(
