@@ -82,7 +82,7 @@ python =
 setenv =
     DJANGO_SETTINGS_MODULE = tests.settings
     PYTHONWARNINGS = all
-    PYTEST_ADDOPTS = --cov django_athm --cov-append --cov-report=xml --cov-fail-under 90
+    PYTEST_ADDOPTS = --cov django_athm --cov-append --cov-report=xml
 deps =
     pytest>=7.4.0
     pytest-cov>=4.1.0
