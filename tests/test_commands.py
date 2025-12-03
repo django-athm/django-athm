@@ -163,24 +163,28 @@ class TestSyncCommand:
             metadata_2="metadata2 test",
         )
 
-        ATHM_Item.objects.create(
-            name="First Item",
-            transaction=existing_transaction,
-            description="This is a description.",
-            quantity=1,
-            price=1.00,
-            tax=1.00,
-            metadata="metadata test",
-        ),
-        ATHM_Item.objects.create(
-            name="Second Item",
-            transaction=existing_transaction,
-            description="This is a description.",
-            quantity=1,
-            price=1.00,
-            tax=1.00,
-            metadata="metadata test",
-        ),
+        (
+            ATHM_Item.objects.create(
+                name="First Item",
+                transaction=existing_transaction,
+                description="This is a description.",
+                quantity=1,
+                price=1.00,
+                tax=1.00,
+                metadata="metadata test",
+            ),
+        )
+        (
+            ATHM_Item.objects.create(
+                name="Second Item",
+                transaction=existing_transaction,
+                description="This is a description.",
+                quantity=1,
+                price=1.00,
+                tax=1.00,
+                metadata="metadata test",
+            ),
+        )
 
         existing_transaction.save()
 

@@ -7,13 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-- Allow usage of custom Transaction model
-- Strict data validation in template and callback view
-- Add support for official webhooks
-- 100% test coverage
+### Changed (BREAKING)
 
+- **Updated Django support:** Now requires Django 5.1 minimum. Supports Django 5.1, 5.2. Dropped Django 4.2.
+- **Updated Python support:** Now requires Python 3.10 minimum. Supports Python 3.10-3.13. Dropped Python 3.8, 3.9.
+- **New dependency: athm-python** - Added [athm-python](https://github.com/django-athm/athm-python) v0.4.0 for API communication
 
-## [0.7.0-UNRELEASED] - 2022-XX-YY
+## [0.7.0] - 2022-08-05
 
 ### Added
 - Added support for Python 3.10

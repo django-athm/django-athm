@@ -1,4 +1,5 @@
 [run]
+source = django_athm
 branch = true
 
 [report]
@@ -7,10 +8,6 @@ omit =
     django_athm/__init__.py
     django_athm/conf.py
     *site-packages*
-    *tests*
-    *.tox*
-    *settings.py
-    *urls.py
 show_missing = True
 exclude_lines =
     raise NotImplementedError

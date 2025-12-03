@@ -133,3 +133,5 @@ dmypy.json
 scratchpad
 
 .vscode
+.claude
+.ruff_cache/

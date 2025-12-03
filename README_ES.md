@@ -1,11 +1,12 @@
 # django-athm
 
 ![Build Status](https://github.com/django-athm/django-athm/actions/workflows/ci.yaml/badge.svg)
-[![Codecov status](https://codecov.io/gh/django-athm/django-athm/branch/main/graph/badge.svg)](https://codecov.io/gh/django-athm/django-athm)
+[![codecov](https://codecov.io/github/django-athm/django-athm/graph/badge.svg?token=n1uO3iKBPG)](https://codecov.io/github/django-athm/django-athm)
 ![PyPI - Python Version](https://img.shields.io/pypi/pyversions/django-athm)
 ![PyPI - Django Version](https://img.shields.io/pypi/djversions/django-athm)
 [![PyPI version](https://img.shields.io/pypi/v/django-athm.svg)](https://pypi.org/project/django-athm/)
-[![Packaged with Poetry](https://img.shields.io/badge/package_manager-poetry-blue.svg)](https://python-poetry.org/)
+[![Publicado en Django Packages](https://img.shields.io/badge/Published%20on-Django%20Packages-0c3c26)](https://djangopackages.org/packages/p/django-athm/)
+[![Packaged with uv](https://img.shields.io/badge/package_manager-uv-blue.svg)](https://github.com/astral-sh/uv)
 ![Code style badge](https://badgen.net/badge/code%20style/black/000)
 ![License badge](https://img.shields.io/github/license/django-athm/django-athm.svg)
 
@@ -40,8 +41,9 @@ Este proyecto **no** está afiliado ni endosado de ninguna manera por [Evertec, 
 
 
 ## Dependencias
-* [httpx](https://github.com/encode/httpx/) para hacer pedidos a la API de ATH Móvil.
-* [phonenumberslite](https://github.com/daviddrysdale/python-phonenumbers) para validar y mejor almacener los números de teléfonos
+* [athm-python](https://github.com/django-athm/athm-python) para comunicación con la API de ATH Movil y verificación de transacciones
+* [httpx](https://github.com/encode/httpx/) para hacer pedidos a la API de ATH Movil
+* [phonenumberslite](https://github.com/daviddrysdale/python-phonenumbers) para validar y mejor almacenar los números de teléfonos
 
 
 ## Referencias

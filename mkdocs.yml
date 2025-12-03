@@ -3,5 +3,8 @@ repo_url: https://github.com/django-athm/django-athm
 nav:
     - Getting Started: index.md
     - Configuration: config.md
+    - API Reference: api.md
+    - Signals: signals.md
+    - Upgrading: upgrading.md
     - Changelog: 'https://github.com/django-athm/django-athm/blob/main/CHANGELOG.md'
 theme: readthedocs

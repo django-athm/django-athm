@@ -9,7 +9,6 @@ import django_athm.models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("django_athm", "0002_auto_20200202_1855"),
     ]

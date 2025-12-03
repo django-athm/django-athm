@@ -1,125 +1,144 @@
-# Installation
+# Getting Started
 
-* Install the package from PyPI.
+## Installation
+
+Install the package from PyPI:
 
 ```bash
 pip install django-athm
 ```
 
-* Add the package to your `INSTALLED_APPS` and configure the needed settings in your `settings.py`.
+Add the package to your `INSTALLED_APPS` and configure the required settings in your `settings.py`:
 
 ```python
 INSTALLED_APPS = [
-    ...,
+    # ...
     "django_athm",
 ]
 
-DJANGO_ATHM_PUBLIC_TOKEN = 'your-public-token'
-DJANGO_ATHM_PRIVATE_TOKEN = 'your-private-token'
+DJANGO_ATHM_PUBLIC_TOKEN = "your-public-token"
+DJANGO_ATHM_PRIVATE_TOKEN = "your-private-token"
 ```
 
-* Create the model tables for storing ATH Móvil transactions and items.
+Run migrations to create the database tables:
 
 ```bash
 python manage.py migrate
 ```
 
-* Add the default callback function to your root urls:
+## URL Configuration
+
+Add the callback URL to your root `urls.py`:
 
 ```python
-    urlpatterns = [
-        ...,
-        path("athm/", include("django_athm.urls", namespace="django_athm")),
-    ]
+from django.urls import include, path
+
+urlpatterns = [
+    # ...
+    path("athm/", include("django_athm.urls", namespace="django_athm")),
+]
 ```
 
-* In your views, pass a `ATHM_CONFIG` (or whichever key you prefer) to the context:
+## Displaying the Checkout Button
+
+### 1. Create the Configuration in Your View
 
 ```python
+from django.views.decorators.csrf import requires_csrf_token
 from django_athm.constants import BUTTON_COLOR_DEFAULT, BUTTON_LANGUAGE_SPANISH
 
-def your_view(request):
+@requires_csrf_token
+def checkout_view(request):
     context = {
         "ATHM_CONFIG": {
             "theme": BUTTON_COLOR_DEFAULT,
             "language": BUTTON_LANGUAGE_SPANISH,
-            "total": 25.0,
-            "subtotal": 24.0,
-            "tax": 1.0,
-            "metadata_1": "This is metadata 1",
+            "total": 25.00,
+            "subtotal": 24.00,
+            "tax": 1.00,
+            "metadata_1": "Order #12345",
+            "metadata_2": "Customer reference",
             "items": [
                 {
-                    "name": "First Item",
-                    "description": "This is a description.",
-                    "quantity": "1",
-                    "price": "24.00",
-                    "tax": "1.00",
-                    "metadata": "metadata test",
+                    "name": "Product Name",
+                    "description": "Product description",
+                    "quantity": 1,
+                    "price": 24.00,
+                    "tax": 1.00,
                 }
             ],
         }
     }
-
-    return render(request, "your-template-path.html", context=context)
+    return render(request, "checkout.html", context)
 ```
 
-* In the related templates where you wish to display the Checkout button, load and invoke the `athm_button` custom tag along with your ATHM config from the previous step.
+### 2. Render the Button in Your Template
 
 ```html
-{% load django_athm %} {% athm_button ATHM_CONFIG %}
+{% load django_athm %}
+
+{% athm_button ATHM_CONFIG %}
 ```
 
-**NOTE**: You must have jQuery loaded in your Django template BEFORE you use the `athm_button` tag.
+The CSRF token must be available in your template. Use the `@requires_csrf_token` decorator on your view as shown above.
 
-You can use the following snippet to load jQuery, placing it somewhere above the `athm_button` tag:
+## Payment Flow
 
-```html
-<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
-```
+1. Customer clicks the ATH Movil checkout button
+2. The ATH Movil modal opens and prompts the customer for their phone number
+3. Customer receives a push notification on their ATH Movil app
+4. Customer approves (or cancels) the payment in their app
+5. django-athm receives a callback and creates a transaction record
+6. Your application responds to payment events via [signals](signals.md) or a [custom callback](config.md#django_athm_callback_view)
 
-Also, make sure that the CSRF token tag is available in your template. You may need to decorate your views with `@requires_csrf_token`:
+## Accessing Transaction Data
 
-```python
-from django.views.decorators.csrf import requires_csrf_token
-
-@requires_csrf_token
-def your_view(request):
-    ...
-```
-
-* The user clicks on button rendered by your template and then uses the ATH Móvil app to pay the business associated to the public and private tokens you set up in `settings.py`.
-
-* This package will perform a POST `ajax` request on success or failure to the configured callback view. The default view will persist the transaction and items in your database.
-
-* You can obtain your transactions and items from the database:
+Query transactions and items from the database:
 
 ```python
 from django_athm.models import ATHM_Transaction, ATHM_Item
 
-my_transactions = ATHM_Transaction.objects.all()
-my_items = ATHM_Item.objects.all()
+# Get all transactions
+transactions = ATHM_Transaction.objects.all()
+
+# Get completed transactions
+completed = ATHM_Transaction.objects.completed()
+
+# Get refundable transactions
+refundable = ATHM_Transaction.objects.refundable()
+
+# Get transactions with items prefetched
+with_items = ATHM_Transaction.objects.with_items()
+
+# Filter by date range
+from datetime import datetime
+recent = ATHM_Transaction.objects.by_date_range(
+    start_date=datetime(2025, 1, 1),
+    end_date=datetime(2025, 1, 31)
+)
 ```
 
-# Useful Constants
+## Django Admin
 
-These are available from `django_athm.constants`.
+The package includes admin views for managing transactions. You can:
 
-```python
+- View transaction details
+- Refund completed transactions
+- Sync transaction data with ATH Movil API
 
-BUTTON_COLOR_DEFAULT = "btn"
-BUTTON_COLOR_LIGHT = "btn-light"
-BUTTON_COLOR_DARK = "btn-dark"
+## Management Commands
 
-BUTTON_LANGUAGE_SPANISH = "es"
-BUTTON_LANGUAGE_ENGLISH = "en"
-```
+### athm_sync
 
-# Django Admin
-You can refund transactions directly from the Django Admin interface.
-
-# Django Management Commands
-* If you would like to synchronize your database with transactional data from ATH Móvil, you can use the `athm_sync` management command:
+Synchronize your database with transactions from ATH Movil:
 
 ```bash
-$ python manage.py athm_sync --start "2020-01-01 00:00:00" --end "2020-02-05 12:30:00"
+python manage.py athm_sync --start "2025-01-01 00:00:00" --end "2025-01-31 23:59:59"
 ```
+
+## Next Steps
+
+- [Configuration Reference](config.md) - All settings and options
+- [API Reference](api.md) - Models, methods, and QuerySets
+- [Signals](signals.md) - Respond to payment events
+- [Upgrading](upgrading.md) - Migration guide for new versions

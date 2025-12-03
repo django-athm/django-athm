@@ -28,16 +28,13 @@ def get_callback_function(func):
     raise ImproperlyConfigured(f"{func} must be callable.")
 
 
-class Settings(object):
+class Settings:
     def __getattr__(self, name):
         if name not in DEFAULTS:
             msg = "'%s' object has no attribute '%s'"
             raise AttributeError(msg % (self.__class__.__name__, name))
 
         value = self.get_setting(name)
-
-        if is_callable(value):
-            value = value()
 
         # Cache the result
         setattr(self, name, value)

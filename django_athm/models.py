@@ -40,7 +40,6 @@ class ATHM_Client(models.Model):
 
 
 class ATHM_Transaction(models.Model):
-
     # NOTE: different from the API's status values
     class Status(models.TextChoices):
         PROCESSING = "processing", _("processing")
