@@ -1,5 +1,7 @@
 import logging
 from abc import ABC, abstractmethod
+from decimal import Decimal
+from typing import Any, Optional
 
 import httpx
 
@@ -10,6 +12,27 @@ logger = logging.getLogger(__name__)
 
 def parse_error_code(error_code):
     return ERROR_DICT.get(error_code, "unknown error")
+
+
+def safe_decimal(value: Any, default: Optional[Decimal] = None) -> Optional[Decimal]:
+    """
+    Safely convert a value to Decimal.
+
+    Args:
+        value: Value to convert (int, float, str, Decimal, None)
+        default: Default value if conversion fails or value is None
+
+    Returns:
+        Decimal or default value
+    """
+    if value is None:
+        return default
+    if isinstance(value, Decimal):
+        return value
+    try:
+        return Decimal(str(value))
+    except (ValueError, TypeError, ArithmeticError):
+        return default
 
 
 class BaseHTTPAdapter(ABC):

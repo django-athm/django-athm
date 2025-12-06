@@ -8,16 +8,7 @@ from django.utils.timezone import make_aware
 from django_athm.conf import settings as app_settings
 from django_athm.constants import TransactionType
 from django_athm.models import ATHM_Client, ATHM_Item, ATHM_Transaction
-
-
-def _safe_decimal(value, default=None):
-    """Safely convert value to Decimal."""
-    if value is None:
-        return default
-    try:
-        return Decimal(str(value))
-    except (ValueError, TypeError):
-        return default
+from django_athm.utils import safe_decimal
 
 
 def get_status(transaction):
@@ -35,7 +26,7 @@ def get_status(transaction):
 
     # Handle ecommerce transactions
     elif transaction_type == TransactionType.ecommerce.value:
-        refund_amount = _safe_decimal(transaction.get("totalRefundAmount", 0), Decimal("0"))
+        refund_amount = safe_decimal(transaction.get("totalRefundAmount"), Decimal("0"))
         if refund_amount > 0:
             return ATHM_Transaction.Status.REFUNDED
         else:
@@ -51,7 +42,7 @@ def get_status(transaction):
         "REFUNDED": ATHM_Transaction.Status.REFUNDED,
         "EXPIRED": ATHM_Transaction.Status.EXPIRED,
         "CANCELLED": ATHM_Transaction.Status.CANCELLED,
-        "CANCEL": ATHM_Transaction.Status.CANCEL,
+        "CANCEL": ATHM_Transaction.Status.CANCELLED,  # API uses both
         "OPEN": ATHM_Transaction.Status.OPEN,
         "CONFIRM": ATHM_Transaction.Status.CONFIRM,
     }
@@ -65,11 +56,11 @@ def get_defaults(transaction):
         reference_number=transaction["referenceNumber"],
         status=get_status(transaction),
         date=make_aware(parse_datetime(transaction["date"])),
-        total=_safe_decimal(transaction.get("total"), Decimal("0")),
-        tax=_safe_decimal(transaction.get("tax")),
-        refunded_amount=_safe_decimal(transaction.get("totalRefundAmount")),
-        subtotal=_safe_decimal(transaction.get("subtotal")),
-        fee=_safe_decimal(transaction.get("fee")),
+        total=safe_decimal(transaction.get("total")),
+        tax=safe_decimal(transaction.get("tax")),
+        refunded_amount=safe_decimal(transaction.get("totalRefundAmount")),
+        subtotal=safe_decimal(transaction.get("subtotal")),
+        fee=safe_decimal(transaction.get("fee")),
         metadata_1=transaction.get("metadata1"),
         metadata_2=transaction.get("metadata2"),
         customer_name=transaction.get("name", ""),
@@ -198,8 +189,8 @@ class Command(BaseCommand):
                     name=item.get("name", "")[:128],
                     description=item.get("description", "")[:255],
                     quantity=int(item.get("quantity", 1)),
-                    price=_safe_decimal(item.get("price"), Decimal("0")),
-                    tax=_safe_decimal(item.get("tax")),
+                    price=safe_decimal(item.get("price")),
+                    tax=safe_decimal(item.get("tax")),
                     metadata=item.get("metadata"),
                 )
                 for item in transaction_data.get("items", [])

@@ -6,7 +6,6 @@ transactions following patterns from dj-stripe.
 """
 import json
 import logging
-from decimal import Decimal
 from traceback import format_exc
 from typing import Any, Optional
 
@@ -19,6 +18,7 @@ from django.views.decorators.http import require_POST
 
 from . import models, signals
 from .client import ATHMClient
+from .utils import safe_decimal
 
 logger = logging.getLogger(__name__)
 
@@ -39,25 +39,6 @@ def get_remote_ip(request: HttpRequest) -> str:
         return x_forwarded_for.split(",")[0].strip()
 
     return request.META.get("REMOTE_ADDR", "0.0.0.0")
-
-
-def _safe_decimal(value: Any, default: Optional[Decimal] = None) -> Optional[Decimal]:
-    """
-    Safely convert a value to Decimal.
-
-    Args:
-        value: Value to convert
-        default: Default value if conversion fails
-
-    Returns:
-        Decimal or default
-    """
-    if value is None:
-        return default
-    try:
-        return Decimal(str(value))
-    except (ValueError, TypeError):
-        return default
 
 
 def _map_transaction_status(athm_status: str) -> str:
@@ -186,16 +167,16 @@ def process_webhook_data(
 
         # Update monetary fields
         if total := webhook_data.get("total"):
-            transaction_obj.total = _safe_decimal(total, Decimal("0"))
+            transaction_obj.total = safe_decimal(total)
 
         if subtotal := webhook_data.get("subtotal"):
-            transaction_obj.subtotal = _safe_decimal(subtotal)
+            transaction_obj.subtotal = safe_decimal(subtotal)
 
         if tax := webhook_data.get("tax"):
-            transaction_obj.tax = _safe_decimal(tax)
+            transaction_obj.tax = safe_decimal(tax)
 
         if fee := webhook_data.get("fee"):
-            transaction_obj.fee = _safe_decimal(fee)
+            transaction_obj.fee = safe_decimal(fee)
 
         # Update customer info
         if customer_name := webhook_data.get("customer_name"):
@@ -268,8 +249,8 @@ def _process_transaction_items(
                 name=item_data.get("name", "")[:128],
                 description=item_data.get("description", "")[:255],
                 quantity=item_data.get("quantity", 1),
-                price=_safe_decimal(item_data.get("price"), Decimal("0")),
-                tax=_safe_decimal(item_data.get("tax")),
+                price=safe_decimal(item_data.get("price")),
+                tax=safe_decimal(item_data.get("tax")),
                 metadata=item_data.get("metadata", "")[:64] if item_data.get("metadata") else None,
             )
         )
@@ -421,7 +402,7 @@ def _send_webhook_signals(
     )
 
     # Send status-specific signals
-    status = transaction_obj.status.lower()
+    status = transaction_obj.status
 
     if status == models.ATHM_Transaction.Status.COMPLETED:
         signals.athm_completed_response.send(
@@ -430,10 +411,7 @@ def _send_webhook_signals(
             webhook_event=webhook_event,
             data=webhook_data,
         )
-    elif status in (
-        models.ATHM_Transaction.Status.CANCEL,
-        models.ATHM_Transaction.Status.CANCELLED,
-    ):
+    elif status == models.ATHM_Transaction.Status.CANCELLED:
         signals.athm_cancelled_response.send(
             sender=models.ATHM_Transaction,
             transaction=transaction_obj,

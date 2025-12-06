@@ -13,7 +13,7 @@ class TestATHM_Transaction:
     def test_can_save_transaction(self):
         transaction = models.ATHM_Transaction(
             reference_number="test-reference-number",
-            status=models.ATHM_Transaction.Status.PROCESSING,
+            status=models.ATHM_Transaction.Status.OPEN,
             date=make_aware(parse_datetime("2022-08-05 10:00:00.0")),
             total=25.50,
             tax=1.75,
@@ -37,7 +37,7 @@ class TestATHM_Transaction:
 
         transaction = models.ATHM_Transaction.objects.create(
             reference_number="test-reference-number",
-            status=models.ATHM_Transaction.Status.PROCESSING,
+            status=models.ATHM_Transaction.Status.OPEN,
             date=make_aware(parse_datetime("2022-08-05 10:00:00.0")),
             total=25.50,
             tax=1.75,
@@ -70,7 +70,7 @@ class TestATHM_Transaction:
 
         transaction = models.ATHM_Transaction.objects.create(
             reference_number="test-reference-number",
-            status=models.ATHM_Transaction.Status.PROCESSING,
+            status=models.ATHM_Transaction.Status.OPEN,
             date=make_aware(parse_datetime("2022-08-05 10:00:00.0")),
             total=25.50,
             tax=1.75,
@@ -84,7 +84,7 @@ class TestATHM_Transaction:
             models.ATHM_Transaction.refund(transaction, amount=12.80)
 
         transaction.refresh_from_db()
-        assert transaction.status == models.ATHM_Transaction.Status.PROCESSING
+        assert transaction.status == models.ATHM_Transaction.Status.OPEN
         mock_http_adapter_post.assert_called_once_with(
             REFUND_URL,
             data={
@@ -98,7 +98,7 @@ class TestATHM_Transaction:
     def test_str_representation(self):
         transaction = models.ATHM_Transaction.objects.create(
             reference_number="test-reference-number",
-            status=models.ATHM_Transaction.Status.PROCESSING,
+            status=models.ATHM_Transaction.Status.OPEN,
             date=make_aware(parse_datetime("2022-08-05 10:00:00.0")),
             total=25.50,
             tax=1.75,
@@ -118,7 +118,7 @@ class TestATHM_Transaction:
 
         transaction = models.ATHM_Transaction.objects.create(
             reference_number="test-reference-number",
-            status=models.ATHM_Transaction.Status.PROCESSING,
+            status=models.ATHM_Transaction.Status.OPEN,
             date=make_aware(parse_datetime("2022-08-05 10:00:00.0")),
             total=25.50,
             tax=1.75,

@@ -54,12 +54,9 @@ class ATHM_Transaction(models.Model):
         OPEN = "open", _("Open")
         CONFIRM = "confirm", _("Confirmed")
         COMPLETED = "completed", _("Completed")
-        CANCEL = "cancel", _("Cancelled")
-        CANCELLED = "cancelled", _("Cancelled")  # API uses both spellings
+        CANCELLED = "cancelled", _("Cancelled")
         EXPIRED = "expired", _("Expired")
         REFUNDED = "refunded", _("Refunded")
-        # Legacy status for backwards compatibility
-        PROCESSING = "processing", _("Processing")
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 
