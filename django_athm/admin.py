@@ -1,8 +1,15 @@
 import logging
 
 from django.contrib import admin
+from django.contrib.sites.shortcuts import get_current_site
+from django.urls import reverse
+from django.utils.html import format_html
+from django.utils.translation import gettext_lazy as _
+
+from athm.exceptions import ATHMovilError
 
 from . import models
+from .client import ATHMClient
 
 logger = logging.getLogger(__name__)
 
@@ -16,36 +23,57 @@ class ATHM_ItemInline(admin.TabularInline):
 
 @admin.register(models.ATHM_Transaction)
 class ATHM_TransactionAdmin(admin.ModelAdmin):
-    actions = ["refund", "sync"]
-    date_hierarchy = "date"
-    list_display = ("reference_number", "date", "status", "total", "client")
-    list_filter = ("status", "date")
+    actions = ["refund_action", "sync_action", "configure_webhook_action"]
+    date_hierarchy = "created"
+    list_display = (
+        "reference_number",
+        "ecommerce_id",
+        "status",
+        "total",
+        "created",
+        "customer_name",
+    )
+    list_filter = ("status", "created", "date")
     readonly_fields = (
         "id",
-        "ecommerce_id",
         "reference_number",
+        "ecommerce_id",
+        "daily_transaction_id",
         "refunded_amount",
         "fee",
         "net_amount",
         "date",
+        "created",
+        "modified",
+        "is_refundable",
     )
-    search_fields = ("reference_number", "ecommerce_id", "customer_name")
+    search_fields = (
+        "reference_number",
+        "ecommerce_id",
+        "customer_name",
+        "customer_phone",
+        "metadata_1",
+        "metadata_2",
+    )
     inlines = [ATHM_ItemInline]
     fieldsets = (
         (
-            "Transaction Info",
+            _("Transaction Info"),
             {
                 "fields": (
                     "id",
                     "reference_number",
                     "ecommerce_id",
+                    "daily_transaction_id",
                     "status",
                     "date",
+                    "created",
+                    "modified",
                 )
             },
         ),
         (
-            "Amounts",
+            _("Amounts"),
             {
                 "fields": (
                     "total",
@@ -54,15 +82,20 @@ class ATHM_TransactionAdmin(admin.ModelAdmin):
                     "fee",
                     "net_amount",
                     "refunded_amount",
+                    "is_refundable",
                 )
             },
         ),
         (
-            "Customer Info",
+            _("Customer Info"),
             {"fields": ("client", "customer_name", "customer_phone")},
         ),
         (
-            "Metadata",
+            _("Business Info"),
+            {"fields": ("business_name",)},
+        ),
+        (
+            _("Metadata"),
             {
                 "fields": ("metadata_1", "metadata_2", "message"),
                 "classes": ("collapse",),
@@ -70,109 +103,251 @@ class ATHM_TransactionAdmin(admin.ModelAdmin):
         ),
     )
 
-    def refund(self, request, queryset):
-        try:
-            for transaction in queryset:
-                models.ATHM_Transaction.refund(transaction)
-                logger.debug(
-                    "[django_athm:refund success]",
-                    extra={"transaction": transaction.id},
-                )
-
-            self.message_user(
-                request, f"Successfully refunded {queryset.count()} transactions!"
-            )
-        except Exception as err:
-            self.message_user(request, f"An error ocurred: {err}")
-
-    def sync(self, request, queryset):
-        synced_count = 0
+    def refund_action(self, request, queryset):
+        """Refund selected transactions."""
+        refunded_count = 0
         error_count = 0
-        status_mapping = {
-            "COMPLETED": models.ATHM_Transaction.Status.COMPLETED,
-            "CANCEL": models.ATHM_Transaction.Status.CANCEL,
-            "CANCELLED": models.ATHM_Transaction.Status.CANCEL,
-            "OPEN": models.ATHM_Transaction.Status.OPEN,
-            "CONFIRM": models.ATHM_Transaction.Status.CONFIRM,
-            "REFUNDED": models.ATHM_Transaction.Status.REFUNDED,
-        }
+        client = ATHMClient()
 
         for transaction in queryset:
+            # Skip non-refundable transactions
+            if not transaction.is_refundable:
+                logger.warning(
+                    "[django_athm:admin:refund:not_refundable]",
+                    extra={"transaction_id": str(transaction.id)},
+                )
+                error_count += 1
+                continue
+
             try:
-                # Fetch latest data from ATH Móvil API
-                api_data = models.ATHM_Transaction.search(transaction)
+                # Use client to refund
+                client.refund_payment(transaction.reference_number)
+                transaction.status = models.ATHM_Transaction.Status.REFUNDED
+                transaction.refunded_amount = transaction.total
+                transaction.save(update_fields=["status", "refunded_amount", "modified"])
 
-                # Check for API error response
-                if api_data and "errorCode" in api_data:
-                    logger.warning(
-                        "[django_athm:sync_api_error]",
-                        extra={
-                            "transaction": transaction.id,
-                            "error_code": api_data.get("errorCode"),
-                            "description": api_data.get("description"),
-                        },
-                    )
-                    error_count += 1
-                    continue
+                refunded_count += 1
+                logger.info(
+                    "[django_athm:admin:refund:success]",
+                    extra={"transaction_id": str(transaction.id)},
+                )
 
-                # Update transaction with latest data if found
-                if api_data and "status" in api_data:
-                    api_status = api_data["status"]
-                    if api_status in status_mapping:
-                        transaction.status = status_mapping[api_status]
-                        transaction.save(update_fields=["status"])
-                        synced_count += 1
-                        logger.debug(
-                            "[django_athm:sync_success]",
-                            extra={"transaction": transaction.id, "status": api_status},
-                        )
-                    else:
-                        logger.warning(
-                            "[django_athm:sync_unknown_status]",
-                            extra={
-                                "transaction": transaction.id,
-                                "status": api_status,
-                            },
-                        )
-                        error_count += 1
-                else:
-                    logger.warning(
-                        "[django_athm:sync_no_data]",
-                        extra={"transaction": transaction.id},
-                    )
-                    error_count += 1
-
-            except Exception as err:
+            except ATHMovilError as err:
                 logger.exception(
-                    "[django_athm:sync_error]",
-                    extra={"transaction": transaction.id, "error": str(err)},
+                    "[django_athm:admin:refund:error]",
+                    extra={"transaction_id": str(transaction.id), "error": str(err)},
                 )
                 error_count += 1
 
-        # Report results to user
+        # Report results
         if error_count == 0:
             self.message_user(
-                request, f"Successfully synced {synced_count} transactions!"
+                request,
+                _(f"Successfully refunded {refunded_count} transactions."),
+                level="success",
+            )
+        elif refunded_count > 0:
+            self.message_user(
+                request,
+                _(
+                    f"Refunded {refunded_count} transactions with {error_count} errors."
+                ),
+                level="warning",
+            )
+        else:
+            self.message_user(
+                request,
+                _(f"Failed to refund transactions: {error_count} errors occurred."),
+                level="error",
+            )
+
+    refund_action.short_description = _("Refund selected transactions")
+
+    def sync_action(self, request, queryset):
+        """Sync transaction status from ATH Móvil API."""
+        synced_count = 0
+        error_count = 0
+        client = ATHMClient()
+
+        for transaction in queryset:
+            if not transaction.ecommerce_id:
+                logger.warning(
+                    "[django_athm:admin:sync:no_ecommerce_id]",
+                    extra={"transaction_id": str(transaction.id)},
+                )
+                error_count += 1
+                continue
+
+            try:
+                # Check payment status via API
+                api_data = client.check_payment_status(transaction.ecommerce_id)
+
+                # Update status
+                if "status" in api_data:
+                    from django_athm.webhooks import _map_transaction_status
+
+                    new_status = _map_transaction_status(api_data["status"])
+                    if transaction.status != new_status:
+                        transaction.status = new_status
+                        transaction.save(update_fields=["status", "modified"])
+                        synced_count += 1
+                        logger.info(
+                            "[django_athm:admin:sync:success]",
+                            extra={
+                                "transaction_id": str(transaction.id),
+                                "new_status": new_status,
+                            },
+                        )
+
+            except ATHMovilError as err:
+                logger.exception(
+                    "[django_athm:admin:sync:error]",
+                    extra={"transaction_id": str(transaction.id), "error": str(err)},
+                )
+                error_count += 1
+
+        # Report results
+        if error_count == 0:
+            self.message_user(
+                request,
+                _(f"Successfully synced {synced_count} transactions."),
+                level="success",
             )
         elif synced_count > 0:
             self.message_user(
                 request,
-                f"Synced {synced_count} transactions with {error_count} errors.",
+                _(f"Synced {synced_count} transactions with {error_count} errors."),
+                level="warning",
             )
         else:
             self.message_user(
-                request, f"Failed to sync transactions: {error_count} errors occurred."
+                request,
+                _(f"Failed to sync transactions: {error_count} errors occurred."),
+                level="error",
             )
 
-    refund.short_description = "Fully refund selected transactions"
-    sync.short_description = (
-        "Sync the selected transactions with the latest data from the API"
-    )
+    sync_action.short_description = _("Sync status from ATH Móvil API")
+
+    def configure_webhook_action(self, request, queryset):
+        """Configure webhook URL with ATH Móvil."""
+        # Build webhook URL
+        current_site = get_current_site(request)
+        protocol = "https" if request.is_secure() else "http"
+        webhook_path = reverse("django_athm:athm_webhook")
+        webhook_url = f"{protocol}://{current_site.domain}{webhook_path}"
+
+        try:
+            client = ATHMClient()
+            response = client.subscribe_webhook(
+                webhook_url=webhook_url,
+                ecommerce_payment=True,
+                ecommerce_refund=True,
+                ecommerce_cancel=True,
+                ecommerce_expire=True,
+            )
+
+            self.message_user(
+                request,
+                _(f"Successfully configured webhook: {webhook_url}"),
+                level="success",
+            )
+            logger.info(
+                "[django_athm:admin:webhook:configured]",
+                extra={"webhook_url": webhook_url, "response": response},
+            )
+
+        except ATHMovilError as err:
+            self.message_user(
+                request,
+                _(f"Failed to configure webhook: {err}"),
+                level="error",
+            )
+            logger.exception(
+                "[django_athm:admin:webhook:error]",
+                extra={"webhook_url": webhook_url, "error": str(err)},
+            )
+
+    configure_webhook_action.short_description = _("Configure ATH Móvil webhook URL")
 
 
 @admin.register(models.ATHM_Item)
 class ATHM_ItemAdmin(admin.ModelAdmin):
-    date_hierarchy = "transaction__date"
-    list_display = ("transaction", "name", "price")
+    date_hierarchy = "transaction__created"
+    list_display = ("transaction", "name", "quantity", "price")
     list_filter = ("transaction",)
     search_fields = ("transaction__reference_number", "name", "description")
+    readonly_fields = ("id",)
+
+
+@admin.register(models.ATHM_WebhookEvent)
+class ATHM_WebhookEventAdmin(admin.ModelAdmin):
+    date_hierarchy = "created"
+    list_display = (
+        "id",
+        "event_type",
+        "transaction_status",
+        "valid",
+        "processed",
+        "created",
+        "transaction_link",
+    )
+    list_filter = ("valid", "processed", "event_type", "created")
+    readonly_fields = (
+        "id",
+        "remote_ip",
+        "headers",
+        "body",
+        "valid",
+        "processed",
+        "event_type",
+        "transaction_status",
+        "exception",
+        "traceback",
+        "transaction",
+        "created",
+        "modified",
+    )
+    search_fields = ("id", "remote_ip", "body", "exception")
+    fieldsets = (
+        (
+            _("Event Info"),
+            {
+                "fields": (
+                    "id",
+                    "event_type",
+                    "transaction_status",
+                    "valid",
+                    "processed",
+                    "created",
+                    "modified",
+                )
+            },
+        ),
+        (
+            _("Request Details"),
+            {"fields": ("remote_ip", "headers", "body")},
+        ),
+        (
+            _("Processing"),
+            {
+                "fields": ("transaction", "exception", "traceback"),
+                "classes": ("collapse",),
+            },
+        ),
+    )
+
+    def transaction_link(self, obj):
+        """Display link to associated transaction."""
+        if obj.transaction:
+            url = reverse(
+                "admin:django_athm_athm_transaction_change",
+                args=[obj.transaction.id],
+            )
+            return format_html(
+                '<a href="{}">{}</a>',
+                url,
+                obj.transaction.reference_number or obj.transaction.ecommerce_id,
+            )
+        return "-"
+
+    transaction_link.short_description = _("Transaction")

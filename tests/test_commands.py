@@ -79,7 +79,7 @@ class TestSyncCommand:
         }
 
         status = get_status(upstream_transaction)
-        assert status == TransactionStatus.expired.value
+        assert status == ATHM_Transaction.Status.EXPIRED
 
     @pytest.mark.django_db
     def test_command_output_success(self, mock_http_adapter_get_with_data):

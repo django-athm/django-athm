@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 import phonenumbers
 from django.core.management.base import BaseCommand, CommandError
 from django.utils.dateparse import parse_datetime
@@ -8,29 +10,71 @@ from django_athm.constants import TransactionType
 from django_athm.models import ATHM_Client, ATHM_Item, ATHM_Transaction
 
 
+def _safe_decimal(value, default=None):
+    """Safely convert value to Decimal."""
+    if value is None:
+        return default
+    try:
+        return Decimal(str(value))
+    except (ValueError, TypeError):
+        return default
+
+
 def get_status(transaction):
-    if transaction["transactionType"].upper() == TransactionType.refund.value:
+    """
+    Determine transaction status from API data.
+
+    The transactionReport API returns transactions with transactionType and status.
+    We map these to our internal Status choices.
+    """
+    transaction_type = transaction.get("transactionType", "").upper()
+
+    # Handle refund transactions
+    if transaction_type == TransactionType.refund.value:
         return ATHM_Transaction.Status.REFUNDED
-    elif transaction["transactionType"].upper() == TransactionType.ecommerce.value:
-        if float(transaction["totalRefundAmount"]) > 0:
+
+    # Handle ecommerce transactions
+    elif transaction_type == TransactionType.ecommerce.value:
+        refund_amount = _safe_decimal(transaction.get("totalRefundAmount", 0), Decimal("0"))
+        if refund_amount > 0:
             return ATHM_Transaction.Status.REFUNDED
         else:
             return ATHM_Transaction.Status.COMPLETED
 
-    return transaction["transactionType"]
+    # For other cases, try to map the status or transactionType to our Status choices
+    # This handles edge cases where transactionType might be a status value
+    status_value = transaction.get("status", transaction_type).upper()
+
+    # Map common status values
+    status_mapping = {
+        "COMPLETED": ATHM_Transaction.Status.COMPLETED,
+        "REFUNDED": ATHM_Transaction.Status.REFUNDED,
+        "EXPIRED": ATHM_Transaction.Status.EXPIRED,
+        "CANCELLED": ATHM_Transaction.Status.CANCELLED,
+        "CANCEL": ATHM_Transaction.Status.CANCEL,
+        "OPEN": ATHM_Transaction.Status.OPEN,
+        "CONFIRM": ATHM_Transaction.Status.CONFIRM,
+    }
+
+    return status_mapping.get(status_value, ATHM_Transaction.Status.COMPLETED)
 
 
 def get_defaults(transaction):
+    """Extract transaction fields for update_or_create."""
     return dict(
         reference_number=transaction["referenceNumber"],
         status=get_status(transaction),
         date=make_aware(parse_datetime(transaction["date"])),
-        total=float(transaction["total"]),
-        tax=float(transaction["tax"]),
-        refunded_amount=float(transaction.get("totalRefundAmount", 0)),
-        subtotal=float(transaction["subtotal"]),
-        metadata_1=transaction.get("metadata1", None),
-        metadata_2=transaction.get("metadata2", None),
+        total=_safe_decimal(transaction.get("total"), Decimal("0")),
+        tax=_safe_decimal(transaction.get("tax")),
+        refunded_amount=_safe_decimal(transaction.get("totalRefundAmount")),
+        subtotal=_safe_decimal(transaction.get("subtotal")),
+        fee=_safe_decimal(transaction.get("fee")),
+        metadata_1=transaction.get("metadata1"),
+        metadata_2=transaction.get("metadata2"),
+        customer_name=transaction.get("name", ""),
+        customer_phone=transaction.get("phoneNumber", ""),
+        business_name=transaction.get("businessName", ""),
     )
 
 
@@ -151,19 +195,19 @@ class Command(BaseCommand):
             item_instances = [
                 ATHM_Item(
                     transaction=transaction,
-                    name=item["name"],
-                    description=item["description"],
-                    quantity=int(item["quantity"]),
-                    price=float(item["price"]),
-                    tax=float(item["price"]),
-                    metadata=item["metadata"],
+                    name=item.get("name", "")[:128],
+                    description=item.get("description", "")[:255],
+                    quantity=int(item.get("quantity", 1)),
+                    price=_safe_decimal(item.get("price"), Decimal("0")),
+                    tax=_safe_decimal(item.get("tax")),
+                    metadata=item.get("metadata"),
                 )
-                for item in transaction_data["items"]
+                for item in transaction_data.get("items", [])
             ]
 
             # Bulk create all ATHM_Item instances, if any
             if item_instances:
-                ATHM_Item.objects.bulk_create(item_instances)
+                ATHM_Item.objects.bulk_create(item_instances, ignore_conflicts=True)
 
             # Update counts to display later
             if transaction_created:
