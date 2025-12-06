@@ -130,6 +130,60 @@ def _determine_event_type(webhook_data: dict[str, Any]) -> str:
     return models.ATHM_WebhookEvent.EventType.UNKNOWN
 
 
+def _auto_authorize_payment(
+    transaction_obj: models.ATHM_Transaction, webhook_data: dict[str, Any]
+) -> None:
+    """
+    Automatically authorize a payment that reached CONFIRM status.
+
+    This is called when a webhook indicates the user confirmed the payment
+    in their ATH Móvil app. We authorize it to complete the transaction.
+
+    Args:
+        transaction_obj: The transaction in CONFIRM status
+        webhook_data: Webhook payload with auth_token
+    """
+    try:
+        # Extract auth_token from webhook
+        auth_token = webhook_data.get("auth_token")
+
+        if not auth_token:
+            logger.warning(
+                "[django_athm:webhook:no_auth_token]",
+                extra={"transaction_id": str(transaction_obj.id)},
+            )
+            return
+
+        logger.info(
+            "[django_athm:webhook:authorizing_payment]",
+            extra={
+                "transaction_id": str(transaction_obj.id),
+                "ecommerce_id": transaction_obj.ecommerce_id,
+            },
+        )
+
+        # Call authorization API
+        client = ATHMClient()
+        response = client.authorize_payment(auth_token)
+
+        logger.info(
+            "[django_athm:webhook:payment_authorized]",
+            extra={
+                "transaction_id": str(transaction_obj.id),
+                "response": response,
+            },
+        )
+
+    except Exception as e:
+        logger.exception(
+            "[django_athm:webhook:authorization_error]",
+            extra={
+                "transaction_id": str(transaction_obj.id),
+                "error": str(e),
+            },
+        )
+
+
 def process_webhook_data(
     webhook_event: models.ATHM_WebhookEvent, webhook_data: dict[str, Any]
 ) -> Optional[models.ATHM_Transaction]:
@@ -273,6 +327,10 @@ def process_webhook_data(
         # Process items if present (atomic updates)
         if items := webhook_data.get("items"):
             _process_transaction_items(transaction_obj, items)
+
+        # Auto-authorize payment if status is CONFIRM
+        if transaction_obj.status == models.ATHM_Transaction.Status.CONFIRM:
+            _auto_authorize_payment(transaction_obj, webhook_data)
 
         logger.info(
             "[django_athm:webhook:transaction_processed]",

@@ -10,21 +10,35 @@ register = template.Library()
 logger = logging.getLogger(__name__)
 
 
-@register.inclusion_tag("athm_button.html")
-def athm_button(athm_config):
+@register.inclusion_tag("athm_button.html", takes_context=True)
+def athm_button(context, athm_config):
+    """
+    Render ATH Móvil payment button with backend-first modal flow.
+
+    Usage:
+        {% load django_athm %}
+        {% athm_button config %}
+
+    Config dict should contain:
+        - total: Required, payment amount
+        - subtotal: Optional
+        - tax: Optional
+        - metadata1: Optional, custom metadata field 1
+        - metadata2: Optional, custom metadata field 2
+        - language: Optional, 'en' or 'es' (default: 'es')
+        - theme: Optional, 'btn', 'btn-light', or 'btn-dark' (default: 'btn')
+        - timeout: Optional, seconds to wait for confirmation (default: 600)
+    """
     logger.debug("[django_athm:template:athm_button]")
-    # TODO: Pre-process/validate data here
 
     return {
-        "env": "sandbox" if app_settings.SANDBOX_MODE else "production",
-        "publicToken": athm_config.get("public_token", app_settings.PUBLIC_TOKEN),
         "lang": athm_config.get("language", BUTTON_LANGUAGE_SPANISH),
         "timeout": athm_config.get("timeout", 600),
         "theme": athm_config.get("theme", BUTTON_COLOR_DEFAULT),
         "total": athm_config["total"],
-        "subtotal": athm_config["subtotal"],
-        "items": athm_config["items"],
-        "tax": athm_config["tax"],
-        "metadata1": athm_config.get("metadata_1", ""),
-        "metadata2": athm_config.get("metadata_2", ""),
+        "subtotal": athm_config.get("subtotal", ""),
+        "tax": athm_config.get("tax", ""),
+        "metadata1": athm_config.get("metadata1", ""),
+        "metadata2": athm_config.get("metadata2", ""),
+        "csrf_token": context.get("csrf_token", ""),
     }
