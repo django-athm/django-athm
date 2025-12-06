@@ -4,13 +4,14 @@ Webhook processing for ATH Móvil events.
 Handles incoming webhook requests, validates payloads, and processes
 transactions following patterns from dj-stripe.
 """
+import hashlib
 import json
 import logging
 from traceback import format_exc
 from typing import Any, Optional
 
 from athm.exceptions import ValidationError as ATHMValidationError
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
@@ -41,6 +42,41 @@ def get_remote_ip(request: HttpRequest) -> str:
     return request.META.get("REMOTE_ADDR", "0.0.0.0")
 
 
+def generate_webhook_id(request: HttpRequest, webhook_data: Optional[dict] = None) -> str:
+    """
+    Generate a unique, deterministic webhook ID for idempotency.
+
+    ATH Móvil may not provide a unique webhook delivery ID, so we generate one
+    based on the webhook payload to ensure idempotency.
+
+    Args:
+        request: Django HTTP request
+        webhook_data: Parsed webhook data (optional, falls back to body hash)
+
+    Returns:
+        Unique webhook ID string
+    """
+    # Try to use ATH Móvil's webhook ID if provided in headers
+    if webhook_id := request.headers.get("X-ATHM-Webhook-ID"):
+        return webhook_id
+
+    # Generate deterministic ID from webhook data
+    if webhook_data:
+        # Use critical fields that uniquely identify this webhook event
+        reference = webhook_data.get("reference_number", "")
+        ecommerce_id = webhook_data.get("ecommerce_id", "")
+        status = webhook_data.get("status", "")
+        daily_tx_id = webhook_data.get("daily_transaction_id", "")
+
+        # Create a unique string from these fields
+        unique_str = f"{reference}:{ecommerce_id}:{status}:{daily_tx_id}"
+        return hashlib.sha256(unique_str.encode()).hexdigest()[:64]
+
+    # Fallback: hash the entire request body
+    body_hash = hashlib.sha256(request.body).hexdigest()
+    return f"body_{body_hash[:60]}"
+
+
 def _map_transaction_status(athm_status: str) -> str:
     """
     Map ATH Móvil API status to django-athm model status.
@@ -54,7 +90,7 @@ def _map_transaction_status(athm_status: str) -> str:
     status_map = {
         "COMPLETED": models.ATHM_Transaction.Status.COMPLETED,
         "CANCELLED": models.ATHM_Transaction.Status.CANCELLED,
-        "CANCEL": models.ATHM_Transaction.Status.CANCEL,
+        "CANCEL": models.ATHM_Transaction.Status.CANCELLED,  # Legacy alias
         "EXPIRED": models.ATHM_Transaction.Status.EXPIRED,
         "OPEN": models.ATHM_Transaction.Status.OPEN,
         "CONFIRM": models.ATHM_Transaction.Status.CONFIRM,
@@ -88,6 +124,8 @@ def _determine_event_type(webhook_data: dict[str, Any]) -> str:
         return models.ATHM_WebhookEvent.EventType.REFUND_SENT
     elif transaction_type == "PAYMENT":
         return models.ATHM_WebhookEvent.EventType.PAYMENT_RECEIVED
+    elif transaction_type == "DONATION":
+        return models.ATHM_WebhookEvent.EventType.DONATION_RECEIVED
 
     return models.ATHM_WebhookEvent.EventType.UNKNOWN
 
@@ -97,6 +135,11 @@ def process_webhook_data(
 ) -> Optional[models.ATHM_Transaction]:
     """
     Process validated webhook data and create/update transaction.
+
+    Implements:
+    - Row-level locking via select_for_update() to prevent race conditions
+    - Timestamp-based conflict resolution to prevent stale updates
+    - Atomic transaction updates
 
     Args:
         webhook_event: The webhook event record
@@ -114,20 +157,28 @@ def process_webhook_data(
         # Map status
         transaction_status = _map_transaction_status(status)
 
-        # Find or create transaction
+        # Webhook timestamp for conflict resolution
+        webhook_timestamp = webhook_event.created
+
+        # Find or create transaction with row-level locking
         transaction_obj = None
+        is_new = False
 
         # Try to find by reference_number first (most reliable)
         if reference_number:
-            transaction_obj = models.ATHM_Transaction.objects.filter(
-                reference_number=reference_number
-            ).first()
+            transaction_obj = (
+                models.ATHM_Transaction.objects.select_for_update()
+                .filter(reference_number=reference_number)
+                .first()
+            )
 
         # Fall back to ecommerce_id if no reference_number
         if not transaction_obj and ecommerce_id:
-            transaction_obj = models.ATHM_Transaction.objects.filter(
-                ecommerce_id=ecommerce_id
-            ).first()
+            transaction_obj = (
+                models.ATHM_Transaction.objects.select_for_update()
+                .filter(ecommerce_id=ecommerce_id)
+                .first()
+            )
 
         # Create new transaction if not found
         if not transaction_obj:
@@ -143,11 +194,25 @@ def process_webhook_data(
                 reference_number=reference_number,
                 status=transaction_status,
             )
+            is_new = True
             logger.info(
                 "[django_athm:webhook:creating_transaction]",
                 extra={"reference_number": reference_number},
             )
         else:
+            # Check for stale webhook - prevent old webhooks from overwriting new data
+            if transaction_obj.modified and webhook_timestamp < transaction_obj.modified:
+                logger.warning(
+                    "[django_athm:webhook:stale_webhook]",
+                    extra={
+                        "transaction_id": str(transaction_obj.id),
+                        "webhook_timestamp": webhook_timestamp.isoformat(),
+                        "transaction_modified": transaction_obj.modified.isoformat(),
+                    },
+                )
+                # Still return the transaction but don't update it
+                return transaction_obj
+
             # Update existing transaction
             transaction_obj.status = transaction_status
             logger.info(
@@ -205,7 +270,7 @@ def process_webhook_data(
         # Save transaction
         transaction_obj.save()
 
-        # Process items if present
+        # Process items if present (atomic updates)
         if items := webhook_data.get("items"):
             _process_transaction_items(transaction_obj, items)
 
@@ -215,6 +280,7 @@ def process_webhook_data(
                 "transaction_id": str(transaction_obj.id),
                 "reference_number": transaction_obj.reference_number,
                 "status": transaction_obj.status,
+                "is_new": is_new,
             },
         )
 
@@ -232,36 +298,63 @@ def _process_transaction_items(
     transaction_obj: models.ATHM_Transaction, items: list[dict[str, Any]]
 ) -> None:
     """
-    Process and create transaction items.
+    Process and update transaction items atomically.
+
+    Uses update_or_create for each item to ensure ACID compliance without
+    deleting and recreating all items.
 
     Args:
         transaction_obj: The transaction to attach items to
         items: List of item dictionaries from webhook
     """
-    # Clear existing items (webhook is source of truth)
-    transaction_obj.items.all().delete()
+    # Track which items we've seen in this webhook
+    processed_item_names = set()
 
-    item_instances = []
-    for item_data in items:
-        item_instances.append(
-            models.ATHM_Item(
-                transaction=transaction_obj,
-                name=item_data.get("name", "")[:128],
-                description=item_data.get("description", "")[:255],
-                quantity=item_data.get("quantity", 1),
-                price=safe_decimal(item_data.get("price")),
-                tax=safe_decimal(item_data.get("tax")),
-                metadata=item_data.get("metadata", "")[:64] if item_data.get("metadata") else None,
-            )
+    for idx, item_data in enumerate(items):
+        name = item_data.get("name", "")[:128]
+        description = item_data.get("description", "")[:255]
+        quantity = item_data.get("quantity", 1)
+        price = safe_decimal(item_data.get("price"))
+        tax = safe_decimal(item_data.get("tax"))
+        metadata = item_data.get("metadata", "")[:64] if item_data.get("metadata") else None
+
+        # Use name + transaction as unique identifier
+        # If ATH Móvil sends duplicate item names, we'll update the first one
+        item_obj, created = models.ATHM_Item.objects.update_or_create(
+            transaction=transaction_obj,
+            name=name,
+            defaults={
+                "description": description,
+                "quantity": quantity,
+                "price": price,
+                "tax": tax,
+                "metadata": metadata,
+            },
         )
 
-    if item_instances:
-        models.ATHM_Item.objects.bulk_create(item_instances)
+        processed_item_names.add(name)
+
         logger.debug(
-            "[django_athm:webhook:items_created]",
+            "[django_athm:webhook:item_processed]",
             extra={
                 "transaction_id": str(transaction_obj.id),
-                "item_count": len(item_instances),
+                "item_name": name,
+                "created": created,
+            },
+        )
+
+    # Remove items that are no longer in the webhook
+    # This handles the case where an item was removed from the transaction
+    deleted_count = transaction_obj.items.exclude(
+        name__in=processed_item_names
+    ).delete()[0]
+
+    if deleted_count > 0:
+        logger.debug(
+            "[django_athm:webhook:items_removed]",
+            extra={
+                "transaction_id": str(transaction_obj.id),
+                "deleted_count": deleted_count,
             },
         )
 
@@ -272,12 +365,20 @@ def webhook_view(request: HttpRequest) -> HttpResponse:
     """
     Handle incoming ATH Móvil webhook requests.
 
-    This view:
-    1. Logs the raw webhook request
-    2. Validates the webhook payload using python-athm
-    3. Creates/updates transaction records
-    4. Sends Django signals
-    5. Returns appropriate HTTP responses
+    This view implements webhook best practices:
+    1. Idempotency - Duplicate webhooks are detected and handled gracefully
+    2. ACID compliance - All database operations are atomic
+    3. Race condition prevention - Row-level locking prevents concurrent updates
+    4. Timestamp-based conflict resolution - Stale webhooks don't overwrite fresh data
+
+    Flow:
+    1. Generate deterministic webhook_id for idempotency
+    2. Attempt to create webhook event record (unique constraint on webhook_id)
+    3. If duplicate detected, return success immediately (idempotent)
+    4. Validate payload using python-athm
+    5. Process transaction in atomic database transaction
+    6. Send Django signals
+    7. Return appropriate HTTP response
 
     Similar to dj-stripe's webhook handling pattern.
     """
@@ -291,29 +392,52 @@ def webhook_view(request: HttpRequest) -> HttpResponse:
         extra={"remote_ip": remote_ip, "content_length": len(body)},
     )
 
-    # Create webhook event record
-    webhook_event = models.ATHM_WebhookEvent.objects.create(
-        remote_ip=remote_ip,
-        headers=headers,
-        body=body,
-        valid=False,
-        processed=False,
-    )
+    # Parse JSON payload early to generate webhook_id
+    try:
+        payload = json.loads(body)
+    except json.JSONDecodeError as e:
+        logger.error(
+            "[django_athm:webhook:invalid_json]",
+            extra={"remote_ip": remote_ip, "error": str(e)},
+        )
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
+
+    # Generate webhook_id for idempotency
+    webhook_id = generate_webhook_id(request, payload)
+
+    # Try to create webhook event record
+    # If webhook_id already exists, this is a duplicate delivery
+    try:
+        webhook_event = models.ATHM_WebhookEvent.objects.create(
+            webhook_id=webhook_id,
+            remote_ip=remote_ip,
+            headers=headers,
+            body=body,
+            valid=False,
+            processed=False,
+        )
+    except IntegrityError:
+        # Duplicate webhook - already processed
+        existing_event = models.ATHM_WebhookEvent.objects.get(webhook_id=webhook_id)
+        logger.info(
+            "[django_athm:webhook:duplicate]",
+            extra={
+                "webhook_id": webhook_id,
+                "original_event_id": existing_event.id,
+                "was_processed": existing_event.processed,
+            },
+        )
+        # Return success - idempotent behavior
+        return JsonResponse(
+            {
+                "status": "success",
+                "message": "Duplicate webhook ignored",
+                "idempotent": True,
+            },
+            status=200,
+        )
 
     try:
-        # Parse JSON payload
-        try:
-            payload = json.loads(body)
-        except json.JSONDecodeError as e:
-            logger.error(
-                "[django_athm:webhook:invalid_json]",
-                extra={"webhook_event_id": webhook_event.id, "error": str(e)},
-            )
-            webhook_event.exception = "Invalid JSON"
-            webhook_event.traceback = format_exc()
-            webhook_event.save(update_fields=["exception", "traceback"])
-            return JsonResponse({"error": "Invalid JSON"}, status=400)
-
         # Validate webhook using python-athm
         client = ATHMClient()
         try:

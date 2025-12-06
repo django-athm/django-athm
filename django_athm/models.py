@@ -325,6 +325,9 @@ class ATHM_WebhookEvent(models.Model):
 
     Similar to dj-stripe's WebhookEventTrigger, this model records all
     incoming webhook requests for auditing and debugging purposes.
+
+    Implements idempotency via unique constraint on webhook_id to ensure
+    each webhook is processed exactly once.
     """
 
     class EventType(models.TextChoices):
@@ -337,6 +340,14 @@ class ATHM_WebhookEvent(models.Model):
         UNKNOWN = "unknown", _("Unknown")
 
     id = models.BigAutoField(primary_key=True)
+
+    # Idempotency key - ensures each webhook processed exactly once
+    webhook_id = models.CharField(
+        max_length=255,
+        unique=True,
+        db_index=True,
+        help_text=_("Unique webhook delivery ID for idempotency"),
+    )
 
     # Request metadata
     remote_ip = models.GenericIPAddressField(
@@ -396,7 +407,13 @@ class ATHM_WebhookEvent(models.Model):
         indexes = [
             models.Index(fields=["-created"]),
             models.Index(fields=["valid", "processed"]),
+            models.Index(fields=["webhook_id"]),
         ]
 
     def __str__(self):
-        return f"Webhook {self.id} - {self.event_type} (valid={self.valid}, processed={self.processed})"
+        return f"Webhook {self.webhook_id} - {self.event_type} (valid={self.valid}, processed={self.processed})"
+
+    @property
+    def is_duplicate(self):
+        """Check if this webhook was already processed successfully."""
+        return self.valid and self.processed

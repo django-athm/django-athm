@@ -18,6 +18,15 @@ class Migration(migrations.Migration):
             fields=[
                 ("id", models.BigAutoField(primary_key=True, serialize=False)),
                 (
+                    "webhook_id",
+                    models.CharField(
+                        max_length=255,
+                        unique=True,
+                        db_index=True,
+                        help_text="Unique webhook delivery ID for idempotency",
+                    ),
+                ),
+                (
                     "remote_ip",
                     models.GenericIPAddressField(
                         help_text="IP address of the webhook request"
