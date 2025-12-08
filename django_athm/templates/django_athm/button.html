@@ -3,38 +3,61 @@
     if (typeof window.athmAssetsLoaded === "undefined") {
         window.athmAssetsLoaded = true;
 
-        // Inline CSS - Ultra Minimal
         const style = document.createElement("style");
         style.textContent = `
-            :root { --athm: #ed7b00; --athm-muted: #888; }
-            .athm-container { display: inline-block; }
-            .athm-button { display: inline-flex; align-items: center; padding: 12px 24px; border: none; border-radius: 4px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); font-size: 16px; font-weight: 500; cursor: pointer; }
-            .athm-button svg { height: 20px; width: auto; }
-            .athm-button:disabled { opacity: 0.4; cursor: not-allowed; }
-            .athm-btn { background: var(--athm); color: white; }
-            .athm-btn-dark { background: #111; color: white; }
-            .athm-btn-light { background: white; color: #111; border: 1px solid #ccc; }
-            .athm-modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 9999; }
-            .athm-modal { background: white; width: 100%; max-width: 320px; margin: 16px; }
-            .athm-modal-header { display: flex; justify-content: space-between; align-items: center; padding: 20px 24px 0; }
-            .athm-modal-header h3 { margin: 0; font-size: 15px; font-weight: 500; letter-spacing: -0.01em; }
-            .athm-modal-close { background: none; border: none; font-size: 18px; cursor: pointer; color: var(--athm-muted); padding: 0; line-height: 1; }
-            .athm-modal-body { padding: 20px 24px 24px; text-align: center; }
-            .athm-instructions { color: var(--athm-muted); font-size: 13px; margin: 0 0 16px; line-height: 1.4; }
-            .athm-phone-input { width: 100%; padding: 12px; font-size: 17px; border: 1px solid #ddd; text-align: center; box-sizing: border-box; }
-            .athm-phone-input:focus { outline: none; border-color: var(--athm); }
+            .athm-container { display: inline-block; font-family: system-ui, -apple-system, sans-serif; }
+
+            /* Button */
+            .athm-button { display: inline-flex; align-items: center; gap: 8px; padding: 14px 28px; border: none; border-radius: 8px; font: 500 15px/1 system-ui, sans-serif; cursor: pointer; transition: transform 0.1s, box-shadow 0.15s; }
+            .athm-button:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(0,0,0,0.12); }
+            .athm-button:active { transform: translateY(0); }
+            .athm-button:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+            .athm-button svg { height: 18px; width: auto; }
+            .athm-btn { background: #E86D00; color: white; }
+            .athm-btn-dark { background: #18181B; color: white; }
+            .athm-btn-light { background: white; color: #18181B; box-shadow: inset 0 0 0 1px rgba(0,0,0,0.12); }
+
+            /* Dialog backdrop */
+            .athm-dialog::backdrop { background: rgba(0,0,0,0.6); backdrop-filter: blur(2px); }
+            .athm-dialog { border: none; border-radius: 16px; padding: 0; width: min(360px, calc(100vw - 32px)); box-shadow: 0 24px 48px rgba(0,0,0,0.16); }
+            .athm-dialog[open] { animation: athm-appear 0.2s ease-out; }
+            @keyframes athm-appear { from { opacity: 0; transform: scale(0.96) translateY(8px); } }
+
+            /* Modal structure */
+            .athm-modal-header { display: flex; justify-content: space-between; align-items: center; padding: 20px 24px; border-bottom: 1px solid #f0f0f0; }
+            .athm-modal-header h3 { margin: 0; font: 600 16px/1.2 system-ui, sans-serif; color: #18181B; }
+            .athm-modal-close { all: unset; width: 32px; height: 32px; display: grid; place-items: center; border-radius: 8px; cursor: pointer; color: #71717A; transition: background 0.15s; }
+            .athm-modal-close:hover { background: #f4f4f5; }
+            .athm-modal-close svg { width: 20px; height: 20px; }
+            .athm-modal-body { padding: 24px; text-align: center; }
+
+            /* Phone step */
+            .athm-instructions { color: #52525B; font: 400 14px/1.5 system-ui, sans-serif; margin: 0 0 20px; }
+            .athm-phone-input { width: 100%; padding: 14px 16px; font: 400 18px/1.4 system-ui, sans-serif; letter-spacing: 0.5px; border: 2px solid #E4E4E7; border-radius: 10px; text-align: center; box-sizing: border-box; transition: border-color 0.15s, box-shadow 0.15s; }
+            .athm-phone-input::placeholder { color: #A1A1AA; }
+            .athm-phone-input:focus { outline: none; border-color: #E86D00; box-shadow: 0 0 0 3px rgba(232,109,0,0.1); }
             .athm-modal-body .athm-button { width: 100%; justify-content: center; margin-top: 16px; }
-            .athm-spinner { width: 24px; height: 24px; border: 2px solid #eee; border-top-color: var(--athm); border-radius: 50%; margin: 0 auto 16px; animation: athm-spin 0.7s linear infinite; }
+            .athm-error { color: #DC2626; font: 500 13px/1.4 system-ui, sans-serif; margin: 12px 0 0; }
+
+            /* Loading states */
+            .athm-spinner { width: 32px; height: 32px; border: 3px solid #f0f0f0; border-top-color: #E86D00; border-radius: 50%; margin: 0 auto 20px; animation: athm-spin 0.7s linear infinite; }
             @keyframes athm-spin { to { transform: rotate(360deg); } }
-            .athm-waiting-text { font-weight: 500; font-size: 14px; margin: 0 0 4px; }
-            .athm-waiting-subtext { color: var(--athm-muted); font-size: 13px; margin: 0; }
-            .athm-cancel-link { background: none; border: none; color: var(--athm-muted); text-decoration: underline; cursor: pointer; font-size: 13px; margin-top: 16px; }
-            .athm-success-icon { color: #16a34a; font-size: 40px; margin-bottom: 8px; }
-            .athm-success-text { font-weight: 500; font-size: 14px; margin: 0 0 8px; }
-            .athm-error-icon { color: #dc2626; font-size: 40px; margin-bottom: 8px; }
-            .athm-error-text { font-size: 14px; margin: 0 0 16px; }
-            .athm-error { color: #dc2626; font-size: 13px; margin: 8px 0 0; }
-            .athm-reference { color: var(--athm-muted); font-size: 12px; font-family: monospace; }
+            .athm-waiting-text { font: 500 15px/1.4 system-ui, sans-serif; color: #18181B; margin: 0 0 6px; }
+            .athm-waiting-subtext { color: #71717A; font: 400 14px/1.4 system-ui, sans-serif; margin: 0; }
+            .athm-cancel-link { all: unset; color: #71717A; font: 400 14px/1 system-ui, sans-serif; cursor: pointer; margin-top: 20px; display: inline-block; padding: 8px 16px; border-radius: 6px; transition: background 0.15s; }
+            .athm-cancel-link:hover { background: #f4f4f5; }
+
+            /* Success */
+            .athm-success-icon { width: 48px; height: 48px; background: #DCFCE7; border-radius: 50%; display: grid; place-items: center; margin: 0 auto 16px; }
+            .athm-success-icon svg { width: 24px; height: 24px; color: #16A34A; }
+            .athm-success-text { font: 500 15px/1.4 system-ui, sans-serif; color: #18181B; margin: 0 0 8px; }
+            .athm-reference { color: #71717A; font: 400 13px/1.4 ui-monospace, monospace; background: #f4f4f5; padding: 6px 12px; border-radius: 6px; display: inline-block; }
+
+            /* Error */
+            .athm-error-icon { width: 48px; height: 48px; background: #FEE2E2; border-radius: 50%; display: grid; place-items: center; margin: 0 auto 16px; }
+            .athm-error-icon svg { width: 24px; height: 24px; color: #DC2626; }
+            .athm-error-text { color: #52525B; font: 400 14px/1.5 system-ui, sans-serif; margin: 0 0 20px; }
+
             .hidden { display: none !important; }
         `;
         document.head.appendChild(style);
@@ -95,15 +118,21 @@
                 // Button click
                 this.#addListener(this.#elements.button, "click", () => this.openModal());
 
-                // Modal close
+                // Modal close button
                 this.#addListener(this.#elements.closeBtn, "click", () => this.closeModal());
-                this.#addListener(this.#elements.modal, "click", (e) => {
-                    if (e.target === this.#elements.modal) this.closeModal();
+
+                // Handle native dialog close (Escape key triggers this)
+                this.#addListener(this.#elements.modal, "close", () => {
+                    if (this.#state.showModal) {
+                        this.#handleDialogClose();
+                    }
                 });
 
-                // Escape key
-                this.#addListener(document, "keydown", (e) => {
-                    if (e.key === "Escape" && this.#state.showModal) this.closeModal();
+                // Backdrop click to close
+                this.#addListener(this.#elements.modal, "click", (e) => {
+                    if (e.target === this.#elements.modal) {
+                        this.closeModal();
+                    }
                 });
 
                 // Phone input
@@ -145,8 +174,13 @@
             }
 
             #updateVisibility() {
-                // Modal visibility
-                this.#elements.modal.classList.toggle("hidden", !this.#state.showModal);
+                // Modal visibility using native dialog API
+                const modal = this.#elements.modal;
+                if (this.#state.showModal && !modal.open) {
+                    modal.showModal();
+                } else if (!this.#state.showModal && modal.open) {
+                    modal.close();
+                }
 
                 // Step visibility
                 Object.entries(this.#elements.steps).forEach(([step, element]) => {
@@ -154,13 +188,6 @@
                         element.classList.toggle("hidden", this.#state.step !== step);
                     }
                 });
-
-                // Lock body scroll when modal is open
-                if (this.#state.showModal) {
-                    document.body.style.overflow = "hidden";
-                } else {
-                    document.body.style.overflow = "";
-                }
             }
 
             #updateContent() {
@@ -223,12 +250,28 @@
 
             async closeModal() {
                 if (this.#state.step === "waiting" || this.#state.step === "authorizing") {
-                    if (!confirm("Cancel this payment?")) return;
+                    if (!confirm("Cancel this payment?")) {
+                        // Reopen dialog since native close already triggered
+                        this.#elements.modal.showModal();
+                        return;
+                    }
                     await this.cancelPayment();
-                    return; // cancelPayment already resets and closes
+                    return;
                 }
                 this.#reset();
                 this.#setState({ showModal: false });
+            }
+
+            // Handle native dialog close (Escape key)
+            async #handleDialogClose() {
+                if (this.#state.step === "waiting" || this.#state.step === "authorizing") {
+                    // Reopen and let closeModal handle the confirm
+                    this.#elements.modal.showModal();
+                    await this.closeModal();
+                } else {
+                    this.#reset();
+                    this.#state.showModal = false;
+                }
             }
 
             #reset() {
@@ -454,7 +497,9 @@
                 if (this.#state.pollTimer) {
                     clearTimeout(this.#state.pollTimer);
                 }
-                document.body.style.overflow = "";
+                if (this.#elements.modal.open) {
+                    this.#elements.modal.close();
+                }
             }
         }
 
@@ -523,91 +568,69 @@
     {% endif %}
   </button>
 
-    <!-- Modal Overlay -->
-    <div data-athm-modal class="athm-modal-overlay hidden">
-        <div class="athm-modal">
-            <!-- Modal Header -->
-            <div class="athm-modal-header">
-                <h3>{{ modal_title }}</h3>
-                <button type="button" data-athm-close class="athm-modal-close">
-                    &times;
+    <!-- Modal Dialog -->
+    <dialog data-athm-modal class="athm-dialog">
+        <div class="athm-modal-header">
+            <h3>{{ modal_title }}</h3>
+            <button type="button" data-athm-close class="athm-modal-close" aria-label="{% trans 'Close' %}">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+            </button>
+        </div>
+
+        <div class="athm-modal-body">
+            <!-- Step 1: Phone Number Entry -->
+            <div data-athm-step="phone">
+                <p class="athm-instructions">{% trans "Enter your phone number registered with ATH Móvil" %}</p>
+                <input
+                    type="tel"
+                    data-athm-phone-input
+                    inputmode="tel"
+                    autocomplete="off"
+                    placeholder="787-123-4567"
+                    class="athm-phone-input"
+                    maxlength="12"
+                    pattern="[0-9\-]{10,12}"
+                />
+                <p data-athm-error class="athm-error hidden"></p>
+                <button type="button" data-athm-submit class="athm-button athm-{{ theme }}" disabled>
+                    <span data-athm-submit-text>{% trans "Continue" %}</span>
+                    <span data-athm-submit-loading class="hidden">{% trans "Processing..." %}</span>
                 </button>
             </div>
 
-            <!-- Modal Body -->
-            <div class="athm-modal-body">
-                <!-- Step 1: Phone Number Entry -->
-                <div data-athm-step="phone" class="athm-step-phone">
-                    <p class="athm-instructions">
-                        {% trans "Enter your phone number registered with ATH Movil" %}
-                    </p>
-                    <input
-                        type="tel"
-                        data-athm-phone-input
-                        autocomplete="off"
-                        placeholder="787-123-4567"
-                        class="athm-phone-input"
-                        maxlength="12"
-                    />
-                    <p data-athm-error class="athm-error hidden"></p>
-                    <button
-                        type="button"
-                        data-athm-submit
-                        class="athm-button athm-{{ theme }}"
-                    >
-                        <span data-athm-submit-text>{% trans "Continue" %}</span>
-                        <span data-athm-submit-loading class="hidden">...</span>
-                    </button>
-                </div>
+            <!-- Step 2: Waiting for Confirmation -->
+            <div data-athm-step="waiting" class="hidden">
+                <div class="athm-spinner"></div>
+                <p class="athm-waiting-text">{% trans "Confirm in ATH Móvil" %}</p>
+                <p class="athm-waiting-subtext">{% trans "Check the notification on your phone" %}</p>
+                <button type="button" data-athm-cancel class="athm-cancel-link">{% trans "Cancel" %}</button>
+            </div>
 
-                <!-- Step 2: Waiting for Confirmation -->
-                <div data-athm-step="waiting" class="athm-step-waiting hidden">
-                    <div class="athm-spinner"></div>
-                    <p class="athm-waiting-text">
-                        {% trans "Confirm the payment in your ATH Movil app" %}
-                    </p>
-                    <p class="athm-waiting-subtext">
-                        {% trans "Check the notifications on your phone" %}
-                    </p>
-                    <button
-                        type="button"
-                        data-athm-cancel
-                        class="athm-cancel-link"
-                    >{% trans "Cancel" %}</button>
-                </div>
+            <!-- Step 2b: Authorizing -->
+            <div data-athm-step="authorizing" class="hidden">
+                <div class="athm-spinner"></div>
+                <p class="athm-waiting-text">{% trans "Processing payment..." %}</p>
+            </div>
 
-                <!-- Step 2b: Authorizing -->
-                <div data-athm-step="authorizing" class="athm-step-authorizing hidden">
-                    <div class="athm-spinner"></div>
-                    <p class="athm-waiting-text">
-                        {% trans "Processing payment..." %}
-                    </p>
+            <!-- Step 3: Success -->
+            <div data-athm-step="success" class="hidden">
+                <div class="athm-success-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                 </div>
+                <p class="athm-success-text">{% trans "Payment completed" %}</p>
+                <p class="athm-reference">Ref: <span data-athm-reference></span></p>
+            </div>
 
-                <!-- Step 3: Success -->
-                <div data-athm-step="success" class="athm-step-success hidden">
-                    <div class="athm-success-icon">&#10003;</div>
-                    <p class="athm-success-text">
-                        {% trans "Payment completed" %}
-                    </p>
-                    <p class="athm-reference">
-                        Ref: <span data-athm-reference></span>
-                    </p>
+            <!-- Step 4: Error -->
+            <div data-athm-step="error" class="hidden">
+                <div class="athm-error-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 8v4m0 4h.01"/></svg>
                 </div>
-
-                <!-- Step 4: Error -->
-                <div data-athm-step="error" class="athm-step-error hidden">
-                    <div class="athm-error-icon">!</div>
-                    <p data-athm-error-text class="athm-error-text"></p>
-                    <button
-                        type="button"
-                        data-athm-retry
-                        class="athm-button athm-{{ theme }}"
-                    >{% trans "Try again" %}</button>
-                </div>
+                <p data-athm-error-text class="athm-error-text"></p>
+                <button type="button" data-athm-retry class="athm-button athm-{{ theme }}">{% trans "Try again" %}</button>
             </div>
         </div>
-    </div>
+    </dialog>
 </div>
 
 <script>initializeATHMButtons();</script>

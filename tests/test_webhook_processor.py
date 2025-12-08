@@ -613,7 +613,7 @@ class TestSyncItems:
 
 
 class TestParseDatetime:
-    """Test datetime parsing from various ATH Movil formats."""
+    """Test datetime parsing from various ATH Móvil formats."""
 
     def test_parses_string_format(self):
         dt = WebhookProcessor._parse_datetime("2024-01-15 10:30:00")

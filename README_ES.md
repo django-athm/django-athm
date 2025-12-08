@@ -37,20 +37,20 @@ DJANGO_SETTINGS_MODULE=tests.settings pytest --cov django_athm
 
 ## Legal
 
-Este proyecto **no** está afiliado ni endosado de ninguna manera por [Evertec, Inc.](https://www.evertecinc.com/) ni [ATH Móvil](https://portal.athmovil.com/).
+Este proyecto **no** está afiliado ni endosado de ninguna manera por [Evertec, Inc.](https://www.evertecinc.com/) ni [ATH Móvil](https://portal.athMóvil.com/).
 
 
 ## Dependencias
-* [athm-python](https://github.com/django-athm/athm-python) para comunicación con la API de ATH Movil y verificación de transacciones
-* [httpx](https://github.com/encode/httpx/) para hacer pedidos a la API de ATH Movil
+* [athm-python](https://github.com/django-athm/athm-python) para comunicación con la API de ATH Móvil y verificación de transacciones
+* [httpx](https://github.com/encode/httpx/) para hacer pedidos a la API de ATH Móvil
 * [phonenumberslite](https://github.com/daviddrysdale/python-phonenumbers) para validar y mejor almacenar los números de teléfonos
 
 
 ## Referencias
 
-- https://github.com/evertec/athmovil-javascript-api
+- https://github.com/evertec/athMóvil-javascript-api
 
-- https://github.com/evertec/athmovil-webhooks
+- https://github.com/evertec/athMóvil-webhooks
 
 - https://docs.djangoproject.com/en/4.1/ref/csrf/#ajax
 

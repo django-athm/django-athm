@@ -4,7 +4,7 @@ django-athm provides Django signals to notify your application of payment events
 
 ## Receiving Transaction Updates
 
-django-athm provides two ways to receive transaction updates from ATH Movil:
+django-athm provides two ways to receive transaction updates from ATH Móvil:
 
 | Approach | Best For | Complexity |
 |----------|----------|------------|
@@ -48,7 +48,7 @@ from django_athm.signals import (
 
 Dispatched for **every** payment callback, regardless of status.
 
-**When it fires:** After any payment response is received from ATH Movil.
+**When it fires:** After any payment response is received from ATH Móvil.
 
 **Use case:** Logging all payment attempts, analytics, or when you need to handle all responses uniformly.
 
@@ -56,7 +56,7 @@ Dispatched for **every** payment callback, regardless of status.
 
 Dispatched when a payment is **successfully completed**.
 
-**When it fires:** After the customer approves the payment in their ATH Movil app and the transaction is confirmed.
+**When it fires:** After the customer approves the payment in their ATH Móvil app and the transaction is confirmed.
 
 **Use case:** Send confirmation emails, update order status to "paid", trigger fulfillment.
 
@@ -64,7 +64,7 @@ Dispatched when a payment is **successfully completed**.
 
 Dispatched when a payment is **cancelled** by the customer.
 
-**When it fires:** When the customer declines or cancels the payment in their ATH Movil app.
+**When it fires:** When the customer declines or cancels the payment in their ATH Móvil app.
 
 **Use case:** Release reserved inventory, notify customer of cancellation.
 
@@ -136,7 +136,7 @@ def log_all_responses(sender, **kwargs):
     """Log all payment responses for debugging."""
     transaction = kwargs.get("transaction")
     logger.info(
-        f"ATH Movil response: {transaction.reference_number} "
+        f"ATH Móvil response: {transaction.reference_number} "
         f"status={transaction.status}"
     )
 

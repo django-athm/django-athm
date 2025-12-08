@@ -500,7 +500,7 @@ class WebhookEventAdmin(admin.ModelAdmin):
         return custom_urls + urls
 
     def install_webhooks_view(self, request: HttpRequest) -> TemplateResponse:
-        """View for installing ATH Movil webhooks."""
+        """View for installing ATH Móvil webhooks."""
 
         class WebhookURLForm(forms.Form):
             url = forms.URLField(

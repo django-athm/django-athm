@@ -30,7 +30,7 @@ A Django view that receives the POST request with payment data after a transacti
 
 **What the default callback does:**
 
-1. Parses POST data from ATH Movil
+1. Parses POST data from ATH Móvil
 2. Creates `ATHM_Transaction` and `ATHM_Item` records
 3. Creates or updates `ATHM_Client` records if customer info is provided
 4. Dispatches [signals](signals.md) for your handlers to respond
@@ -107,7 +107,7 @@ def my_payment_callback(request):
     return HttpResponse(status=201)
 ```
 
-**Note:** The `@csrf_exempt` decorator is required because ATH Movil sends callbacks without CSRF tokens.
+**Note:** The `@csrf_exempt` decorator is required because ATH Móvil sends callbacks without CSRF tokens.
 
 ## athm_button Template Tag
 
@@ -203,7 +203,7 @@ These limitations are on ATH Móvil's side. We will update django-athm when thes
 
 ### install_webhook
 
-Registers a webhook URL with ATH Movil to receive payment events.
+Registers a webhook URL with ATH Móvil to receive payment events.
 
 ```bash
 python manage.py install_webhook https://yourdomain.com/athm/webhook/

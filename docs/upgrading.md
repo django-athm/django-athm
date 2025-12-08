@@ -2,7 +2,7 @@
 
 ## Upgrading to v1.0.0-beta1
 
-Version 1.0.0-beta1 updates django-athm to use ATH Móvil's v4 JavaScript API ([v1.2.3 in this doc](https://github.com/evertec/athmovil-javascript-api?tab=readme-ov-file#change-log)) with several breaking changes.
+Version 1.0.0-beta1 updates django-athm to use ATH Móvil's v4 JavaScript API ([v1.2.3 in this doc](https://github.com/evertec/athMóvil-javascript-api?tab=readme-ov-file#change-log)) with several breaking changes.
 
 ### Breaking Changes
 
@@ -78,7 +78,7 @@ Dropped support for:
 
 #### 4a. Server-Side Transaction Verification
 
-The callback view now verifies all transactions with ATH Movil's API before persisting data. Only `ecommerceId` from the callback POST is trusted; all other transaction data (total, reference_number, status, etc.) is fetched from the API via `find_payment()`.
+The callback view now verifies all transactions with ATH Móvil's API before persisting data. Only `ecommerceId` from the callback POST is trusted; all other transaction data (total, reference_number, status, etc.) is fetched from the API via `find_payment()`.
 
 This change:
 - **Prevents spoofed payment data** - Malicious actors can no longer POST fake transaction data

@@ -9,11 +9,11 @@
 [![Packaged with uv](https://img.shields.io/badge/package_manager-uv-blue.svg)](https://github.com/astral-sh/uv)
 ![License badge](https://img.shields.io/github/license/django-athm/django-athm.svg)
 
-Django integration for ATH Movil payments (Puerto Rico's mobile payment system).
+Django integration for ATH Móvil payments (Puerto Rico's mobile payment system).
 
 ## Features
 
-- Backend-first modal payment flow with ATH Movil's eCommerce API
+- Backend-first modal payment flow with ATH Móvil's eCommerce API
 - Webhook handling with idempotency and ACID guarantees
 - Persist itemized transaction data and customer information
 - Read-only Django Admin interface with refund actions
@@ -41,7 +41,7 @@ INSTALLED_APPS = [
 ]
 ```
 
-Add your ATH Movil API tokens:
+Add your ATH Móvil API tokens:
 
 ```python
 DJANGO_ATHM_PUBLIC_TOKEN = "your-public-token"
@@ -115,14 +115,14 @@ def handle_payment_completed(sender, payment, **kwargs):
 
 The package uses a backend-first modal flow:
 
-1. **Initiate**: User clicks button, backend creates payment via ATH Movil API
-2. **Confirm**: User confirms payment in ATH Movil app
+1. **Initiate**: User clicks button, backend creates payment via ATH Móvil API
+2. **Confirm**: User confirms payment in ATH Móvil app
 3. **Authorize**: Backend authorizes the confirmed payment
-4. **Webhook**: ATH Movil sends completion event with final details
+4. **Webhook**: ATH Móvil sends completion event with final details
 
 ```
 User clicks    ->  Backend creates  ->  User confirms   ->  Backend authorizes  ->  Webhook received
-ATH Movil         payment (OPEN)        in app (CONFIRM)    payment (COMPLETED)     (final details)
+ATH Móvil         payment (OPEN)        in app (CONFIRM)    payment (COMPLETED)     (final details)
 button
 ```
 
@@ -132,7 +132,7 @@ button
 
 You can install your webhook URL via the Django Admin:
 
-1. Navigate to **ATH Movil Webhook Events** in the admin
+1. Navigate to **ATH Móvil Webhook Events** in the admin
 2. Click **Install Webhooks** button
 3. Enter your webhook URL (must be HTTPS): `https://yourdomain.com/athm/webhook/`
 
@@ -208,16 +208,16 @@ tox -e lint
 
 ## Legal
 
-This project is **not** affiliated with or endorsed by [Evertec, Inc.](https://www.evertecinc.com/) or [ATH Movil](https://portal.athmovil.com/).
+This project is **not** affiliated with or endorsed by [Evertec, Inc.](https://www.evertecinc.com/) or [ATH Móvil](https://portal.athMóvil.com/).
 
 ## Dependencies
 
-- [athm-python](https://github.com/django-athm/athm-python) - ATH Movil API client
+- [athm-python](https://github.com/django-athm/athm-python) - ATH Móvil API client
 
 ## References
 
-- [ATH Movil Business API Documentation](https://developer.athmovil.com/)
-- [evertec/athmovil-webhooks](https://github.com/evertec/athmovil-webhooks)
+- [ATH Móvil Business API Documentation](https://developer.athMóvil.com/)
+- [evertec/athMóvil-webhooks](https://github.com/evertec/athMóvil-webhooks)
 
 ## License
 

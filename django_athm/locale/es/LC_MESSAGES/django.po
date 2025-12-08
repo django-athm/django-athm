@@ -151,15 +151,15 @@ msgstr "Identificador unico de transaccion ecommerce"
 
 #: models.py:26
 msgid "ATH Móvil reference number for completed transactions"
-msgstr "Numero de referencia de ATH Movil para transacciones completadas"
+msgstr "Numero de referencia de ATH Móvil para transacciones completadas"
 
 #: models.py:31 models.py:186
 msgid "ATH Móvil daily transaction ID"
-msgstr "ID de transaccion diaria de ATH Movil"
+msgstr "ID de transaccion diaria de ATH Móvil"
 
 #: models.py:44
 msgid "Transaction completion date from ATH Móvil"
-msgstr "Fecha de completacion de transaccion de ATH Movil"
+msgstr "Fecha de completacion de transaccion de ATH Móvil"
 
 #: models.py:49
 msgid "Total transaction amount"
@@ -175,7 +175,7 @@ msgstr "Monto de impuestos"
 
 #: models.py:67
 msgid "ATH Móvil processing fee"
-msgstr "Cargo de procesamiento de ATH Movil"
+msgstr "Cargo de procesamiento de ATH Móvil"
 
 #: models.py:73
 msgid "Amount after possible fees"
@@ -187,27 +187,27 @@ msgstr "Monto reembolsado"
 
 #: models.py:86
 msgid "Customer name from ATH Móvil at the time of payment"
-msgstr "Nombre del cliente de ATH Movil al momento del pago"
+msgstr "Nombre del cliente de ATH Móvil al momento del pago"
 
 #: models.py:91
 msgid "Customer phone number from ATH Móvil at the time of payment"
-msgstr "Numero de telefono del cliente de ATH Movil al momento del pago"
+msgstr "Numero de telefono del cliente de ATH Móvil al momento del pago"
 
 #: models.py:95
 msgid "Customer email address from ATH Móvil at the time of payment"
-msgstr "Correo electronico del cliente de ATH Movil al momento del pago"
+msgstr "Correo electronico del cliente de ATH Móvil al momento del pago"
 
 #: models.py:104
 msgid "Business name from ATH Móvil"
-msgstr "Nombre del negocio de ATH Movil"
+msgstr "Nombre del negocio de ATH Móvil"
 
 #: models.py:109
 msgid "ATH Móvil Transaction"
-msgstr "Transaccion ATH Movil"
+msgstr "Transaccion ATH Móvil"
 
 #: models.py:110
 msgid "ATH Móvil Transactions"
-msgstr "Transacciones ATH Movil"
+msgstr "Transacciones ATH Móvil"
 
 #: models.py:150
 msgid "Item name"
@@ -227,19 +227,19 @@ msgstr "Impuesto del articulo"
 
 #: models.py:168
 msgid "ATH Móvil Payment Line Item"
-msgstr "Articulo de pago ATH Movil"
+msgstr "Articulo de pago ATH Móvil"
 
 #: models.py:169
 msgid "ATH Móvil Payment Line Items"
-msgstr "Articulos de pago ATH Movil"
+msgstr "Articulos de pago ATH Móvil"
 
 #: models.py:204
 msgid "ATH Móvil Refund"
-msgstr "Reembolso ATH Movil"
+msgstr "Reembolso ATH Móvil"
 
 #: models.py:205
 msgid "ATH Móvil Refunds"
-msgstr "Reembolsos ATH Movil"
+msgstr "Reembolsos ATH Móvil"
 
 #: models.py:214
 msgid "Payment Simulation"
@@ -291,11 +291,11 @@ msgstr "Transaccion asociada si fue encontrada/creada"
 
 #: models.py:265
 msgid "ATH Móvil Webhook Event"
-msgstr "Evento de webhook ATH Movil"
+msgstr "Evento de webhook ATH Móvil"
 
 #: models.py:266
 msgid "ATH Móvil Webhook Events"
-msgstr "Eventos de webhook ATH Movil"
+msgstr "Eventos de webhook ATH Móvil"
 
 #: templates/admin/django_athm/payment/refund_confirmation.html:6
 #: templates/admin/django_athm/webhookevent/install_webhooks.html:6
@@ -327,8 +327,8 @@ msgid "Go back"
 msgstr "Regresar"
 
 #: templates/admin/django_athm/webhookevent/install_webhooks.html:14
-msgid "Register your webhook URL with ATH Movil to receive payment events."
-msgstr "Registra tu URL de webhook con ATH Movil para recibir eventos de pago."
+msgid "Register your webhook URL with ATH Móvil to receive payment events."
+msgstr "Registra tu URL de webhook con ATH Móvil para recibir eventos de pago."
 
 #: templates/admin/django_athm/webhookevent/install_webhooks.html:20
 msgid "Install"
@@ -340,16 +340,16 @@ msgid "Cancel"
 msgstr "Cancelar"
 
 #: templates/django_athm/button.html:542
-msgid "Enter your phone number registered with ATH Movil"
-msgstr "Ingresa tu numero de telefono registrado en ATH Movil"
+msgid "Enter your phone number registered with ATH Móvil"
+msgstr "Ingresa tu numero de telefono registrado en ATH Móvil"
 
 #: templates/django_athm/button.html:558
 msgid "Continue"
 msgstr "Continuar"
 
 #: templates/django_athm/button.html:567
-msgid "Confirm the payment in your ATH Movil app"
-msgstr "Confirma el pago en tu aplicacion ATH Movil"
+msgid "Confirm the payment in your ATH Móvil app"
+msgstr "Confirma el pago en tu aplicacion ATH Móvil"
 
 #: templates/django_athm/button.html:570
 msgid "Check the notifications on your phone"
@@ -368,5 +368,5 @@ msgid "Try again"
 msgstr "Intentar de nuevo"
 
 #: templatetags/django_athm.py:70
-msgid "ATH Movil Payment"
-msgstr "Pago ATH Movil"
+msgid "ATH Móvil Payment"
+msgstr "Pago ATH Móvil"

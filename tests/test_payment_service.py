@@ -15,7 +15,7 @@ pytestmark = pytest.mark.django_db
 
 @pytest.fixture
 def mock_client(mocker):
-    """Mock the ATH Movil client."""
+    """Mock the ATH Móvil client."""
     client = Mock()
     mocker.patch.object(PaymentService, "get_client", return_value=client)
     return client

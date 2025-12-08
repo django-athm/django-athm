@@ -6,7 +6,7 @@ from django_athm.services.payment_service import PaymentService
 
 
 class Command(BaseCommand):
-    help = "Register a webhook URL with ATH Movil"
+    help = "Register a webhook URL with ATH Móvil"
 
     def add_arguments(self, parser):
         parser.add_argument("url", help="Webhook URL (must be HTTPS)")

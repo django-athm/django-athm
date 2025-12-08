@@ -12,7 +12,7 @@ register = template.Library()
 @register.inclusion_tag("django_athm/button.html", takes_context=True)
 def athm_button(context, config):
     """
-    Render an ATH Movil payment button with modal.
+    Render an ATH Móvil payment button with modal.
 
     Usage:
         {% load django_athm %}
@@ -67,5 +67,5 @@ def athm_button(context, config):
         "authorize_url": reverse("django_athm:authorize"),
         "cancel_url": reverse("django_athm:cancel"),
         "csrf_token": csrf_token,
-        "modal_title": _("ATH Movil Payment"),
+        "modal_title": _("ATH Móvil Payment"),
     }

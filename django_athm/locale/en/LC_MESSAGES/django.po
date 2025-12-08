@@ -327,7 +327,7 @@ msgid "Go back"
 msgstr ""
 
 #: templates/admin/django_athm/webhookevent/install_webhooks.html:14
-msgid "Register your webhook URL with ATH Movil to receive payment events."
+msgid "Register your webhook URL with ATH Móvil to receive payment events."
 msgstr ""
 
 #: templates/admin/django_athm/webhookevent/install_webhooks.html:20
@@ -340,7 +340,7 @@ msgid "Cancel"
 msgstr ""
 
 #: templates/django_athm/button.html:542
-msgid "Enter your phone number registered with ATH Movil"
+msgid "Enter your phone number registered with ATH Móvil"
 msgstr ""
 
 #: templates/django_athm/button.html:558
@@ -348,7 +348,7 @@ msgid "Continue"
 msgstr ""
 
 #: templates/django_athm/button.html:567
-msgid "Confirm the payment in your ATH Movil app"
+msgid "Confirm the payment in your ATH Móvil app"
 msgstr ""
 
 #: templates/django_athm/button.html:570
@@ -368,5 +368,5 @@ msgid "Try again"
 msgstr ""
 
 #: templatetags/django_athm.py:70
-msgid "ATH Movil Payment"
+msgid "ATH Móvil Payment"
 msgstr ""

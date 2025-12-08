@@ -4,9 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-`django-athm` is a Django package that integrates ATH Movil payments (Puerto Rico's mobile payment system) into Django applications. The package provides:
+`django-athm` is a Django package that integrates ATH Móvil payments (Puerto Rico's mobile payment system) into Django applications. The package provides:
 
-- Backend-first modal payment flow with ATH Movil's eCommerce API
+- Backend-first modal payment flow with ATH Móvil's eCommerce API
 - Webhook handling for payment events with idempotency and ACID guarantees
 - Transaction persistence with line items and refunds
 - Read-only Django Admin interface with refund actions and webhook management
@@ -52,7 +52,7 @@ ruff format --check .
 
 ### Management Commands
 ```bash
-# Register webhook URL with ATH Movil
+# Register webhook URL with ATH Móvil
 python manage.py install_webhook https://yourdomain.com/athm/webhook/
 ```
 
@@ -62,18 +62,18 @@ python manage.py install_webhook https://yourdomain.com/athm/webhook/
 
 The v1.0 architecture uses a **backend-first modal flow**:
 
-1. **Initiate** (`/api/initiate/`): Backend creates payment via ATH Movil API, returns `ecommerce_id`. Stores `auth_token` in session.
-2. **Customer Confirmation**: Customer confirms in ATH Movil app. Status changes OPEN -> CONFIRM.
+1. **Initiate** (`/api/initiate/`): Backend creates payment via ATH Móvil API, returns `ecommerce_id`. Stores `auth_token` in session.
+2. **Customer Confirmation**: Customer confirms in ATH Móvil app. Status changes OPEN -> CONFIRM.
 3. **Status Polling** (`/api/status/`): Frontend should poll until status is CONFIRM.
 4. **Authorize** (`/api/authorize/`): Backend confirms payment using session `auth_token`. Returns `reference_number`.
-5. **Webhook** (`/webhook/`): ATH Movil sends completion event with final details (fee, net_amount, customer info).
+5. **Webhook** (`/webhook/`): ATH Móvil sends completion event with final details (fee, net_amount, customer info).
 
 The frontend modal (`button.html`) is self-contained vanilla JS with no external dependencies.
 
 ### URL Endpoints
 
 All endpoints are namespaced under `django_athm:`:
-- `POST /webhook/` - Receives ATH Movil webhook events
+- `POST /webhook/` - Receives ATH Móvil webhook events
 - `POST /api/initiate/` - Creates new payment
 - `GET /api/status/` - Polls payment status
 - `POST /api/authorize/` - Confirms payment with auth_token
@@ -156,13 +156,13 @@ Config dict keys:
 ## Testing Patterns
 
 - Uses `pytest-django` with fixtures in `tests/`
-- Uses `respx` for mocking HTTPX requests to ATH Movil API
+- Uses `respx` for mocking HTTPX requests to ATH Móvil API
 - Test settings in `tests/settings.py`
 - Tests run against Django 5.1/5.2 and Python 3.10-3.13 via tox
 
 ## Dependencies
 
-- **athm-python ~0.4.0**: ATH Movil API client
+- **athm-python ~0.4.0**: ATH Móvil API client
 - **Django 5.1+**: Minimum Django version
 - **Python 3.10+**: Minimum Python version
 

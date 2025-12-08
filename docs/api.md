@@ -4,29 +4,29 @@
 
 ### ATHM_Transaction
 
-Represents a payment transaction from ATH Movil.
+Represents a payment transaction from ATH Móvil.
 
 #### Fields
 
 | Field | Type | Description |
 |-------|------|-------------|
 | `id` | UUIDField | Primary key |
-| `reference_number` | CharField | Unique ATH Movil reference number |
+| `reference_number` | CharField | Unique ATH Móvil reference number |
 | `status` | CharField | Transaction status (see Status choices below) |
 | `date` | DateTimeField | Transaction date |
 | `total` | DecimalField | Total amount |
 | `subtotal` | DecimalField | Subtotal before tax |
 | `tax` | DecimalField | Tax amount |
-| `fee` | DecimalField | ATH Movil fee |
+| `fee` | DecimalField | ATH Móvil fee |
 | `net_amount` | DecimalField | Net amount after fees |
 | `refunded_amount` | DecimalField | Amount refunded (if any) |
 | `message` | CharField | Optional message |
 | `metadata_1` | CharField | Metadata field 1 (max 40 chars) |
 | `metadata_2` | CharField | Metadata field 2 (max 40 chars) |
-| `ecommerce_id` | CharField | ATH Movil eCommerce transaction ID |
-| `ecommerce_status` | CharField | Raw status from ATH Movil API |
-| `customer_name` | CharField | Customer name from ATH Movil |
-| `customer_phone` | CharField | Customer phone from ATH Movil |
+| `ecommerce_id` | CharField | ATH Móvil eCommerce transaction ID |
+| `ecommerce_status` | CharField | Raw status from ATH Móvil API |
+| `customer_name` | CharField | Customer name from ATH Móvil |
+| `customer_phone` | CharField | Customer phone from ATH Móvil |
 | `client` | ForeignKey | Related ATHM_Client |
 
 #### Status Choices
@@ -52,7 +52,7 @@ transaction.is_pending     # True if status is OPEN or CONFIRM
 
 ##### get_report(start_date, end_date, public_token=None, private_token=None)
 
-Fetch a transaction report from ATH Movil API.
+Fetch a transaction report from ATH Móvil API.
 
 ```python
 from django_athm.models import ATHM_Transaction
@@ -83,7 +83,7 @@ Raises `ATHM_RefundError` if the refund fails.
 
 ##### search(transaction)
 
-Search for transaction details from ATH Movil API.
+Search for transaction details from ATH Móvil API.
 
 ```python
 from django_athm.models import ATHM_Transaction
@@ -94,7 +94,7 @@ details = ATHM_Transaction.search(transaction)
 
 ##### find_payment(ecommerce_id, public_token=None)
 
-Find a payment by eCommerce ID using the ATH Movil v4 API.
+Find a payment by eCommerce ID using the ATH Móvil v4 API.
 
 ```python
 from django_athm.models import ATHM_Transaction
@@ -104,7 +104,7 @@ result = ATHM_Transaction.find_payment(ecommerce_id="ecom123")
 
 ##### cancel_payment(ecommerce_id, public_token=None)
 
-Cancel a pending payment using the ATH Movil v4 API.
+Cancel a pending payment using the ATH Móvil v4 API.
 
 ```python
 from django_athm.models import ATHM_Transaction

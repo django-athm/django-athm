@@ -105,7 +105,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.2.0] - 2019-02-03
 
 ### Added
-- Support [list transactions API](https://github.com/evertec/athmovil-javascript-api#transactions)
+- Support [list transactions API](https://github.com/evertec/athMóvil-javascript-api#transactions)
 
 ## [0.1.1] - 2019-02-02
 
