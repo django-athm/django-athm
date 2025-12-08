@@ -405,7 +405,10 @@
             #handleSuccess() {
                 if (this.#config.successUrl) {
                     setTimeout(() => {
-                        window.location.href = this.#config.successUrl;
+                        const url = new URL(this.#config.successUrl, window.location.origin);
+                        url.searchParams.set('reference_number', this.#state.referenceNumber);
+                        url.searchParams.set('ecommerce_id', this.#state.ecommerceId);
+                        window.location.href = url.toString();
                     }, 2000);
                 } else {
                     setTimeout(() => {

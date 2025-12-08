@@ -28,7 +28,9 @@ def athm_button(context, config):
             - items: List of item dicts
             - theme: Button theme (btn, btn-dark, btn-light)
             - lang: Language code (es, en)
-            - success_url: Redirect URL on success
+            - success_url: Redirect URL on success. Query params
+              `reference_number` and `ecommerce_id` are appended
+              automatically (e.g., "/thanks/" -> "/thanks/?reference_number=...&ecommerce_id=...")
             - failure_url: Redirect URL on failure
     """
     total = config.get("total")

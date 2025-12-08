@@ -126,7 +126,7 @@ class Payment(models.Model):
 
     @property
     def is_refundable(self) -> bool:
-        return self.is_successful and self.net_amount > self.total_refunded_amount
+        return self.is_successful and self.total > self.total_refunded_amount
 
     @property
     def refundable_amount(self) -> Decimal:

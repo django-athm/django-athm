@@ -38,6 +38,7 @@ class PaymentAdmin(admin.ModelAdmin):
         "ecommerce_id",
         "display_status_colored",
         "total",
+        "total_refunded_amount",
         "transaction_date",
         "customer_name",
         "created",
@@ -183,7 +184,7 @@ class PaymentAdmin(admin.ModelAdmin):
             success, errors = 0, 0
             for payment in refundable:
                 try:
-                    PaymentService.refund(payment, message="Refunded via admin")
+                    PaymentService.refund(payment)
                     success += 1
                 except Exception as e:
                     logger.exception(f"[django-athm] Refund failed: {e}")
