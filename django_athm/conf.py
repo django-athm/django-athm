@@ -2,7 +2,6 @@ from django.conf import settings as dj_settings
 from django.core.signals import setting_changed
 
 DEFAULTS = {
-    "SANDBOX_MODE": True,
     "PUBLIC_TOKEN": None,
     "PRIVATE_TOKEN": None,
 }

@@ -1,23 +1,23 @@
-from django_athm import constants, utils
+from decimal import Decimal
+
+from django_athm import utils
 
 
-def test_parse_error_code():
-    assert utils.parse_error_code("3020") == constants.ERROR_DICT["3020"]
+def test_safe_decimal_with_valid_values():
+    """Test safe_decimal with various valid input types."""
+    assert utils.safe_decimal(100) == Decimal("100")
+    assert utils.safe_decimal(100.50) == Decimal("100.50")
+    assert utils.safe_decimal("100.50") == Decimal("100.50")
+    assert utils.safe_decimal(Decimal("100.50")) == Decimal("100.50")
 
 
-class TestSyncHTTPAdapter:
-    def test_adapter_get_with_data(self, mock_httpx):
-        adapter = utils.SyncHTTPAdapter()
+def test_safe_decimal_with_none():
+    """Test safe_decimal returns default when value is None."""
+    assert utils.safe_decimal(None) is None
+    assert utils.safe_decimal(None, Decimal("0")) == Decimal("0")
 
-        response = adapter.get_with_data(constants.REPORT_URL, data={})
 
-        assert response["mocked"]
-        assert mock_httpx.routes["get_with_data"].called
-
-    def test_adapter_post(self, mock_httpx):
-        adapter = utils.SyncHTTPAdapter()
-
-        response = adapter.post(constants.REFUND_URL, data={})
-
-        assert response["mocked"]
-        assert mock_httpx.routes["post_refund"].called
+def test_safe_decimal_with_invalid_values():
+    """Test safe_decimal returns default for invalid inputs."""
+    assert utils.safe_decimal("invalid") is None
+    assert utils.safe_decimal("invalid", Decimal("0")) == Decimal("0")

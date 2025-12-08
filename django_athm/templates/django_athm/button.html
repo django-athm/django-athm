@@ -1,0 +1,591 @@
+{% load static %}
+
+<!-- Only load once per page -->
+<script>
+    if (typeof window.athmAssetsLoaded === "undefined") {
+        window.athmAssetsLoaded = true;
+
+        // Inline CSS
+        const style = document.createElement("style");
+        style.textContent = `
+            .athm-container {
+                display: inline-block;
+            }
+
+            /* Button Themes */
+            .athm-button {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                padding: 12px 24px;
+                border: none;
+                border-radius: 8px;
+                font-size: 16px;
+                font-weight: 600;
+                cursor: pointer;
+                transition: opacity 0.2s;
+            }
+
+            .athm-button:disabled {
+                opacity: 0.6;
+                cursor: not-allowed;
+            }
+
+            .athm-btn {
+                background: #ed7b00;
+                color: white;
+            }
+
+            .athm-btn-dark {
+                background: #1a1a1a;
+                color: white;
+            }
+
+            .athm-btn-light {
+                background: #f5f5f5;
+                color: #1a1a1a;
+                border: 1px solid #ddd;
+            }
+
+            /* Modal */
+            .athm-modal-overlay {
+                position: fixed;
+                inset: 0;
+                background: rgba(0, 0, 0, 0.5);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 9999;
+            }
+
+            .athm-modal {
+                background: white;
+                border-radius: 12px;
+                width: 100%;
+                max-width: 400px;
+                margin: 16px;
+                box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+            }
+
+            .athm-modal-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 16px 20px;
+                border-bottom: 1px solid #eee;
+            }
+
+            .athm-modal-header h3 {
+                margin: 0;
+                font-size: 18px;
+            }
+
+            .athm-modal-close {
+                background: none;
+                border: none;
+                font-size: 24px;
+                cursor: pointer;
+                color: #666;
+            }
+
+            .athm-modal-body {
+                padding: 24px 20px;
+                text-align: center;
+            }
+
+            /* Phone Input */
+            .athm-phone-input {
+                width: 100%;
+                padding: 12px;
+                font-size: 18px;
+                border: 2px solid #ddd;
+                border-radius: 8px;
+                margin: 16px 0;
+                text-align: center;
+            }
+
+            .athm-phone-input:focus {
+                outline: none;
+                border-color: #ed7b00;
+            }
+
+            /* Waiting State */
+            .athm-spinner {
+                width: 48px;
+                height: 48px;
+                border: 4px solid #eee;
+                border-top-color: #ed7b00;
+                border-radius: 50%;
+                margin: 0 auto 16px;
+                animation: spin 1s linear infinite;
+            }
+
+            @keyframes spin {
+                to { transform: rotate(360deg); }
+            }
+
+            .athm-waiting-text {
+                font-size: 16px;
+                font-weight: 600;
+                margin-bottom: 8px;
+            }
+
+            .athm-waiting-subtext {
+                color: #666;
+                font-size: 14px;
+            }
+
+            .athm-cancel-link {
+                background: none;
+                border: none;
+                color: #666;
+                text-decoration: underline;
+                cursor: pointer;
+                margin-top: 16px;
+            }
+
+            /* Success/Error States */
+            .athm-success-icon {
+                width: 64px;
+                height: 64px;
+                background: #22c55e;
+                color: white;
+                border-radius: 50%;
+                font-size: 32px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                margin: 0 auto 16px;
+            }
+
+            .athm-error-icon {
+                width: 64px;
+                height: 64px;
+                background: #ef4444;
+                color: white;
+                border-radius: 50%;
+                font-size: 32px;
+                font-weight: bold;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                margin: 0 auto 16px;
+            }
+
+            .athm-error {
+                color: #ef4444;
+                font-size: 14px;
+            }
+
+            .athm-reference {
+                color: #666;
+                font-size: 14px;
+                font-family: monospace;
+            }
+
+            [x-cloak] {
+            display: none !important;
+        }
+    `;
+        document.head.appendChild(style);
+
+        // Load Alpine.js if not present
+        if (typeof Alpine === "undefined") {
+            const alpine = document.createElement("script");
+            alpine.src = "https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js";
+            alpine.defer = true;
+            document.head.appendChild(alpine);
+        }
+    }
+</script>
+
+<script>
+    if (typeof athmPayment === "undefined") {
+        function athmPayment(config) {
+            return {
+                // State
+                showModal: false,
+                step: "phone", // 'phone', 'waiting', 'authorizing', 'success', 'error'
+                phoneNumber: "",
+                error: "",
+                isProcessing: false,
+                ecommerceId: null,
+                referenceNumber: null,
+                pollCount: 0,
+                pollTimer: null,
+
+                // Config
+                config: config,
+
+                // Computed
+                get isValidPhone() {
+                    const cleaned = this.phoneNumber.replace(/\D/g, "");
+                    return cleaned.length === 10;
+                },
+
+                // Methods
+                openModal() {
+                    this.showModal = true;
+                    this.step = "phone";
+                    this.error = "";
+                },
+
+                closeModal() {
+                    if (this.step === "waiting" || this.step === "authorizing") {
+                        if (!confirm("Cancel this payment?")) return;
+                        this.cancelPayment();
+                    }
+                    this.showModal = false;
+                    this.reset();
+                },
+
+                reset() {
+                    this.step = "phone";
+                    this.phoneNumber = "";
+                    this.error = "";
+                    this.ecommerceId = null;
+                    this.referenceNumber = null;
+                    this.pollCount = 0;
+                    if (this.pollTimer) {
+                        clearTimeout(this.pollTimer);
+                        this.pollTimer = null;
+                    }
+                },
+
+                async submitPhone() {
+                    if (!this.isValidPhone || this.isProcessing) return;
+
+                    this.isProcessing = true;
+                    this.error = "";
+
+                    try {
+                        // Initiate payment
+                        const response = await fetch(this.config.initiateUrl, {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json",
+                                "X-CSRFToken": this.config.csrfToken,
+                            },
+                            body: JSON.stringify({
+                                total: this.config.total,
+                                subtotal: this.config.subtotal || null,
+                                tax: this.config.tax || null,
+                                metadata_1: this.config.metadata_1,
+                                metadata_2: this.config.metadata_2,
+                                items: this.config.items,
+                                phone_number: this.phoneNumber.replace(/\D/g, ""),
+                            }),
+                        });
+
+                        const data = await response.json();
+
+                        if (!response.ok) {
+                            throw new Error(data.error || "Failed to initiate payment");
+                        }
+
+                        this.ecommerceId = data.ecommerce_id;
+
+                        // Move to waiting step and start polling
+                        this.step = "waiting";
+                        this.pollCount = 0;
+                        this.startPolling();
+                    } catch (err) {
+                        this.error = err.message;
+                        this.step = "error";
+                    } finally {
+                        this.isProcessing = false;
+                    }
+                },
+
+                startPolling() {
+                    this.pollTimer = setTimeout(
+                        () => this.poll(),
+                        this.config.pollInterval
+                    );
+                },
+
+                async poll() {
+                    if (this.step !== "waiting") return;
+
+                    this.pollCount++;
+
+                    if (this.pollCount > this.config.maxPollAttempts) {
+                        this.error = "Payment timed out. Please try again.";
+                        this.step = "error";
+                        return;
+                    }
+
+                    try {
+                        const response = await fetch(
+                            `${this.config.statusUrl}?ecommerce_id=${this.ecommerceId}`,
+                            {
+                                headers: { "X-CSRFToken": this.config.csrfToken },
+                            }
+                        );
+
+                        const data = await response.json();
+
+                        if (!response.ok) {
+                            throw new Error(data.error || "Failed to check status");
+                        }
+
+                        switch (data.status) {
+                            case "COMPLETED":
+                                this.referenceNumber = data.reference_number;
+                                this.step = "success";
+                                this.handleSuccess();
+                                break;
+
+                            case "CONFIRM":
+                                // Customer confirmed - now authorize
+                                await this.authorizePayment();
+                                break;
+
+                            case "CANCEL":
+                                this.error ="Payment was cancelled.";
+                                this.step = "error";
+                                break;
+
+                            case "OPEN":
+                            default:
+                                // Keep polling
+                                this.startPolling();
+                                break;
+                        }
+                    } catch (err) {
+                        console.error("[django-athm] Poll error:", err);
+                        // Network error - keep polling
+                        this.startPolling();
+                    }
+                },
+
+                async authorizePayment() {
+                    this.step = "authorizing";
+
+                    try {
+                        const response = await fetch(this.config.authorizeUrl, {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json",
+                                "X-CSRFToken": this.config.csrfToken,
+                            },
+                            body: JSON.stringify({
+                                ecommerce_id: this.ecommerceId,
+                            }),
+                        });
+
+                        const data = await response.json();
+
+                        if (!response.ok) {
+                            throw new Error(
+                                data.error || "Failed to authorize payment"
+                            );
+                        }
+
+                        this.referenceNumber = data.reference_number;
+                        this.step = "success";
+                        this.handleSuccess();
+                    } catch (err) {
+                        console.error("[django-athm] Authorization error:", err);
+                        this.error = err.message;
+                        this.step = "error";
+                    }
+                },
+
+                handleSuccess() {
+                    if (this.config.successUrl) {
+                        setTimeout(() => {
+                            window.location.href = this.config.successUrl;
+                        }, 2000);
+                    }
+                },
+
+                async cancelPayment() {
+                    if (this.pollTimer) {
+                        clearTimeout(this.pollTimer);
+                        this.pollTimer = null;
+                    }
+
+                    if (!this.ecommerceId) {
+                        this.reset();
+                        this.showModal = false;
+                        return;
+                    }
+
+                    try {
+                        await fetch(this.config.cancelUrl, {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json",
+                                "X-CSRFToken": this.config.csrfToken,
+                            },
+                            body: JSON.stringify({ ecommerce_id: this.ecommerceId }),
+                        });
+                    } catch (err) {
+                        console.error("[django-athm] Cancel error:", err);
+                    }
+
+                    this.reset();
+                    this.showModal = false;
+
+                    if (
+                        this.config.cancelUrl &&
+                        this.config.cancelUrl !== this.config.cancelUrlApi
+                    ) {
+                        window.location.href = this.config.cancelUrl;
+                    }
+                },
+            };
+        }
+    }
+</script>
+
+<div
+    x-data="athmPayment({
+        total: '{{ total }}',
+        subtotal: '{{ subtotal }}',
+        tax: '{{ tax }}',
+        metadata_1: '{{ metadata_1 }}',
+        metadata_2: '{{ metadata_2 }}',
+        items: {{ items_json|safe }},
+        successUrl: '{{ success_url }}',
+        failureUrl: '{{ failure_url }}',
+        pollInterval: {{ poll_interval }},
+        maxPollAttempts: {{ max_poll_attempts }},
+        initiateUrl: '{{ initiate_url }}',
+        statusUrl: '{{ status_url }}',
+        authorizeUrl: '{{ authorize_url }}',
+        cancelUrl: '{{ cancel_url }}',
+        csrfToken: '{{ csrf_token }}',
+        language: '{{ language }}'
+    })"
+    class="athm-container"
+>
+    <!-- Payment Button -->
+    <button
+        type="button"
+        @click="openModal()"
+        class="athm-button athm-{{ theme }}"
+        :disabled="isProcessing"
+    >
+        <span class="athm-button-text">Paga con ATH Móvil</span>
+    </button>
+
+    <!-- Modal Overlay -->
+    <div
+        x-show="showModal"
+        x-cloak
+        class="athm-modal-overlay"
+        @click.self="closeModal()"
+        @keydown.escape.window="closeModal()"
+    >
+        <div class="athm-modal" @click.stop>
+            <!-- Modal Header -->
+            <div class="athm-modal-header">
+                <h3>{{ modal_title }}</h3>
+                <button type="button" @click="closeModal()" class="athm-modal-close">
+                    &times;
+                </button>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="athm-modal-body">
+                <!-- Step 1: Phone Number Entry -->
+                <template x-if="step === 'phone'">
+                    <div class="athm-step-phone">
+                        <p class="athm-instructions">
+                            {% if language == 'es' %} Ingresa tu numero de telefono
+                            registrado en ATH Movil {% else %} Enter your phone number
+                            registered with ATH Movil {% endif %}
+                        </p>
+                        <input
+                            type="tel"
+                            x-model="phoneNumber"
+                            placeholder="787-123-4567"
+                            class="athm-phone-input"
+                            @keyup.enter="submitPhone()"
+                            maxlength="12"
+                        />
+                        <p x-show="error" x-text="error" class="athm-error"></p>
+                        <button
+                            type="button"
+                            @click="submitPhone()"
+                            :disabled="!isValidPhone || isProcessing"
+                            class="athm-button athm-{{ theme }}"
+                        >
+                            <span x-show="!isProcessing">
+                                {% if language == 'es' %}Continuar{% else %}Continue{% endif %}
+                            </span>
+                            <span x-show="isProcessing">...</span>
+                        </button>
+                    </div>
+                </template>
+
+                <!-- Step 2: Waiting for Confirmation -->
+                <template x-if="step === 'waiting'">
+                    <div class="athm-step-waiting">
+                        <div class="athm-spinner"></div>
+                        <p class="athm-waiting-text">
+                            {% if language == 'es' %} Confirma el pago en tu app de ATH
+                            Movil
+                            {% else %} Confirm the payment in your ATH Movil app
+                            {% endif %}
+                        </p>
+                        <p class="athm-waiting-subtext">
+                            {% if language == 'es' %} Revisa las notificaciones en tu
+                            telefono {% else %} Check the notifications on your phone {% endif %}
+                        </p>
+                        <button
+                            type="button"
+                            @click="cancelPayment()"
+                            class="athm-cancel-link"
+                        >
+                            {% if language == 'es' %}Cancelar{% else %}Cancel{% endif %}
+                        </button>
+                    </div>
+                </template>
+
+                <!-- Step 2b: Authorizing -->
+                <template x-if="step === 'authorizing'">
+                    <div class="athm-step-waiting">
+                        <div class="athm-spinner"></div>
+                        <p class="athm-waiting-text">
+                            {% if language == 'es' %} Procesando pago... {% else %}
+                            Processing payment... {% endif %}
+                        </p>
+                    </div>
+                </template>
+
+                <!-- Step 3: Success -->
+                <template x-if="step === 'success'">
+                    <div class="athm-step-success">
+                        <div class="athm-success-icon">&#10003;</div>
+                        <p class="athm-success-text">
+                            {% if language == 'es' %} Pago completado {% else %} Payment
+                            completed {% endif %}
+                        </p>
+                        <p x-show="referenceNumber" class="athm-reference">
+                            Ref: <span x-text="referenceNumber"></span>
+                        </p>
+                    </div>
+                </template>
+
+                <!-- Step 4: Error -->
+                <template x-if="step === 'error'">
+                    <div class="athm-step-error">
+                        <div class="athm-error-icon">!</div>
+                        <p class="athm-error-text" x-text="error"></p>
+                        <button
+                            type="button"
+                            @click="reset(); step = 'phone';"
+                            class="athm-button athm-{{ theme }}"
+                        >
+                            {% if language == 'es' %}Intentar de nuevo{% else %}Try
+                            again{% endif %}
+                        </button>
+                    </div>
+                </template>
+            </div>
+        </div>
+    </div>
+</div>

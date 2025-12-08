@@ -1,20 +1,10 @@
-import logging
-from abc import ABC, abstractmethod
 from decimal import Decimal
-from typing import Any, Optional
+from typing import Any
 
-import httpx
-
-from .constants import API_BASE_URL, ERROR_DICT
-
-logger = logging.getLogger(__name__)
+from django.core.exceptions import ValidationError
 
 
-def parse_error_code(error_code):
-    return ERROR_DICT.get(error_code, "unknown error")
-
-
-def safe_decimal(value: Any, default: Optional[Decimal] = None) -> Optional[Decimal]:
+def safe_decimal(value: Any, default: Decimal | None = None) -> Decimal | None:
     """
     Safely convert a value to Decimal.
 
@@ -35,35 +25,34 @@ def safe_decimal(value: Any, default: Optional[Decimal] = None) -> Optional[Deci
         return default
 
 
-class BaseHTTPAdapter(ABC):
-    client = None
+def validate_total(value: Any) -> Decimal:
+    """
+    Validate that total is a valid decimal between 1.00 and 1500.00.
 
-    @abstractmethod
-    def get_with_data(self, url, data):
-        raise NotImplementedError
+    Returns:
+        Decimal total if valid
 
-    @abstractmethod
-    def post(self, url, data):
-        raise NotImplementedError
+    Raises:
+        ValidationError: If invalid
+    """
+    total = safe_decimal(value)
+    if total is None:
+        raise ValidationError("Invalid total")
 
+    if total < Decimal("1.00") or total > Decimal("1500.00"):
+        raise ValidationError("Total must be between 1.00 and 1500.00")
 
-class SyncHTTPAdapter(BaseHTTPAdapter):
-    def get_with_data(self, url, data):
-        extra = {"url": url}
-        logger.debug("[django_athm:get_with_data]", extra=extra)
-
-        with httpx.Client(base_url=API_BASE_URL) as client:
-            response = client.request(method="GET", url=url, json=data)
-            return response.json()
-
-    def post(self, url, data):
-        extra = {"url": url}
-        logger.debug("[django_athm:post]", extra=extra)
-
-        with httpx.Client(base_url=API_BASE_URL) as client:
-            response = client.post(url, json=data)
-            return response.json()
+    return total
 
 
-def get_http_adapter():
-    return SyncHTTPAdapter()
+def validate_phone_number(value: Any) -> str:
+    """
+    Validate and normalize phone number.
+    Must be 10 digits.
+    """
+    phone = str(value or "").replace("-", "").replace(" ", "").strip()
+
+    if not phone or len(phone) != 10 or not phone.isdigit():
+        raise ValidationError("Invalid phone number")
+
+    return phone
