@@ -637,33 +637,33 @@ class TestParseDatetime:
         assert WebhookProcessor._parse_datetime("") is None
 
 
-class TestShouldSkipUpdate:
+class TestTerminalStateChecks:
     """Test terminal state checking logic."""
 
-    def test_completed_payment_skips_completed_check(self):
+    def test_completed_payment_is_already_completed(self):
         payment = Payment(status=Payment.Status.COMPLETED)
-        assert WebhookProcessor._should_skip_update(payment, check_completed=True)
+        assert WebhookProcessor._is_already_completed(payment)
 
-    def test_open_payment_does_not_skip_completed_check(self):
+    def test_open_payment_is_not_already_completed(self):
         payment = Payment(status=Payment.Status.OPEN)
-        assert not WebhookProcessor._should_skip_update(payment, check_completed=True)
+        assert not WebhookProcessor._is_already_completed(payment)
 
-    def test_completed_payment_skips_terminal_check(self):
+    def test_completed_payment_is_terminal(self):
         payment = Payment(status=Payment.Status.COMPLETED)
-        assert WebhookProcessor._should_skip_update(payment, check_completed=False)
+        assert WebhookProcessor._is_terminal(payment)
 
-    def test_cancelled_payment_skips_terminal_check(self):
+    def test_cancelled_payment_is_terminal(self):
         payment = Payment(status=Payment.Status.CANCEL)
-        assert WebhookProcessor._should_skip_update(payment, check_completed=False)
+        assert WebhookProcessor._is_terminal(payment)
 
-    def test_expired_payment_skips_terminal_check(self):
+    def test_expired_payment_is_terminal(self):
         payment = Payment(status=Payment.Status.EXPIRED)
-        assert WebhookProcessor._should_skip_update(payment, check_completed=False)
+        assert WebhookProcessor._is_terminal(payment)
 
-    def test_open_payment_does_not_skip_terminal_check(self):
+    def test_open_payment_is_not_terminal(self):
         payment = Payment(status=Payment.Status.OPEN)
-        assert not WebhookProcessor._should_skip_update(payment, check_completed=False)
+        assert not WebhookProcessor._is_terminal(payment)
 
-    def test_confirm_payment_does_not_skip_terminal_check(self):
+    def test_confirm_payment_is_not_terminal(self):
         payment = Payment(status=Payment.Status.CONFIRM)
-        assert not WebhookProcessor._should_skip_update(payment, check_completed=False)
+        assert not WebhookProcessor._is_terminal(payment)

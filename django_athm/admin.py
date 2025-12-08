@@ -469,31 +469,23 @@ class WebhookEventAdmin(admin.ModelAdmin):
                 error_count += 1
 
         # Display appropriate message
-        if error_count == 0 and processed_count > 0:
+        if processed_count == 0 and error_count == 0:
+            self.message_user(request, _("No unprocessed events selected."), "info")
+        elif error_count == 0:
             self.message_user(
                 request,
                 _(f"Successfully reprocessed {processed_count} events."),
-                level="success",
+                "success",
             )
-        elif processed_count > 0:
+        elif processed_count == 0:
             self.message_user(
-                request,
-                _(
-                    f"Reprocessed {processed_count} events with {error_count} errors. Check logs for details."
-                ),
-                level="warning",
-            )
-        elif error_count > 0:
-            self.message_user(
-                request,
-                _(f"Failed to reprocess events: {error_count} errors occurred."),
-                level="error",
+                request, _(f"Failed to reprocess: {error_count} errors."), "error"
             )
         else:
             self.message_user(
                 request,
-                _("No unprocessed events selected."),
-                level="info",
+                _(f"Reprocessed {processed_count} events with {error_count} errors."),
+                "warning",
             )
 
     def get_urls(self):

@@ -7,175 +7,200 @@
 [![PyPI version](https://img.shields.io/pypi/v/django-athm.svg)](https://pypi.org/project/django-athm/)
 [![Published on Django Packages](https://img.shields.io/badge/Published%20on-Django%20Packages-0c3c26)](https://djangopackages.org/packages/p/django-athm/)
 [![Packaged with uv](https://img.shields.io/badge/package_manager-uv-blue.svg)](https://github.com/astral-sh/uv)
-![Code style badge](https://badgen.net/badge/code%20style/black/000)
 ![License badge](https://img.shields.io/github/license/django-athm/django-athm.svg)
 
-_Ver este README en español: [README_ES.md](/README_ES.md)_
+Django integration for ATH Movil payments (Puerto Rico's mobile payment system).
 
 ## Features
 
-* Persist itemized transaction data as well as client information in your own database.
-* The customizable `athm_button` template tag provides convenient access to the ATH Móvil Checkout button.
-* Import your existing transactions from ATH Móvil using the `athm_sync` management command.
-* Various signals can be used to get notified of completed, cancelled or expired transactions.
-* Refund one or more transactions through the Django Admin.
+- Backend-first modal payment flow with ATH Movil's eCommerce API
+- Webhook handling with idempotency and ACID guarantees
+- Persist itemized transaction data and customer information
+- Read-only Django Admin interface with refund actions
+- Webhook management and reprocessing via admin
+- Django signals for payment lifecycle events (created, completed, failed, expired, refunded)
+- Self-contained payment button template tag (no external JS dependencies)
 
+## Requirements
 
-## Migrating from v0.x to v1.0
+- Python 3.10+
+- Django 5.1+
 
-### Breaking Changes
+## Installation
 
-Version 1.0.0 introduces several breaking changes to align with ATH Móvil's v4 JavaScript API:
-
-#### 1. JavaScript Callback Functions Renamed
-
-If you've customized the payment callbacks, update your function names:
-
-```javascript
-// OLD (v0.x) - NO LONGER SUPPORTED
-function onCompletedPayment(response) { ... }
-function onCancelledPayment(response) { ... }
-function onExpiredPayment(response) { ... }
-
-// NEW (v1.0+) - REQUIRED
-function authorizationATHM(response) { ... }
-function cancelATHM(response) { ... }
-function expiredATHM(response) { ... }
+```bash
+pip install django-athm
 ```
 
-#### 2. ATH Móvil SDK Source Changed
+Add to your `INSTALLED_APPS`:
 
-The JavaScript SDK URL has been updated:
-
-```html
-<!-- OLD -->
-<script async src="https://www.athmovil.com/api/js/v3/athmovilV3.js"></script>
-
-<!-- NEW -->
-<script src="https://payments.athmovil.com/api/js/athmovil_base.js"></script>
+```python
+INSTALLED_APPS = [
+    # ...
+    "django_athm",
+]
 ```
 
-**Note:** The `async` attribute has been removed - the SDK must load before configuration.
+Add your ATH Movil API tokens:
 
-#### 3. Button Container ID Changed
-
-```html
-<!-- OLD -->
-<div id="ATHMovil_Checkout_Button"></div>
-
-<!-- NEW -->
-<div id="ATHMovil_Checkout_Button_payment"></div>
+```python
+DJANGO_ATHM_PUBLIC_TOKEN = "your-public-token"
+DJANGO_ATHM_PRIVATE_TOKEN = "your-private-token"
 ```
 
-#### 4. Django/Python Version Support Updated
+Include the URLs:
 
-- **Minimum Django:** 5.1 (dropped support for 4.2)
-- **Minimum Python:** 3.10
-- **Supported Django:** 5.1, 5.2
-- **Supported Python:** 3.10-3.13
+```python
+# urls.py
+from django.urls import include, path
 
-#### 5. Server-Side Transaction Verification
+urlpatterns = [
+    # ...
+    path("athm/", include("django_athm.urls")),
+]
+```
 
-The callback view now verifies all transactions with ATH Movil's API before persisting. Only `ecommerceId` from the POST callback is trusted; all other transaction data is fetched from the API via `find_payment()`. This prevents spoofed payment data.
-
-**New dependency:** [athm-python](https://github.com/django-athm/athm-python) for API communication.
-
-### New Features in v1.0
-
-- **Phone Number Pre-fill:** Pass `phone_number` in `athm_config` to pre-fill customer phone
-- **Enhanced Transaction Tracking:** New fields for `ecommerce_id`, `ecommerce_status`, customer info
-- **Automatic Client Creation:** Customer records are now created automatically from transaction data
-- **Modern Fetch API:** Replaced jQuery dependency with native fetch API
-- **New API Methods:** `find_payment()` and `cancel_payment()` class methods
-
-### Database Migration Required
-
-After upgrading to v1.0.0, run the migration:
+Run migrations:
 
 ```bash
 python manage.py migrate django_athm
 ```
 
-This adds the following fields to `ATHM_Transaction`:
-- `ecommerce_id` (indexed)
-- `ecommerce_status`
-- `customer_name`
-- `customer_phone`
-- `net_amount`
+## Quick Start
 
-### Updated Transaction Statuses
-
-New status values:
-- `OPEN` - Transaction initiated (new default)
-- `CONFIRM` - Transaction confirmed
-- `COMPLETED` - Transaction completed successfully
-- `CANCEL` - Transaction cancelled
-- `REFUNDED` - Transaction refunded
-
-### Example: Updating Your Template
+### 1. Create a view with payment configuration
 
 ```python
 # views.py
+from django.shortcuts import render
+
+def checkout(request):
+    athm_config = {
+        "total": 25.00,
+        "subtotal": 23.36,
+        "tax": 1.64,
+        "metadata_1": "order-123",
+        "items": [
+            {"name": "Widget", "price": 23.36, "quantity": 1}
+        ],
+        "success_url": "/order/complete/",
+        "failure_url": "/order/failed/",
+    }
+    return render(request, "checkout.html", {"ATHM_CONFIG": athm_config})
+```
+
+### 2. Add the payment button to your template
+
+```django
+{% load django_athm %}
+
+<h1>Checkout</h1>
+{% athm_button ATHM_CONFIG %}
+```
+
+### 3. Handle payment completion with signals
+
+```python
+# signals.py
+from django.dispatch import receiver
+from django_athm.signals import payment_completed
+
+@receiver(payment_completed)
+def handle_payment_completed(sender, payment, **kwargs):
+    # Update your order status, send confirmation email, etc.
+    print(f"Payment {payment.reference_number} completed for ${payment.total}")
+```
+
+## Payment Flow
+
+The package uses a backend-first modal flow:
+
+1. **Initiate**: User clicks button, backend creates payment via ATH Movil API
+2. **Confirm**: User confirms payment in ATH Movil app
+3. **Authorize**: Backend authorizes the confirmed payment
+4. **Webhook**: ATH Movil sends completion event with final details
+
+```
+User clicks    ->  Backend creates  ->  User confirms   ->  Backend authorizes  ->  Webhook received
+ATH Movil         payment (OPEN)        in app (CONFIRM)    payment (COMPLETED)     (final details)
+button
+```
+
+## Webhooks
+
+### Installing Webhooks
+
+You can install your webhook URL via the Django Admin:
+
+1. Navigate to **ATH Movil Webhook Events** in the admin
+2. Click **Install Webhooks** button
+3. Enter your webhook URL (must be HTTPS): `https://yourdomain.com/athm/webhook/`
+
+### Webhook Idempotency
+
+All webhooks are processed idempotently using deterministic keys based on the event payload. Duplicate events are automatically detected and ignored.
+
+## Django Admin
+
+The package provides a read-only admin interface:
+
+- **Payments**: View all transactions, filter by status/date, bulk refund action
+- **Line Items**: View items associated with payments
+- **Refunds**: View refund records
+- **Webhook Events**: View webhook history, reprocess failed events, install webhooks
+
+All models are read-only to preserve data integrity - payments can only be refunded, not edited.
+
+## Template Tag Options
+
+```python
 athm_config = {
-    "total": 100.00,
-    "subtotal": 93.00,
-    "tax": 7.00,
-    "items": items_json,
-    # NEW in v1.0: Pre-fill customer phone
-    "phone_number": "787-555-1234",
+    # Required
+    "total": 25.00,              # Payment amount (1.00 - 1500.00)
+
+    # Optional
+    "subtotal": 23.36,           # Subtotal for display
+    "tax": 1.64,                 # Tax amount
+    "metadata_1": "order-123",   # Custom field (max 40 chars)
+    "metadata_2": "customer-456",# Custom field (max 40 chars)
+    "items": [...],              # List of line items
+    "theme": "btn",              # Button theme: btn, btn-dark, btn-light
+    "lang": "es",                # Language: es, en
+    "success_url": "/thanks/",   # Redirect on success (adds ?reference_number=...&ecommerce_id=...)
+    "failure_url": "/failed/",   # Redirect on failure
 }
 ```
 
+## Signals
 
-## Documentation
+Subscribe to payment lifecycle events:
 
-For information on installation and configuration, see the documentation at:
-
-https://django-athm.github.io/django-athm/
+```python
+from django_athm.signals import (
+    payment_created,    # Payment initiated
+    payment_completed,  # Payment successful
+    payment_failed,     # Payment cancelled
+    payment_expired,    # Payment expired
+    refund_completed,   # Refund processed
+)
+```
 
 ## Development Setup
 
-This project uses [uv](https://github.com/astral-sh/uv) for fast Python package management.
-
-### Installing uv
+This project uses [uv](https://github.com/astral-sh/uv) for package management.
 
 ```bash
-# macOS/Linux
+# Install uv
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
-# Or via pip
-pip install uv
-```
+# Install dependencies
+uv sync
 
-### Setting up the development environment
-
-```bash
-# Create virtual environment
-uv venv
-
-# Activate it
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-
-# Install the package with development dependencies
-uv pip install -e ".[dev]"
-```
-
-## Local testing with coverage
-
-After setting up the development environment, you can run the tests:
-
-```bash
+# Run tests
 DJANGO_SETTINGS_MODULE=tests.settings pytest --cov django_athm
-```
 
-### Running the full test matrix with tox
-
-```bash
-# Test against all Python and Django versions
+# Run full test matrix
 tox
-
-# Test specific combination
-tox -e py310-django41
 
 # Run linting
 tox -e lint
@@ -183,20 +208,17 @@ tox -e lint
 
 ## Legal
 
-This project is **not** affiliated with or endorsed by [Evertec, Inc.](https://www.evertecinc.com/) or [ATH Móvil](https://portal.athmovil.com/) in any way.
-
+This project is **not** affiliated with or endorsed by [Evertec, Inc.](https://www.evertecinc.com/) or [ATH Movil](https://portal.athmovil.com/).
 
 ## Dependencies
-* [athm-python](https://github.com/django-athm/athm-python) for ATH Movil API communication and server-side transaction verification
-* [httpx](https://github.com/encode/httpx/) for performing network requests to the ATH Movil API
-* [phonenumberslite](https://github.com/daviddrysdale/python-phonenumbers) for validating and parsing client phone numbers
+
+- [athm-python](https://github.com/django-athm/athm-python) - ATH Movil API client
 
 ## References
 
-- https://github.com/evertec/athmovil-javascript-api
+- [ATH Movil Business API Documentation](https://developer.athmovil.com/)
+- [evertec/athmovil-webhooks](https://github.com/evertec/athmovil-webhooks)
 
-- https://github.com/evertec/athmovil-webhooks
+## License
 
-- https://docs.djangoproject.com/en/4.1/ref/csrf/#ajax
-
-- https://docs.djangoproject.com/en/4.1/howto/custom-template-tags/
+MIT License - see [LICENSE](LICENSE) for details.

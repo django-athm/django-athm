@@ -236,6 +236,14 @@ class PaymentService:
 
         return refund
 
+    # Remote status -> local status mapping
+    _REMOTE_STATUS_MAP = {
+        "CANCEL": Payment.Status.CANCEL,
+        "EXPIRED": Payment.Status.EXPIRED,
+        "expired": Payment.Status.EXPIRED,
+        "CONFIRM": Payment.Status.CONFIRM,
+    }
+
     @classmethod
     def sync_status(cls, payment: Payment) -> str:
         """
@@ -257,24 +265,21 @@ class PaymentService:
         if remote_status == payment.status:
             return payment.status
 
-        # Update local status if changed
-        if remote_status == "CANCEL":
-            payment.status = Payment.Status.CANCEL
-            payment.save(update_fields=["status", "modified"])
-            logger.info(
-                f"[django-athm] Payment {payment.ecommerce_id} marked as {remote_status} from remote status"
-            )
-        elif remote_status in ("EXPIRED", "expired"):
-            payment.status = Payment.Status.EXPIRED
-            payment.save(update_fields=["status", "modified"])
-            logger.info(
-                f"[django-athm] Payment {payment.ecommerce_id} marked as {remote_status} from remote status"
-            )
-        elif remote_status == "CONFIRM" and payment.status == Payment.Status.OPEN:
-            payment.status = Payment.Status.CONFIRM
-            payment.save(update_fields=["status", "modified"])
-            logger.info(
-                f"[django-athm] Payment {payment.ecommerce_id} confirmed by customer"
-            )
+        new_status = cls._REMOTE_STATUS_MAP.get(remote_status)
+        if not new_status:
+            return payment.status
+
+        # CONFIRM only allowed from OPEN
+        if (
+            new_status == Payment.Status.CONFIRM
+            and payment.status != Payment.Status.OPEN
+        ):
+            return payment.status
+
+        payment.status = new_status
+        payment.save(update_fields=["status", "modified"])
+        logger.info(
+            f"[django-athm] Payment {payment.ecommerce_id} status updated to {new_status}"
+        )
 
         return payment.status

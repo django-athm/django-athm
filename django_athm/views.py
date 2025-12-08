@@ -22,6 +22,39 @@ def _get_client_ip(request) -> str:
     return request.META.get("REMOTE_ADDR", "")
 
 
+def _parse_ecommerce_id(
+    ecommerce_id: str | None,
+) -> tuple[UUID | None, JsonResponse | None]:
+    """
+    Validate and parse ecommerce_id.
+
+    Returns:
+        (uuid, None) on success
+        (None, error_response) on failure
+    """
+    if not ecommerce_id:
+        return None, JsonResponse({"error": "Missing ecommerce_id"}, status=400)
+
+    try:
+        return UUID(str(ecommerce_id)), None
+    except ValueError:
+        return None, JsonResponse({"error": "Invalid ecommerce_id"}, status=400)
+
+
+def _get_payment(ecommerce_uuid: UUID) -> tuple[Payment | None, JsonResponse | None]:
+    """
+    Fetch payment by UUID.
+
+    Returns:
+        (payment, None) on success
+        (None, error_response) on failure
+    """
+    try:
+        return Payment.objects.get(ecommerce_id=ecommerce_uuid), None
+    except Payment.DoesNotExist:
+        return None, JsonResponse({"error": "Payment not found"}, status=404)
+
+
 @csrf_exempt
 @require_http_methods(["POST"])
 def webhook(request):
@@ -98,21 +131,14 @@ def initiate(request):
 
 @require_http_methods(["GET"])
 def status(request):
-    ecommerce_id = request.GET.get("ecommerce_id")
-    if not ecommerce_id:
-        return JsonResponse({"error": "Missing ecommerce_id"}, status=400)
+    ecommerce_uuid, error = _parse_ecommerce_id(request.GET.get("ecommerce_id"))
+    if error:
+        return error
 
-    try:
-        ecommerce_uuid = UUID(str(ecommerce_id))
-    except ValueError:
-        return JsonResponse({"error": "Invalid ecommerce_id"}, status=400)
+    payment, error = _get_payment(ecommerce_uuid)
+    if error:
+        return error
 
-    try:
-        payment = Payment.objects.get(ecommerce_id=ecommerce_uuid)
-    except Payment.DoesNotExist:
-        return JsonResponse({"error": "Payment not found"}, status=404)
-
-    # Sync with remote status if needed
     PaymentService.sync_status(payment)
 
     return JsonResponse(
@@ -130,27 +156,21 @@ def authorize(request):
     except json.JSONDecodeError:
         return JsonResponse({"error": "Invalid JSON"}, status=400)
 
-    ecommerce_id = data.get("ecommerce_id")
-    if not ecommerce_id:
-        return JsonResponse({"error": "Missing ecommerce_id"}, status=400)
-
-    try:
-        ecommerce_uuid = UUID(str(ecommerce_id))
-    except ValueError:
-        return JsonResponse({"error": "Invalid ecommerce_id"}, status=400)
+    ecommerce_uuid, error = _parse_ecommerce_id(data.get("ecommerce_id"))
+    if error:
+        return error
 
     # Get auth token from session
     auth_token = request.session.get(f"athm_auth_{ecommerce_uuid!s}")
     if not auth_token:
         logger.warning(
-            f"[django-athm] No auth token in session for payment {ecommerce_id}"
+            f"[django-athm] No auth token in session for payment {ecommerce_uuid}"
         )
         return JsonResponse({"error": "Session expired"}, status=400)
 
-    try:
-        payment = Payment.objects.get(ecommerce_id=ecommerce_uuid)
-    except Payment.DoesNotExist:
-        return JsonResponse({"error": "Payment not found"}, status=404)
+    payment, error = _get_payment(ecommerce_uuid)
+    if error:
+        return error
 
     # Check current status
     if payment.status == Payment.Status.COMPLETED:
@@ -170,7 +190,7 @@ def authorize(request):
     try:
         reference_number = PaymentService.authorize(ecommerce_uuid, auth_token)
     except Exception as e:
-        logger.exception(f"[django-athm] Failed to authorize payment {ecommerce_id}")
+        logger.exception(f"[django-athm] Failed to authorize payment {ecommerce_uuid}")
         return JsonResponse({"error": str(e)}, status=500)
 
     # Update local status optimistically
@@ -180,7 +200,7 @@ def authorize(request):
     payment.save(update_fields=["status", "reference_number", "modified"])
 
     logger.info(
-        f"[django-athm] Authorized payment {ecommerce_id} -> {reference_number}"
+        f"[django-athm] Authorized payment {ecommerce_uuid} -> {reference_number}"
     )
 
     # Clean up session
@@ -201,20 +221,15 @@ def cancel(request):
     except json.JSONDecodeError:
         return JsonResponse({"error": "Invalid JSON"}, status=400)
 
-    ecommerce_id = data.get("ecommerce_id")
-    if not ecommerce_id:
-        return JsonResponse({"error": "Missing ecommerce_id"}, status=400)
-
-    try:
-        ecommerce_uuid = UUID(str(ecommerce_id))
-    except ValueError:
-        return JsonResponse({"error": "Invalid ecommerce_id"}, status=400)
+    ecommerce_uuid, error = _parse_ecommerce_id(data.get("ecommerce_id"))
+    if error:
+        return error
 
     try:
         PaymentService.cancel(ecommerce_uuid)
-        logger.info(f"[django-athm] Payment {ecommerce_id} cancelled via API")
+        logger.info(f"[django-athm] Payment {ecommerce_uuid} cancelled via API")
     except Exception as e:
-        logger.warning(f"[django-athm] Failed to cancel payment {ecommerce_id}: {e}")
+        logger.warning(f"[django-athm] Failed to cancel payment {ecommerce_uuid}: {e}")
         # Still return success - payment may have already completed
 
     # Clean up session

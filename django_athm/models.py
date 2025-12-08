@@ -92,7 +92,7 @@ class Payment(models.Model):
     )
     customer_email = models.EmailField(
         blank=True,
-        help_text=_("Customer phone number from ATH Móvil at the time of payment"),
+        help_text=_("Customer email address from ATH Móvil at the time of payment"),
     )
 
     # Metadata

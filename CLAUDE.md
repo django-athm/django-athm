@@ -4,14 +4,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-`django-athm` is a Django package that integrates ATH M�vil payments (Puerto Rico's mobile payment system) into Django applications. The package provides:
+`django-athm` is a Django package that integrates ATH Movil payments (Puerto Rico's mobile payment system) into Django applications. The package provides:
 
-- Payment processing with ATH M�vil's v4 JavaScript API
-- Backend-first modal payment flow (v1.0+ architecture)
-- Webhook handling for payment events with idempotency
-- Transaction persistence with line items
-- Django Admin interface for refunds and transaction management
-- Management commands for syncing transactions
+- Backend-first modal payment flow with ATH Movil's eCommerce API
+- Webhook handling for payment events with idempotency and ACID guarantees
+- Transaction persistence with line items and refunds
+- Read-only Django Admin interface with refund actions and webhook management
+- Django signals for payment lifecycle events
 
 ## Development Commands
 
@@ -53,52 +52,72 @@ ruff format --check .
 
 ## Architecture
 
-### Payment Flow (v1.0+ Backend-First)
+### Payment Flow (Backend-First Modal)
 
-The v1.0 architecture uses a **backend-first modal flow** instead of the legacy JavaScript button:
+The v1.0 architecture uses a **backend-first modal flow**:
 
-1. **Initiate** (`/initiate/`): Backend creates payment, returns `ecommerce_id` + `auth_token`
-2. **Status Polling** (`/status/`): Frontend polls for payment confirmation (OPEN � CONFIRM)
-3. **Authorize** (`/authorize/`): Backend confirms payment with ATH M�vil using `auth_token`
-4. **Webhook** (`/webhook/`): ATH M�vil sends completion event with final details (fee, net_amount)
+1. **Initiate** (`/api/initiate/`): Backend creates payment via ATH Movil API, returns `ecommerce_id`. Stores `auth_token` in session.
+2. **Customer Confirmation**: Customer confirms in ATH Movil app. Status changes OPEN -> CONFIRM.
+3. **Status Polling** (`/api/status/`): Frontend polls until status is CONFIRM.
+4. **Authorize** (`/api/authorize/`): Backend confirms payment using session `auth_token`. Returns `reference_number`.
+5. **Webhook** (`/webhook/`): ATH Movil sends completion event with final details (fee, net_amount, customer info).
 
-The frontend modal (`button.html`) is a self-contained vanilla JS component with no external dependencies.
+The frontend modal (`button.html`) is self-contained vanilla JS with no external dependencies.
+
+### URL Endpoints
+
+All endpoints are namespaced under `django_athm:`:
+- `POST /webhook/` - Receives ATH Movil webhook events
+- `POST /api/initiate/` - Creates new payment
+- `GET /api/status/` - Polls payment status
+- `POST /api/authorize/` - Confirms payment with auth_token
+- `POST /api/cancel/` - Cancels pending payment
 
 ### Key Components
 
 **Models** (`django_athm/models.py`):
-- `Payment`: Primary transaction record (keyed by `ecommerce_id` UUID from ATH M�vil)
+- `Payment`: Primary transaction record (PK: `ecommerce_id` UUID)
 - `PaymentLineItem`: Individual items in a transaction
 - `Refund`: Refund records linked to payments
-- `WebhookEvent`: Tracks incoming webhook events with idempotency
+- `WebhookEvent`: Tracks webhook events with idempotency
 
 **Views** (`django_athm/views.py`):
-- `initiate`: Creates payment, returns ecommerce_id
-- `status`: Polls payment status
-- `authorize`: Confirms payment with ATH M�vil
-- `cancel`: Cancels pending payment
-- `webhook`: Receives ATH M�vil events (idempotent)
+- `initiate`, `status`, `authorize`, `cancel`: Payment flow endpoints
+- `webhook`: Idempotent webhook receiver
 
-**Services**:
-- `PaymentService` (`services/payment_service.py`): Orchestrates payment operations
-- `WebhookProcessor` (`services/webhook_processor.py`): Handles webhook events with idempotency
+**Services** (`django_athm/services/`):
+- `PaymentService`: Orchestrates payment operations via athm-python client
+- `WebhookProcessor`: Handles webhook events with idempotency and ACID guarantees
+
+**Admin** (`django_athm/admin.py`):
+- All models are read-only (no add/change/delete)
+- `PaymentAdmin`: View transactions, bulk refund action
+- `WebhookEventAdmin`: View/reprocess webhooks, install webhook URL
+- `RefundAdmin`: View refund records
 
 **Signals** (`django_athm/signals.py`):
-- `payment_created`, `payment_completed`, `payment_failed`, `payment_expired`
-- `refund_completed`
+- `payment_created`: Fired after Payment record created
+- `payment_completed`: Fired after payment confirmed via webhook
+- `payment_failed`: Fired when payment cancelled
+- `payment_expired`: Fired when payment expires
+- `refund_completed`: Fired after successful refund
 
 ### Webhook Idempotency
 
-Webhooks use a deterministic idempotency key based on payload hash to prevent duplicate processing:
-- Key format: `{event_type}:{reference_number}:{payload_hash}`
-- Database constraint ensures events are only processed once
-- ACID guarantees via database-level unique constraints
+Webhooks use deterministic idempotency keys to prevent duplicate processing:
+- eCommerce events: `sha256(ecommerceId:status)`
+- Refunds: `sha256(refund:referenceNumber)`
+- Others: `sha256(transactionType:referenceNumber)`
 
-### Authentication Flow
+Database unique constraint on `idempotency_key` ensures events are processed exactly once.
 
-- `initiate` returns `auth_token` (stored in session)
-- `authorize` requires the `auth_token` from session
-- Session cleanup after authorization or cancellation
+### Payment Statuses
+
+- `OPEN` - Payment initiated, awaiting customer confirmation
+- `CONFIRM` - Customer confirmed, awaiting merchant authorization
+- `COMPLETED` - Payment authorized and complete
+- `CANCEL` - Payment cancelled
+- `EXPIRED` - Payment expired (customer didn't confirm in time)
 
 ## Configuration
 
@@ -106,7 +125,6 @@ Required settings in Django project:
 ```python
 DJANGO_ATHM_PUBLIC_TOKEN = "your-public-token"
 DJANGO_ATHM_PRIVATE_TOKEN = "your-private-token"
-DJANGO_ATHM_SANDBOX_MODE = True  # False for production
 ```
 
 ## Template Tag
@@ -118,27 +136,34 @@ Use the `athm_button` template tag to render payment buttons:
 {% athm_button ATHM_CONFIG %}
 ```
 
-Where the view provides `ATHM_CONFIG` dict with keys: `total`, `subtotal`, `tax`, `metadata_1`, `metadata_2`, `items`, `theme`, `lang`.
-
-The button renders a self-contained payment modal with all JavaScript inlined.
+Config dict keys:
+- `total` (required): Payment amount (1.00-1500.00)
+- `subtotal`: Optional subtotal for display
+- `tax`: Optional tax amount
+- `metadata_1`, `metadata_2`: Custom fields (max 40 chars)
+- `items`: List of item dicts
+- `theme`: Button theme (btn, btn-dark, btn-light)
+- `lang`: Language code (es, en)
+- `success_url`: Redirect URL on success (query params `reference_number` and `ecommerce_id` appended)
+- `failure_url`: Redirect URL on failure
 
 ## Testing Patterns
 
-- Uses `pytest-django` for tests
-- Uses `respx` for mocking HTTPX requests to ATH M�vil API
-- Test settings in `tests/settings.py` with sandbox tokens
-- Tests run against multiple Django/Python versions via tox
+- Uses `pytest-django` with fixtures in `tests/`
+- Uses `respx` for mocking HTTPX requests to ATH Movil API
+- Test settings in `tests/settings.py`
+- Tests run against Django 5.1/5.2 and Python 3.10-3.13 via tox
 
 ## Dependencies
 
-- **athm-python**: ATH M�vil API client for backend operations
+- **athm-python ~0.4.0**: ATH Movil API client
 - **Django 5.1+**: Minimum Django version
 - **Python 3.10+**: Minimum Python version
-- No frontend dependencies (vanilla JavaScript)
 
-## Version Information
+## Database Tables
 
-Current version targets:
-- **v1.0.0-beta**: Webhook-first architecture with backend-first modal flow
-- Breaking changes from v0.x (see README migration guide)
-- Dropped support for Django <5.1 and Python <3.10
+All tables use explicit `db_table` names:
+- `athm_payment`
+- `athm_payment_item`
+- `athm_refund`
+- `athm_webhook_event`

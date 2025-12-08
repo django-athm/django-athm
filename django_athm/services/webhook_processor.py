@@ -227,26 +227,21 @@ class WebhookProcessor:
 
         return payment, created
 
+    TERMINAL_STATUSES = (
+        Payment.Status.COMPLETED,
+        Payment.Status.CANCEL,
+        Payment.Status.EXPIRED,
+    )
+
     @staticmethod
-    def _should_skip_update(payment: Payment, check_completed: bool = False) -> bool:
-        """
-        Check if we should skip updating this payment because it's already in a final state.
-        Allows for idempotent reprocessing if calling with same state, but generally stops valid state transitions if invalid.
-        """
-        # If we are trying to set COMPLETED, check if already COMPLETED.
-        if check_completed and payment.status == Payment.Status.COMPLETED:
-            return True
+    def _is_already_completed(payment: Payment) -> bool:
+        """Check if payment is already completed (for idempotent completion)."""
+        return payment.status == Payment.Status.COMPLETED
 
-        # If we are trying to CANCEL/EXPIRE, check if already in any terminal state.
-        is_terminal = payment.status in (
-            Payment.Status.COMPLETED,
-            Payment.Status.CANCEL,
-            Payment.Status.EXPIRED,
-        )
-        if not check_completed and is_terminal:
-            return True
-
-        return False
+    @classmethod
+    def _is_terminal(cls, payment: Payment) -> bool:
+        """Check if payment is in any terminal state."""
+        return payment.status in cls.TERMINAL_STATUSES
 
     @classmethod
     def _handle_ecommerce_completed(cls, event: WebhookEvent) -> None:
@@ -257,7 +252,7 @@ class WebhookProcessor:
                 return
 
             # Idempotency: if already COMPLETED, skip.
-            if cls._should_skip_update(payment, check_completed=True):
+            if cls._is_already_completed(payment):
                 logger.debug(
                     "[django-athm] Payment %s already completed", payment.ecommerce_id
                 )
@@ -307,8 +302,8 @@ class WebhookProcessor:
             if not payment:
                 return
 
-            # Idempotency: if already in ANY terminal state (CANCEL, EXPIRED, COMPLETED), skip.
-            if cls._should_skip_update(payment, check_completed=False):
+            # Idempotency: if already in terminal state, skip.
+            if cls._is_terminal(payment):
                 logger.debug(
                     "[django-athm] Payment %s already in terminal state %s",
                     payment.ecommerce_id,
@@ -341,7 +336,7 @@ class WebhookProcessor:
                 return
 
             # Idempotency: skip if terminal
-            if cls._should_skip_update(payment, check_completed=False):
+            if cls._is_terminal(payment):
                 logger.debug(
                     "[django-athm] Payment %s already in terminal state %s",
                     payment.ecommerce_id,
