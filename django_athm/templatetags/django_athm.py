@@ -2,6 +2,7 @@ import json
 
 from django import template
 from django.urls import reverse
+from django.utils.translation import gettext_lazy as _
 
 from django_athm.constants import BUTTON_COLOR_DEFAULT, BUTTON_LANGUAGE_SPANISH
 
@@ -64,5 +65,5 @@ def athm_button(context, config):
         "authorize_url": reverse("django_athm:authorize"),
         "cancel_url": reverse("django_athm:cancel"),
         "csrf_token": csrf_token,
-        "modal_title": "ATH Movil Payment" if language == "en" else "Pago ATH Movil",
+        "modal_title": _("ATH Movil Payment"),
     }

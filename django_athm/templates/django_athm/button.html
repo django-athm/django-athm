@@ -1,3 +1,4 @@
+{% load i18n %}
 <script>
     if (typeof window.athmAssetsLoaded === "undefined") {
         window.athmAssetsLoaded = true;
@@ -535,11 +536,7 @@
                 <!-- Step 1: Phone Number Entry -->
                 <div data-athm-step="phone" class="athm-step-phone">
                     <p class="athm-instructions">
-                        {% if language == 'es' %}
-                            Ingresa tu numero de telefono registrado en ATH Movil
-                        {% else %}
-                            Enter your phone number registered with ATH Movil
-                        {% endif %}
+                        {% trans "Enter your phone number registered with ATH Movil" %}
                     </p>
                     <input
                         type="tel"
@@ -555,9 +552,7 @@
                         data-athm-submit
                         class="athm-button athm-{{ theme }}"
                     >
-                        <span data-athm-submit-text>
-                            {% if language == 'es' %}Continuar{% else %}Continue{% endif %}
-                        </span>
+                        <span data-athm-submit-text>{% trans "Continue" %}</span>
                         <span data-athm-submit-loading class="hidden">...</span>
                     </button>
                 </div>
@@ -566,37 +561,23 @@
                 <div data-athm-step="waiting" class="athm-step-waiting hidden">
                     <div class="athm-spinner"></div>
                     <p class="athm-waiting-text">
-                        {% if language == 'es' %}
-                            Confirma el pago en tu app de ATH Movil
-                        {% else %}
-                            Confirm the payment in your ATH Movil app
-                        {% endif %}
+                        {% trans "Confirm the payment in your ATH Movil app" %}
                     </p>
                     <p class="athm-waiting-subtext">
-                        {% if language == 'es' %}
-                            Revisa las notificaciones en tu telefono
-                        {% else %}
-                            Check the notifications on your phone
-                        {% endif %}
+                        {% trans "Check the notifications on your phone" %}
                     </p>
                     <button
                         type="button"
                         data-athm-cancel
                         class="athm-cancel-link"
-                    >
-                        {% if language == 'es' %}Cancelar{% else %}Cancel{% endif %}
-                    </button>
+                    >{% trans "Cancel" %}</button>
                 </div>
 
                 <!-- Step 2b: Authorizing -->
                 <div data-athm-step="authorizing" class="athm-step-authorizing hidden">
                     <div class="athm-spinner"></div>
                     <p class="athm-waiting-text">
-                        {% if language == 'es' %}
-                            Procesando pago...
-                        {% else %}
-                            Processing payment...
-                        {% endif %}
+                        {% trans "Processing payment..." %}
                     </p>
                 </div>
 
@@ -604,11 +585,7 @@
                 <div data-athm-step="success" class="athm-step-success hidden">
                     <div class="athm-success-icon">&#10003;</div>
                     <p class="athm-success-text">
-                        {% if language == 'es' %}
-                            Pago completado
-                        {% else %}
-                            Payment completed
-                        {% endif %}
+                        {% trans "Payment completed" %}
                     </p>
                     <p class="athm-reference">
                         Ref: <span data-athm-reference></span>
@@ -623,9 +600,7 @@
                         type="button"
                         data-athm-retry
                         class="athm-button athm-{{ theme }}"
-                    >
-                        {% if language == 'es' %}Intentar de nuevo{% else %}Try again{% endif %}
-                    </button>
+                    >{% trans "Try again" %}</button>
                 </div>
             </div>
         </div>
