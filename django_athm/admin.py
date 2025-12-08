@@ -2,10 +2,14 @@ import json
 import logging
 from typing import Any
 
-from django.contrib import admin
+from django import forms
+from django.contrib import admin, messages
+from django.contrib.admin import helpers
+from django.core.validators import URLValidator
 from django.db.models import QuerySet
-from django.http import HttpRequest
-from django.urls import reverse
+from django.http import HttpRequest, HttpResponseRedirect
+from django.template.response import TemplateResponse
+from django.urls import path, reverse
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 
@@ -123,11 +127,27 @@ class PaymentAdmin(admin.ModelAdmin):
         "customer_phone",
         "customer_email",
         "business_name",
+        "metadata_1",
+        "metadata_2",
+        "message",
         "display_is_refundable",
         "display_refundable_amount",
     )
 
     actions = ["refund_selected_payments"]
+
+    def has_add_permission(self, request: HttpRequest) -> bool:
+        return False
+
+    def has_change_permission(
+        self, request: HttpRequest, obj: Payment | None = None
+    ) -> bool:
+        return False
+
+    def has_delete_permission(
+        self, request: HttpRequest, obj: Payment | None = None
+    ) -> bool:
+        return False
 
     @admin.display(description=_("Status"), ordering="status")
     def display_status_colored(self, obj: Payment) -> str:
@@ -156,63 +176,48 @@ class PaymentAdmin(admin.ModelAdmin):
     @admin.action(description=_("Refund selected payments (full refund)"))
     def refund_selected_payments(
         self, request: HttpRequest, queryset: QuerySet[Payment]
-    ) -> None:
-        refunded_count = 0
-        error_count = 0
+    ) -> TemplateResponse | None:
+        refundable = [p for p in queryset if p.is_refundable]
 
-        for payment in queryset:
-            if not payment.is_refundable:
-                logger.warning(
-                    f"[django-athm] Payment {payment.ecommerce_id} not refundable"
+        if request.POST.get("confirm"):
+            success, errors = 0, 0
+            for payment in refundable:
+                try:
+                    PaymentService.refund(payment, message="Refunded via admin")
+                    success += 1
+                except Exception as e:
+                    logger.exception(f"[django-athm] Refund failed: {e}")
+                    errors += 1
+            if success:
+                self.message_user(
+                    request, f"Refunded {success} payment(s).", messages.SUCCESS
                 )
-                error_count += 1
-                continue
+            if errors:
+                self.message_user(
+                    request, f"{errors} refund(s) failed.", messages.ERROR
+                )
+            return None
 
-            try:
-                refund = PaymentService.refund(
-                    payment=payment,
-                    amount=None,  # Full refund
-                    message="Refunded via admin action",
-                )
-                refunded_count += 1
-                logger.info(
-                    f"[django-athm] Admin refunded payment {payment.ecommerce_id} -> refund {refund.reference_number}"
-                )
-            except Exception as e:
-                logger.exception(
-                    f"[django-athm] Refund failed for {payment.ecommerce_id}: {e}"
-                )
-                error_count += 1
-
-        # Display appropriate message
-        if error_count == 0:
-            self.message_user(
-                request,
-                _(f"Successfully refunded {refunded_count} payments."),
-                level="success",
-            )
-        elif refunded_count > 0:
-            self.message_user(
-                request,
-                _(
-                    f"Refunded {refunded_count} payments with {error_count} errors. Check logs for details."
-                ),
-                level="warning",
-            )
-        else:
-            self.message_user(
-                request,
-                _(f"Failed to refund payments: {error_count} errors occurred."),
-                level="error",
-            )
+        return TemplateResponse(
+            request,
+            "admin/django_athm/payment/refund_confirmation.html",
+            {
+                **self.admin_site.each_context(request),
+                "title": _("Confirm refund"),
+                "payments": refundable,
+                "queryset": queryset,
+                "opts": self.model._meta,
+                "action_checkbox_name": helpers.ACTION_CHECKBOX_NAME,
+            },
+        )
 
 
 @admin.register(PaymentLineItem)
 class PaymentLineItemAdmin(admin.ModelAdmin):
     list_display = ("transaction_link", "name", "quantity", "price", "tax")
-    list_filter = ("transaction",)
     search_fields = ("transaction__reference_number", "name", "description")
     date_hierarchy = "transaction__created"
+    ordering = ["-transaction__created"]
 
     fields = (
         "id",
@@ -225,6 +230,19 @@ class PaymentLineItemAdmin(admin.ModelAdmin):
         "metadata",
     )
     readonly_fields = fields
+
+    def has_add_permission(self, request: HttpRequest) -> bool:
+        return False
+
+    def has_change_permission(
+        self, request: HttpRequest, obj: PaymentLineItem | None = None
+    ) -> bool:
+        return False
+
+    def has_delete_permission(
+        self, request: HttpRequest, obj: PaymentLineItem | None = None
+    ) -> bool:
+        return False
 
     @admin.display(description=_("Transaction"))
     def transaction_link(self, obj: PaymentLineItem) -> str:
@@ -308,6 +326,19 @@ class RefundAdmin(admin.ModelAdmin):
         "created_at",
     )
 
+    def has_add_permission(self, request: HttpRequest) -> bool:
+        return False
+
+    def has_change_permission(
+        self, request: HttpRequest, obj: Refund | None = None
+    ) -> bool:
+        return False
+
+    def has_delete_permission(
+        self, request: HttpRequest, obj: Refund | None = None
+    ) -> bool:
+        return False
+
     @admin.display(description=_("Payment"))
     def payment_link(self, obj: Refund) -> str:
         if obj.payment:
@@ -336,6 +367,7 @@ class WebhookEventAdmin(admin.ModelAdmin):
     search_fields = ("id", "remote_ip", "idempotency_key")
     date_hierarchy = "created"
     ordering = ["-created"]
+    change_list_template = "admin/django_athm/webhookevent/change_list.html"
 
     fieldsets = (
         (
@@ -378,6 +410,19 @@ class WebhookEventAdmin(admin.ModelAdmin):
     )
 
     actions = ["reprocess_events"]
+
+    def has_add_permission(self, request: HttpRequest) -> bool:
+        return False
+
+    def has_change_permission(
+        self, request: HttpRequest, obj: WebhookEvent | None = None
+    ) -> bool:
+        return False
+
+    def has_delete_permission(
+        self, request: HttpRequest, obj: WebhookEvent | None = None
+    ) -> bool:
+        return False
 
     @admin.display(description=_("ID"))
     def display_id_short(self, obj: WebhookEvent) -> str:
@@ -449,3 +494,54 @@ class WebhookEventAdmin(admin.ModelAdmin):
                 _("No unprocessed events selected."),
                 level="info",
             )
+
+    def get_urls(self):
+        urls = super().get_urls()
+        custom_urls = [
+            path(
+                "install-webhooks/",
+                self.admin_site.admin_view(self.install_webhooks_view),
+                name="django_athm_webhookevent_install_webhooks",
+            ),
+        ]
+        return custom_urls + urls
+
+    def install_webhooks_view(self, request: HttpRequest) -> TemplateResponse:
+        """View for installing ATH Movil webhooks."""
+
+        class WebhookURLForm(forms.Form):
+            url = forms.URLField(
+                label=_("Webhook URL"),
+                validators=[URLValidator(schemes=["https"])],
+                widget=forms.URLInput(attrs={"class": "vLargeTextField", "size": "60"}),
+                assume_scheme="https",
+            )
+
+        if request.method == "POST":
+            form = WebhookURLForm(request.POST)
+            if form.is_valid():
+                try:
+                    client = PaymentService.get_client()
+                    client.subscribe_webhook(listener_url=form.cleaned_data["url"])
+                    self.message_user(
+                        request, _("Webhook installed."), messages.SUCCESS
+                    )
+                    return HttpResponseRedirect(
+                        reverse("admin:django_athm_webhookevent_changelist")
+                    )
+                except Exception as e:
+                    logger.exception(f"[django-athm] Webhook install failed: {e}")
+                    self.message_user(request, f"Failed: {e}", messages.ERROR)
+        else:
+            form = WebhookURLForm()
+
+        return TemplateResponse(
+            request,
+            "admin/django_athm/webhookevent/install_webhooks.html",
+            {
+                **self.admin_site.each_context(request),
+                "title": _("Install Webhooks"),
+                "opts": self.model._meta,
+                "form": form,
+            },
+        )

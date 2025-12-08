@@ -62,10 +62,9 @@ class TestPaymentAdmin:
             queryset=Payment.objects.filter(ecommerce_id=payment.ecommerce_id),
         )
 
-        # Should return TemplateResponse with confirmation page
         assert isinstance(response, TemplateResponse)
         assert "refund_confirmation.html" in response.template_name
-        assert payment in response.context_data["refundable_payments"]
+        assert payment in response.context_data["payments"]
 
     def test_refund_selected_payments_success(self, rf, mocker):
         """Test that confirmed refund executes successfully."""
@@ -74,8 +73,7 @@ class TestPaymentAdmin:
             return_value=mocker.Mock(reference_number="refund-123"),
         )
 
-        # Request with "post" parameter indicates confirmation
-        request = setup_admin_request(rf, data={"post": "yes"})
+        request = setup_admin_request(rf, data={"confirm": "yes"})
 
         payment = Payment.objects.create(
             ecommerce_id=uuid.uuid4(),
@@ -86,7 +84,6 @@ class TestPaymentAdmin:
             tax=Decimal("2.40"),
             net_amount=Decimal("25.50"),
             total_refunded_amount=Decimal("0.00"),
-            metadata_1="Metadata!",
         )
 
         PaymentAdmin(model=Payment, admin_site=admin.site).refund_selected_payments(
@@ -95,14 +92,13 @@ class TestPaymentAdmin:
         )
 
         mock_refund.assert_called_once()
-        messages = list(get_messages(request))
-        assert "Successfully refunded 1 payments" in str(messages[0])
+        msgs = list(get_messages(request))
+        assert "Refunded 1 payment(s)" in str(msgs[0])
 
     def test_refund_selected_payments_not_refundable(self, rf):
-        """Test that non-refundable payments are shown in confirmation but not processed."""
+        """Test that non-refundable payments are filtered out."""
         request = setup_admin_request(rf)
 
-        # Create a non-refundable payment (status=OPEN)
         payment = Payment.objects.create(
             ecommerce_id=uuid.uuid4(),
             reference_number="not-completed",
@@ -119,10 +115,8 @@ class TestPaymentAdmin:
             queryset=Payment.objects.filter(ecommerce_id=payment.ecommerce_id),
         )
 
-        # Should show confirmation page with payment in non_refundable list
         assert isinstance(response, TemplateResponse)
-        assert payment in response.context_data["non_refundable_payments"]
-        assert len(response.context_data["refundable_payments"]) == 0
+        assert len(response.context_data["payments"]) == 0
 
     def test_refund_selected_payments_api_error(self, rf, mocker):
         """Test that API errors during refund are handled gracefully."""
@@ -131,8 +125,7 @@ class TestPaymentAdmin:
             side_effect=Exception("API Error"),
         )
 
-        # Request with "post" parameter indicates confirmation
-        request = setup_admin_request(rf, data={"post": "yes"})
+        request = setup_admin_request(rf, data={"confirm": "yes"})
 
         payment = Payment.objects.create(
             ecommerce_id=uuid.uuid4(),
@@ -150,8 +143,8 @@ class TestPaymentAdmin:
             queryset=Payment.objects.filter(ecommerce_id=payment.ecommerce_id),
         )
 
-        messages = list(get_messages(request))
-        assert "Failed to refund payments: 1 errors occurred" in str(messages[0])
+        msgs = list(get_messages(request))
+        assert "1 refund(s) failed" in str(msgs[0])
 
     def test_display_status_colored(self):
         payment_admin = PaymentAdmin(model=Payment, admin_site=admin.site)

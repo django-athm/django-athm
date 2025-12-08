@@ -1,0 +1,32 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">{% trans 'Home' %}</a>
+    &rsaquo; <a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ opts.app_config.verbose_name }}</a>
+    &rsaquo; <a href="{% url opts|admin_urlname:'changelist' %}">{{ opts.verbose_name_plural|capfirst }}</a>
+    &rsaquo; {% trans "Confirm refund" %}
+</div>
+{% endblock %}
+
+{% block content %}
+{% if payments %}
+<p>{% blocktrans count count=payments|length %}Are you sure you want to refund the following payment?{% plural %}Are you sure you want to refund the following {{ count }} payments?{% endblocktrans %}</p>
+<ul>
+{% for payment in payments %}
+    <li>{{ payment.reference_number|default:payment.ecommerce_id }} - ${{ payment.refundable_amount }}</li>
+{% endfor %}
+</ul>
+<form method="post">{% csrf_token %}
+    {% for obj in queryset %}<input type="hidden" name="{{ action_checkbox_name }}" value="{{ obj.pk }}">{% endfor %}
+    <input type="hidden" name="action" value="refund_selected_payments">
+    <input type="hidden" name="confirm" value="yes">
+    <input type="submit" value="{% trans 'Yes, refund' %}">
+    <a href="{% url opts|admin_urlname:'changelist' %}" class="button cancel-link">{% trans 'No, cancel' %}</a>
+</form>
+{% else %}
+<p>{% trans "No refundable payments selected." %}</p>
+<p><a href="{% url opts|admin_urlname:'changelist' %}">{% trans "Go back" %}</a></p>
+{% endif %}
+{% endblock %}
