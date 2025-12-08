@@ -210,3 +210,37 @@ python manage.py install_webhook https://yourdomain.com/athm/webhook/
 ```
 
 The URL must use HTTPS. This is the same functionality available in the Django Admin under Webhook Events > Install Webhooks.
+
+## Internationalization
+
+django-athm includes translations for Spanish (es) and English (en). To enable translations:
+
+### Django Settings
+
+```python
+USE_I18N = True
+LANGUAGE_CODE = "es"  # or "en-us"
+```
+
+### Button Language
+
+The `athm_button` template tag accepts a `lang` parameter:
+
+```python
+context = {
+    "ATHM_CONFIG": {
+        "total": 25.00,
+        "lang": "es",  # "es" or "en"
+        # ... other fields
+    }
+}
+```
+
+The button UI text (phone prompt, status messages) will display in the selected language.
+
+### Supported Languages
+
+| Code | Language |
+|------|----------|
+| `es` | Spanish |
+| `en` | English |

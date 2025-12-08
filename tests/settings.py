@@ -18,6 +18,10 @@ TIME_ZONE = "UTC"
 
 USE_TZ = True
 
+USE_I18N = True
+
+LANGUAGE_CODE = "en-us"
+
 ROOT_URLCONF = "tests.urls"
 
 INSTALLED_APPS = [
