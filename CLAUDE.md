@@ -50,6 +50,12 @@ ruff format .
 ruff format --check .
 ```
 
+### Management Commands
+```bash
+# Register webhook URL with ATH Movil
+python manage.py install_webhook https://yourdomain.com/athm/webhook/
+```
+
 ## Architecture
 
 ### Payment Flow (Backend-First Modal)
@@ -58,7 +64,7 @@ The v1.0 architecture uses a **backend-first modal flow**:
 
 1. **Initiate** (`/api/initiate/`): Backend creates payment via ATH Movil API, returns `ecommerce_id`. Stores `auth_token` in session.
 2. **Customer Confirmation**: Customer confirms in ATH Movil app. Status changes OPEN -> CONFIRM.
-3. **Status Polling** (`/api/status/`): Frontend polls until status is CONFIRM.
+3. **Status Polling** (`/api/status/`): Frontend should poll until status is CONFIRM.
 4. **Authorize** (`/api/authorize/`): Backend confirms payment using session `auth_token`. Returns `reference_number`.
 5. **Webhook** (`/webhook/`): ATH Movil sends completion event with final details (fee, net_amount, customer info).
 

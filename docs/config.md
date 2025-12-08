@@ -198,3 +198,15 @@ The `language` option is broken in the ATH Móvil v4 API. Only Spanish (`"es"`) 
 **Workaround**: django-athm always uses `"es"` regardless of the value you provide. If you pass a different language, a warning is logged.
 
 These limitations are on ATH Móvil's side. We will update django-athm when these issues are resolved.
+
+## Management Commands
+
+### install_webhook
+
+Registers a webhook URL with ATH Movil to receive payment events.
+
+```bash
+python manage.py install_webhook https://yourdomain.com/athm/webhook/
+```
+
+The URL must use HTTPS. This is the same functionality available in the Django Admin under Webhook Events > Install Webhooks.
