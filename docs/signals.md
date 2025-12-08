@@ -2,79 +2,80 @@
 
 django-athm provides Django signals to notify your application of payment events. Use these to trigger business logic like sending confirmation emails, updating order status, or logging events.
 
-## Receiving Transaction Updates
-
-django-athm provides two ways to receive transaction updates from ATH Móvil:
-
-| Approach | Best For | Complexity |
-|----------|----------|------------|
-| **Signals** (recommended) | Most applications | Low |
-| **Custom Callback** | Full control over request handling | Medium |
-
-### Signals (Recommended)
-
-Use Django signals when you want to:
-
-- React to specific payment statuses (completed, cancelled)
-- Keep your payment logic decoupled from callback processing
-- Use the default transaction/item creation behavior
-
-The default callback automatically dispatches signals after creating transaction records. Simply connect your handlers as shown below.
-
-### Custom Callback
-
-Use a custom callback when you need to:
-
-- Modify how transactions are created or validated
-- Integrate with external systems before saving data
-- Implement custom authentication or request validation
-
-**Important:** Custom callbacks must dispatch signals manually if you want signal handlers to run. See [Configuration - Custom Callback](config.md#django_athm_callback_view) for implementation details.
-
 ## Available Signals
 
 All signals are available from `django_athm.signals`:
 
 ```python
 from django_athm.signals import (
-    athm_response_received,
-    athm_completed_response,
-    athm_cancelled_response,
-    athm_expired_response,
+    payment_created,
+    payment_completed,
+    payment_failed,
+    payment_expired,
+    refund_completed,
 )
 ```
 
-### athm_response_received
+### payment_created
 
-Dispatched for **every** payment callback, regardless of status.
+Dispatched when a new payment is initiated.
 
-**When it fires:** After any payment response is received from ATH Móvil.
+**When it fires:** After a Payment record is created via the initiate API endpoint.
 
-**Use case:** Logging all payment attempts, analytics, or when you need to handle all responses uniformly.
+**Use case:** Reserve inventory, create pending order records.
 
-### athm_completed_response
+**Arguments:**
+- `sender`: `Payment` class
+- `payment`: The `Payment` instance
 
-Dispatched when a payment is **successfully completed**.
+### payment_completed
 
-**When it fires:** After the customer approves the payment in their ATH Móvil app and the transaction is confirmed.
+Dispatched when a payment is successfully completed.
+
+**When it fires:** After the webhook confirms a successful payment with final transaction details.
 
 **Use case:** Send confirmation emails, update order status to "paid", trigger fulfillment.
 
-### athm_cancelled_response
+**Arguments:**
+- `sender`: `Payment` class
+- `payment`: The `Payment` instance
 
-Dispatched when a payment is **cancelled** by the customer.
+### payment_failed
 
-**When it fires:** When the customer declines or cancels the payment in their ATH Móvil app.
+Dispatched when a payment is cancelled.
+
+**When it fires:** When the payment is cancelled by the customer or merchant.
 
 **Use case:** Release reserved inventory, notify customer of cancellation.
 
-### athm_expired_response
+**Arguments:**
+- `sender`: `Payment` class
+- `payment`: The `Payment` instance
 
-Dispatched when a payment **times out** before the customer completes it.
+### payment_expired
 
-**When it fires:** When the checkout session expires (after the configured timeout, default 600 seconds).
+Dispatched when a payment expires before completion.
 
-**Use case:** Distinguish between explicit user cancellation and session timeout, implement retry logic for expired sessions.
+**When it fires:** When the webhook indicates the payment session expired.
+
+**Use case:** Distinguish between explicit cancellation and session timeout, implement retry logic.
+
+**Arguments:**
+- `sender`: `Payment` class
+- `payment`: The `Payment` instance
+
+### refund_completed
+
+Dispatched when a refund is successfully processed.
+
+**When it fires:** After a refund is confirmed by ATH Movil.
+
+**Use case:** Update order status, send refund confirmation email.
+
+**Arguments:**
+- `sender`: `Refund` class
+- `refund`: The `Refund` instance
+- `payment`: The related `Payment` instance
 
 ## Connecting to Signals
 
@@ -82,39 +83,37 @@ Use Django's `@receiver` decorator to connect your handlers:
 
 ```python
 from django.dispatch import receiver
-from django_athm.signals import athm_completed_response, athm_cancelled_response
+from django_athm.signals import payment_completed, payment_failed, refund_completed
 
-@receiver(athm_completed_response)
-def handle_payment_completed(sender, **kwargs):
+@receiver(payment_completed)
+def handle_payment_completed(sender, payment, **kwargs):
     """Handle successful payment."""
-    transaction = kwargs.get("transaction")
-
     # Update your order status
-    order = Order.objects.get(reference=transaction.metadata_1)
+    order = Order.objects.get(reference=payment.metadata_1)
     order.status = "paid"
     order.save()
 
     # Send confirmation email
     send_confirmation_email(order)
 
-@receiver(athm_cancelled_response)
-def handle_payment_cancelled(sender, **kwargs):
+@receiver(payment_failed)
+def handle_payment_failed(sender, payment, **kwargs):
     """Handle cancelled payment."""
-    transaction = kwargs.get("transaction")
-
     # Release reserved inventory
-    order = Order.objects.get(reference=transaction.metadata_1)
+    order = Order.objects.get(reference=payment.metadata_1)
     order.release_inventory()
+
+@receiver(refund_completed)
+def handle_refund_completed(sender, refund, payment, **kwargs):
+    """Handle completed refund."""
+    # Update order status
+    order = Order.objects.get(reference=payment.metadata_1)
+    order.status = "refunded"
+    order.save()
+
+    # Send refund confirmation
+    send_refund_email(order, refund.amount)
 ```
-
-## Signal Arguments
-
-All signals send the following keyword arguments:
-
-| Argument | Type | Description |
-|----------|------|-------------|
-| `sender` | class | The sender class (typically the view) |
-| `transaction` | `ATHM_Transaction` | The transaction object created from the callback |
 
 ## Example: Complete Signal Handler
 
@@ -123,53 +122,57 @@ All signals send the following keyword arguments:
 import logging
 from django.dispatch import receiver
 from django_athm.signals import (
-    athm_response_received,
-    athm_completed_response,
-    athm_cancelled_response,
-    athm_expired_response,
+    payment_created,
+    payment_completed,
+    payment_failed,
+    payment_expired,
+    refund_completed,
 )
 
 logger = logging.getLogger(__name__)
 
-@receiver(athm_response_received)
-def log_all_responses(sender, **kwargs):
-    """Log all payment responses for debugging."""
-    transaction = kwargs.get("transaction")
+@receiver(payment_created)
+def log_payment_created(sender, payment, **kwargs):
+    """Log new payment initiation."""
     logger.info(
-        f"ATH Móvil response: {transaction.reference_number} "
-        f"status={transaction.status}"
+        f"Payment initiated: {payment.ecommerce_id} "
+        f"total=${payment.total}"
     )
 
-@receiver(athm_completed_response)
-def process_completed_payment(sender, **kwargs):
+@receiver(payment_completed)
+def process_completed_payment(sender, payment, **kwargs):
     """Process successful payments."""
-    transaction = kwargs.get("transaction")
-    logger.info(f"Payment completed: {transaction.reference_number}")
+    logger.info(f"Payment completed: {payment.reference_number}")
 
     # Your business logic here
     # - Update order status
     # - Send confirmation email
     # - Trigger fulfillment
 
-@receiver(athm_cancelled_response)
-def handle_cancelled_payment(sender, **kwargs):
+@receiver(payment_failed)
+def handle_cancelled_payment(sender, payment, **kwargs):
     """Handle payment cancellations."""
-    transaction = kwargs.get("transaction")
-    logger.warning(f"Payment cancelled: {transaction.reference_number}")
+    logger.warning(f"Payment cancelled: {payment.ecommerce_id}")
 
     # Your business logic here
     # - Release inventory
     # - Notify customer
 
-@receiver(athm_expired_response)
-def handle_expired_payment(sender, **kwargs):
+@receiver(payment_expired)
+def handle_expired_payment(sender, payment, **kwargs):
     """Handle expired checkout sessions."""
-    transaction = kwargs.get("transaction")
-    logger.warning(f"Payment expired: {transaction.reference_number}")
+    logger.warning(f"Payment expired: {payment.ecommerce_id}")
 
     # Your business logic here
     # - Notify customer about timeout
     # - Offer to retry payment
+
+@receiver(refund_completed)
+def handle_refund(sender, refund, payment, **kwargs):
+    """Handle completed refunds."""
+    logger.info(
+        f"Refund completed: ${refund.amount} for payment {payment.reference_number}"
+    )
 ```
 
 ## Registering Signal Handlers

@@ -34,8 +34,8 @@ class PaymentLineItemInline(admin.TabularInline):
 @admin.register(Payment)
 class PaymentAdmin(admin.ModelAdmin):
     list_display = (
-        "reference_number",
         "ecommerce_id",
+        "reference_number",
         "display_status_colored",
         "total",
         "total_refunded_amount",

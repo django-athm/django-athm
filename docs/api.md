@@ -2,215 +2,281 @@
 
 ## Models
 
-### ATHM_Transaction
+### Payment
 
-Represents a payment transaction from ATH Móvil.
+Represents a payment transaction from ATH Movil.
 
 #### Fields
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `id` | UUIDField | Primary key |
-| `reference_number` | CharField | Unique ATH Móvil reference number |
-| `status` | CharField | Transaction status (see Status choices below) |
-| `date` | DateTimeField | Transaction date |
-| `total` | DecimalField | Total amount |
+| `ecommerce_id` | UUIDField | Primary key - ATH Movil eCommerce transaction ID |
+| `reference_number` | CharField | Unique ATH Movil reference number (populated on completion) |
+| `daily_transaction_id` | CharField | ATH Movil daily transaction ID |
+| `status` | CharField | Payment status (see Status choices below) |
+| `created` | DateTimeField | Record creation timestamp |
+| `modified` | DateTimeField | Last modification timestamp |
+| `transaction_date` | DateTimeField | Transaction completion date from ATH Movil |
+| `total` | DecimalField | Total transaction amount |
 | `subtotal` | DecimalField | Subtotal before tax |
 | `tax` | DecimalField | Tax amount |
-| `fee` | DecimalField | ATH Móvil fee |
+| `fee` | DecimalField | ATH Movil processing fee |
 | `net_amount` | DecimalField | Net amount after fees |
-| `refunded_amount` | DecimalField | Amount refunded (if any) |
-| `message` | CharField | Optional message |
-| `metadata_1` | CharField | Metadata field 1 (max 40 chars) |
-| `metadata_2` | CharField | Metadata field 2 (max 40 chars) |
-| `ecommerce_id` | CharField | ATH Móvil eCommerce transaction ID |
-| `ecommerce_status` | CharField | Raw status from ATH Móvil API |
-| `customer_name` | CharField | Customer name from ATH Móvil |
-| `customer_phone` | CharField | Customer phone from ATH Móvil |
-| `client` | ForeignKey | Related ATHM_Client |
+| `total_refunded_amount` | DecimalField | Total amount refunded |
+| `customer_name` | CharField | Customer name from ATH Movil |
+| `customer_phone` | CharField | Customer phone from ATH Movil |
+| `customer_email` | EmailField | Customer email from ATH Movil |
+| `metadata_1` | CharField | Custom metadata field (max 64 chars) |
+| `metadata_2` | CharField | Custom metadata field (max 64 chars) |
+| `message` | TextField | Optional message |
+| `business_name` | CharField | Business name from ATH Movil |
 
 #### Status Choices
 
 ```python
 class Status(models.TextChoices):
-    OPEN = "open"           # Transaction initiated
-    CONFIRM = "confirm"     # Awaiting confirmation
-    COMPLETED = "completed" # Successfully completed
-    CANCEL = "cancel"       # Cancelled by customer
-    REFUNDED = "refunded"   # Refunded
+    OPEN = "OPEN"           # Payment initiated, awaiting customer confirmation
+    CONFIRM = "CONFIRM"     # Customer confirmed, awaiting authorization
+    COMPLETED = "COMPLETED" # Successfully completed
+    CANCEL = "CANCEL"       # Cancelled
+    EXPIRED = "EXPIRED"     # Expired before completion
 ```
 
 #### Properties
 
 ```python
-transaction.is_refundable  # True if completed and not yet refunded
-transaction.is_completed   # True if status is COMPLETED
-transaction.is_pending     # True if status is OPEN or CONFIRM
+payment.is_successful    # True if status is COMPLETED
+payment.is_refundable    # True if completed and has refundable amount remaining
+payment.refundable_amount  # Decimal amount that can still be refunded
 ```
 
-#### Class Methods
-
-##### get_report(start_date, end_date, public_token=None, private_token=None)
-
-Fetch a transaction report from ATH Móvil API.
+#### Example Usage
 
 ```python
-from django_athm.models import ATHM_Transaction
+from django_athm.models import Payment
 
-report = ATHM_Transaction.get_report(
-    start_date="2025-01-01",
-    end_date="2025-01-31"
+# Get all payments
+payments = Payment.objects.all()
+
+# Get completed payments
+completed = Payment.objects.filter(status=Payment.Status.COMPLETED)
+
+# Get refundable payments
+refundable = Payment.objects.filter(
+    status=Payment.Status.COMPLETED,
+    total__gt=models.F("total_refunded_amount")
 )
-```
 
-##### refund(transaction, amount=None)
-
-Refund a transaction. Defaults to full refund.
-
-```python
-from django_athm.models import ATHM_Transaction
-
-transaction = ATHM_Transaction.objects.get(reference_number="abc123")
-
-# Full refund
-response = ATHM_Transaction.refund(transaction)
-
-# Partial refund
-response = ATHM_Transaction.refund(transaction, amount=10.00)
-```
-
-Raises `ATHM_RefundError` if the refund fails.
-
-##### search(transaction)
-
-Search for transaction details from ATH Móvil API.
-
-```python
-from django_athm.models import ATHM_Transaction
-
-transaction = ATHM_Transaction.objects.get(reference_number="abc123")
-details = ATHM_Transaction.search(transaction)
-```
-
-##### find_payment(ecommerce_id, public_token=None)
-
-Find a payment by eCommerce ID using the ATH Móvil v4 API.
-
-```python
-from django_athm.models import ATHM_Transaction
-
-result = ATHM_Transaction.find_payment(ecommerce_id="ecom123")
-```
-
-##### cancel_payment(ecommerce_id, public_token=None)
-
-Cancel a pending payment using the ATH Móvil v4 API.
-
-```python
-from django_athm.models import ATHM_Transaction
-
-result = ATHM_Transaction.cancel_payment(ecommerce_id="ecom123")
-```
-
-#### QuerySet Methods
-
-All methods are chainable and available on both `ATHM_Transaction.objects` and QuerySets.
-
-```python
-# Get completed transactions
-ATHM_Transaction.objects.completed()
-
-# Get transactions that can be refunded
-ATHM_Transaction.objects.refundable()
-
-# Get refunded transactions
-ATHM_Transaction.objects.refunded()
-
-# Get pending transactions (OPEN or CONFIRM status)
-ATHM_Transaction.objects.pending()
-
-# Prefetch related items
-ATHM_Transaction.objects.with_items()
-
-# Select related client
-ATHM_Transaction.objects.with_client()
+# Get payment with line items
+payment = Payment.objects.prefetch_related("items").get(ecommerce_id=uuid)
 
 # Filter by date range
-ATHM_Transaction.objects.by_date_range(start_date, end_date)
-
-# Chain methods
-ATHM_Transaction.objects.completed().with_items().by_date_range(
-    start_date=datetime(2025, 1, 1),
-    end_date=datetime(2025, 1, 31)
+from datetime import datetime
+recent = Payment.objects.filter(
+    created__gte=datetime(2025, 1, 1),
+    created__lte=datetime(2025, 1, 31)
 )
 ```
 
 ---
 
-### ATHM_Client
+### PaymentLineItem
 
-Represents a customer who has made payments.
-
-#### Fields
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `id` | UUIDField | Primary key |
-| `name` | CharField | Customer name |
-| `email` | EmailField | Customer email |
-| `phone_number` | CharField | Customer phone (validated) |
-
-#### QuerySet Methods
-
-```python
-# Get clients with their transactions prefetched
-ATHM_Client.objects.with_transactions()
-```
-
----
-
-### ATHM_Item
-
-Represents a line item in a transaction.
+Represents a line item in a payment transaction.
 
 #### Fields
 
 | Field | Type | Description |
 |-------|------|-------------|
 | `id` | UUIDField | Primary key |
-| `transaction` | ForeignKey | Related ATHM_Transaction |
-| `name` | CharField | Item name (max 32 chars) |
-| `description` | CharField | Item description (max 128 chars) |
+| `transaction` | ForeignKey | Related Payment |
+| `name` | CharField | Item name (max 128 chars) |
+| `description` | TextField | Item description |
 | `quantity` | PositiveSmallIntegerField | Quantity |
 | `price` | DecimalField | Price per item |
 | `tax` | DecimalField | Tax for this item |
-| `metadata` | CharField | Item metadata (max 40 chars) |
+| `metadata` | CharField | Item metadata (max 64 chars) |
+
+#### Example Usage
+
+```python
+from django_athm.models import Payment, PaymentLineItem
+
+# Get all items for a payment
+payment = Payment.objects.get(ecommerce_id=uuid)
+items = payment.items.all()
+
+# Query items directly
+expensive_items = PaymentLineItem.objects.filter(price__gte=100)
+```
 
 ---
 
-## Exceptions
+### Refund
 
-All exceptions are available from `django_athm.exceptions`:
+Represents a refund for a payment.
+
+#### Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | UUIDField | Primary key |
+| `payment` | ForeignKey | Related Payment |
+| `reference_number` | CharField | Unique ATH Movil refund reference number |
+| `daily_transaction_id` | CharField | ATH Movil daily transaction ID |
+| `amount` | DecimalField | Refund amount |
+| `message` | CharField | Refund message (max 50 chars) |
+| `status` | CharField | Refund status |
+| `customer_name` | CharField | Customer name at time of refund |
+| `customer_phone` | CharField | Customer phone at time of refund |
+| `customer_email` | EmailField | Customer email at time of refund |
+| `transaction_date` | DateTimeField | Refund transaction date |
+| `created_at` | DateTimeField | Record creation timestamp |
+
+#### Example Usage
 
 ```python
-from django_athm.exceptions import ATHM_Error, ATHM_RefundError
+from django_athm.models import Payment, Refund
+
+# Get all refunds for a payment
+payment = Payment.objects.get(ecommerce_id=uuid)
+refunds = payment.refunds.all()
+
+# Query refunds directly
+recent_refunds = Refund.objects.filter(created_at__gte=datetime(2025, 1, 1))
 ```
 
-### ATHM_Error
+---
 
-Base exception for all django-athm errors.
+### WebhookEvent
 
-### ATHM_RefundError
+Tracks webhook events received from ATH Movil.
 
-Raised when a refund operation fails.
+#### Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | UUIDField | Primary key |
+| `idempotency_key` | CharField | Unique key for deduplication |
+| `event_type` | CharField | Type of webhook event |
+| `remote_ip` | GenericIPAddressField | IP address of webhook request |
+| `payload` | JSONField | Raw JSON payload |
+| `processed` | BooleanField | Whether event was successfully processed |
+| `transaction` | ForeignKey | Associated Payment (if any) |
+| `created` | DateTimeField | Record creation timestamp |
+| `modified` | DateTimeField | Last modification timestamp |
+
+#### Event Types
 
 ```python
-from django_athm.exceptions import ATHM_RefundError
+class Type(models.TextChoices):
+    SIMULATED = "simulated"
+    PAYMENT_RECEIVED = "payment"
+    DONATION_RECEIVED = "donation"
+    REFUND_SENT = "refund"
+    ECOMMERCE_COMPLETED = "ecommerce_completed"
+    ECOMMERCE_CANCELLED = "ecommerce_cancelled"
+    ECOMMERCE_EXPIRED = "ecommerce_expired"
+    UNKNOWN = "unknown"
+```
 
-try:
-    ATHM_Transaction.refund(transaction)
-except ATHM_RefundError as e:
-    print(f"Refund failed: {e}")
+---
+
+## Services
+
+### PaymentService
+
+High-level service for managing ATH Movil payments. Located at `django_athm.services.PaymentService`.
+
+#### Methods
+
+##### initiate()
+
+Create a new payment with ATH Movil.
+
+```python
+from decimal import Decimal
+from django_athm.services import PaymentService
+
+payment, auth_token = PaymentService.initiate(
+    total=Decimal("25.00"),
+    phone_number="7871234567",
+    subtotal=Decimal("24.00"),
+    tax=Decimal("1.00"),
+    metadata_1="Order #12345",
+    metadata_2="Customer reference",
+    items=[
+        {
+            "name": "Widget",
+            "description": "A useful widget",
+            "quantity": 1,
+            "price": "24.00",
+            "tax": "1.00",
+        }
+    ],
+)
+```
+
+##### find_status()
+
+Check the current status of a payment with ATH Movil.
+
+```python
+from django_athm.services import PaymentService
+
+status = PaymentService.find_status(ecommerce_id)
+```
+
+##### authorize()
+
+Authorize a confirmed payment.
+
+```python
+from django_athm.services import PaymentService
+
+reference_number = PaymentService.authorize(ecommerce_id, auth_token)
+```
+
+##### cancel()
+
+Cancel a pending payment.
+
+```python
+from django_athm.services import PaymentService
+
+PaymentService.cancel(ecommerce_id)
+```
+
+##### refund()
+
+Refund a completed payment. Defaults to full refund if amount not specified.
+
+```python
+from decimal import Decimal
+from django_athm.services import PaymentService
+from django_athm.models import Payment
+
+payment = Payment.objects.get(reference_number="abc123")
+
+# Full refund
+refund = PaymentService.refund(payment)
+
+# Partial refund
+refund = PaymentService.refund(payment, amount=Decimal("10.00"), message="Partial refund")
+```
+
+Raises `ValueError` if the payment is not refundable or amount exceeds refundable amount.
+
+##### sync_status()
+
+Check remote status and update local payment if necessary.
+
+```python
+from django_athm.services import PaymentService
+from django_athm.models import Payment
+
+payment = Payment.objects.get(ecommerce_id=uuid)
+current_status = PaymentService.sync_status(payment)
 ```
 
 ---
@@ -219,14 +285,12 @@ except ATHM_RefundError as e:
 
 Available from `django_athm.constants`:
 
-### Button Themes
+### Button Theme
 
 ```python
-from django_athm.constants import (
-    BUTTON_COLOR_DEFAULT,  # "btn"
-    BUTTON_COLOR_LIGHT,    # "btn-light"
-    BUTTON_COLOR_DARK,     # "btn-dark"
-)
+from django_athm.constants import BUTTON_COLOR_DEFAULT
+
+BUTTON_COLOR_DEFAULT  # "btn"
 ```
 
 ### Button Languages
@@ -236,15 +300,4 @@ from django_athm.constants import (
     BUTTON_LANGUAGE_SPANISH,  # "es"
     BUTTON_LANGUAGE_ENGLISH,  # "en"
 )
-```
-
-### Transaction Status
-
-```python
-from django_athm.constants import TransactionStatus
-
-TransactionStatus.completed   # "COMPLETED"
-TransactionStatus.cancelled   # "CANCELLED"
-TransactionStatus.expired     # "EXPIRED"
-TransactionStatus.refunded    # "REFUNDED"
 ```

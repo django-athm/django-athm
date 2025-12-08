@@ -1,73 +1,118 @@
 # Upgrading
 
-## Upgrading to v1.0.0-beta1
+## Upgrading to v1.0
 
-Version 1.0.0-beta1 updates django-athm to use ATH Móvil's v4 JavaScript API ([v1.2.3 in this doc](https://github.com/evertec/athMóvil-javascript-api?tab=readme-ov-file#change-log)) with several breaking changes.
+Version 1.0 is a complete rewrite of django-athm with a new backend-first modal architecture. This guide covers migrating from earlier versions.
 
 ### Breaking Changes
 
-#### 1. Sandbox Mode Removed
+#### 1. Model Renames
 
-ATH Móvil's v4 API no longer supports sandbox mode. All transactions are production transactions.
+All models have been renamed:
 
-**Before:**
+| Old Name | New Name |
+|----------|----------|
+| `ATHM_Transaction` | `Payment` |
+| `ATHM_Item` | `PaymentLineItem` |
+| `ATHM_Client` | Removed (customer fields now on `Payment`) |
+
+**Migration:**
+
 ```python
-DJANGO_ATHM_SANDBOX_MODE = True  # No longer supported
+# Before
+from django_athm.models import ATHM_Transaction, ATHM_Item
+
+# After
+from django_athm.models import Payment, PaymentLineItem
 ```
 
-**After:**
-Remove `DJANGO_ATHM_SANDBOX_MODE` from your settings. The setting is ignored.
+#### 2. Field Changes
 
-#### 2. Metadata Fields Required
+**Payment model:**
 
-Both `metadata_1` and `metadata_2` are now **required** in your `athm_config`.
+| Old Field | New Field |
+|-----------|-----------|
+| `id` | `ecommerce_id` (now primary key) |
+| `date` | `transaction_date` |
+| `refunded_amount` | `total_refunded_amount` |
+| `client` | Removed (use `customer_name`, `customer_phone`, `customer_email`) |
 
-**Before:**
+**Status values are now uppercase:**
+
 ```python
-"ATHM_CONFIG": {
-    "total": 25.00,
-    # metadata was optional
-}
+# Before
+Payment.Status.OPEN = "open"
+Payment.Status.COMPLETED = "completed"
+
+# After
+Payment.Status.OPEN = "OPEN"
+Payment.Status.COMPLETED = "COMPLETED"
 ```
 
-**After:**
+#### 3. Signal Renames
+
+All signals have been renamed:
+
+| Old Signal | New Signal |
+|------------|------------|
+| `athm_response_received` | Removed |
+| `athm_completed_response` | `payment_completed` |
+| `athm_cancelled_response` | `payment_failed` |
+| `athm_expired_response` | `payment_expired` |
+| - | `payment_created` (new) |
+| - | `refund_completed` (new) |
+
+**Signal arguments changed from `transaction=` to `payment=`:**
+
 ```python
-"ATHM_CONFIG": {
-    "total": 25.00,
-    "metadata_1": "Order #12345",      # Required
-    "metadata_2": "Customer reference", # Required
-}
+# Before
+@receiver(athm_completed_response)
+def handle(sender, **kwargs):
+    transaction = kwargs.get("transaction")
+
+# After
+@receiver(payment_completed)
+def handle(sender, payment, **kwargs):
+    # payment is now a direct argument
+    pass
 ```
 
-#### 3. phone_number, theme, and language Options Broken
+#### 4. Removed Settings
 
-Due to bugs in the ATH Móvil v4 API, these options no longer work:
+The following settings no longer exist:
 
-- **phone_number**: Causes `BTRA_0041` error. The checkout modal will always prompt the customer to enter their phone number. Do not pass this option.
-- **theme**: Only `"btn"` works. The `"btn-light"` and `"btn-dark"` options are ignored.
-- **language**: Only `"es"` (Spanish) works. The `"en"` (English) option is ignored.
+- `DJANGO_ATHM_SANDBOX_MODE` - Sandbox mode removed by ATH Movil
+- `DJANGO_ATHM_CALLBACK_VIEW` - Custom callbacks removed (use signals instead)
 
-django-athm automatically ignores these values and logs warnings if you provide them. Remove these from your configuration:
+#### 5. Removed Features
 
-**Before:**
-```python
-"ATHM_CONFIG": {
-    "phone_number": customer.phone,  # Remove - causes error
-    "theme": "btn-dark",             # Remove - ignored
-    "language": "en",                # Remove - ignored
-    # ... other fields
-}
-```
+- **Custom callback views**: Use [signals](signals.md) to respond to payment events
+- **ATHM_Client model**: Customer info is now stored directly on the `Payment` model
+- **QuerySet methods**: Use standard Django ORM queries instead
+- **Model class methods**: Use `PaymentService` instead
 
-**After:**
-```python
-"ATHM_CONFIG": {
-    # Just remove phone_number, theme, and language
-    # ... other fields
-}
-```
+#### 6. New Architecture
 
-#### 4. Python/Django Version Support
+django-athm now uses a backend-first modal flow:
+
+1. Frontend button opens modal and prompts for phone number
+2. Backend creates payment via API (`/api/initiate/`)
+3. Customer confirms in ATH Movil app
+4. Frontend polls for status (`/api/status/`)
+5. Backend authorizes payment (`/api/authorize/`)
+6. Webhook receives final transaction details
+
+#### 7. New URL Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/webhook/` | POST | Receives ATH Movil webhook events |
+| `/api/initiate/` | POST | Creates new payment |
+| `/api/status/` | GET | Polls payment status |
+| `/api/authorize/` | POST | Confirms payment |
+| `/api/cancel/` | POST | Cancels pending payment |
+
+#### 8. Python/Django Version Support
 
 - **Minimum Python**: 3.10
 - **Minimum Django**: 5.1
@@ -76,111 +121,70 @@ Dropped support for:
 - Python 3.9 and earlier
 - Django 4.2 and earlier
 
-#### 4a. Server-Side Transaction Verification
+#### 9. Monetary Fields Use DecimalField
 
-The callback view now verifies all transactions with ATH Móvil's API before persisting data. Only `ecommerceId` from the callback POST is trusted; all other transaction data (total, reference_number, status, etc.) is fetched from the API via `find_payment()`.
-
-This change:
-- **Prevents spoofed payment data** - Malicious actors can no longer POST fake transaction data
-- **Requires valid API credentials** - `DJANGO_ATHM_PUBLIC_TOKEN` and `DJANGO_ATHM_PRIVATE_TOKEN` must be configured
-- **Adds new dependency** - [athm-python](https://github.com/django-athm/athm-python) v0.3.0 handles API communication
-
-If verification fails (network error, invalid credentials, etc.), the callback returns HTTP 400 and no transaction is created.
-
-#### 5. Monetary Fields Changed to DecimalField
-
-All monetary fields have been changed from `FloatField` to `DecimalField` for improved precision in financial calculations.
-
-**Affected fields on ATHM_Transaction:**
-- `total`
-- `subtotal`
-- `tax`
-- `fee`
-- `net_amount`
-- `refunded_amount`
-
-**Affected fields on ATHM_Item:**
-- `price`
-- `tax`
-
-**Impact:** If you have code that expects `float` values, update it to handle `Decimal` values:
+All monetary fields use `DecimalField` for precision:
 
 ```python
 from decimal import Decimal
 
-# Before
-if transaction.total > 100.0:
+# Use Decimal for comparisons
+if payment.total > Decimal("100.00"):
     ...
-
-# After
-if transaction.total > Decimal("100.00"):
-    ...
-```
-
-#### 6. New athm_expired_response Signal
-
-A new `athm_expired_response` signal is now dispatched when checkout sessions expire. This allows you to distinguish between explicit user cancellation and session timeout.
-
-```python
-from django.dispatch import receiver
-from django_athm.signals import athm_expired_response
-
-@receiver(athm_expired_response)
-def handle_expired_payment(sender, **kwargs):
-    transaction = kwargs.get("transaction")
-    # Handle expired session (e.g., notify user, offer retry)
 ```
 
 ### Database Migrations
 
-Run migrations to add new fields to the ATHM_Transaction model:
+Run migrations to update your database schema:
 
 ```bash
 python manage.py migrate django_athm
 ```
 
-New fields added:
-- `ecommerce_id` - ATH Móvil eCommerce transaction ID
-- `ecommerce_status` - Raw status from ATH Móvil API
-- `customer_name` - Customer name from ATH Móvil account
-- `customer_phone` - Customer phone from ATH Móvil account
-- `net_amount` - Net amount after fees
+### Code Migration Examples
 
-### New Features
-
-#### QuerySet Methods
-
-New methods for querying transactions:
+**Querying payments:**
 
 ```python
-# Get refunded transactions
-ATHM_Transaction.objects.refunded()
+# Before
+ATHM_Transaction.objects.completed()
+ATHM_Transaction.objects.refundable()
 
-# Select related client
-ATHM_Transaction.objects.with_client()
-
-# Filter by date range
-ATHM_Transaction.objects.by_date_range(start_date, end_date)
+# After
+Payment.objects.filter(status=Payment.Status.COMPLETED)
+Payment.objects.filter(
+    status=Payment.Status.COMPLETED,
+    total__gt=models.F("total_refunded_amount")
+)
 ```
 
-#### Model Properties
-
-New convenience properties:
+**Processing refunds:**
 
 ```python
-transaction.is_refundable  # True if can be refunded
-transaction.is_completed   # True if completed
-transaction.is_pending     # True if pending
+# Before
+from django_athm.models import ATHM_Transaction
+ATHM_Transaction.refund(transaction, amount=10.00)
+
+# After
+from django_athm.services import PaymentService
+PaymentService.refund(payment, amount=Decimal("10.00"))
 ```
 
-#### API Methods
-
-New methods for ATH Móvil v4 API:
+**Signal handlers:**
 
 ```python
-# Find a payment by eCommerce ID
-ATHM_Transaction.find_payment(ecommerce_id)
+# Before
+from django_athm.signals import athm_completed_response
 
-# Cancel a pending payment
-ATHM_Transaction.cancel_payment(ecommerce_id)
+@receiver(athm_completed_response)
+def handle(sender, **kwargs):
+    transaction = kwargs.get("transaction")
+    order = Order.objects.get(ref=transaction.metadata_1)
+
+# After
+from django_athm.signals import payment_completed
+
+@receiver(payment_completed)
+def handle(sender, payment, **kwargs):
+    order = Order.objects.get(ref=payment.metadata_1)
 ```
