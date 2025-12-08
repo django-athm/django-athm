@@ -105,13 +105,14 @@ class Payment(models.Model):
     )
 
     class Meta:
+        db_table = "athm_payment"
         verbose_name = _("ATH Móvil Transaction")
         verbose_name_plural = _("ATH Móvil Transactions")
         ordering = ["-created"]
         indexes = [
-            models.Index(fields=["-created"]),
-            models.Index(fields=["status", "-created"]),
-            models.Index(fields=["reference_number"]),
+            models.Index(fields=["-created"], name="athm_payment_created_idx"),
+            models.Index(fields=["status", "-created"], name="athm_payment_status_idx"),
+            models.Index(fields=["reference_number"], name="athm_payment_ref_idx"),
         ]
 
     def __str__(self):
@@ -163,6 +164,7 @@ class PaymentLineItem(models.Model):
     metadata = models.CharField(max_length=64, blank=True)
 
     class Meta:
+        db_table = "athm_payment_item"
         verbose_name = _("ATH Móvil Payment Line Item")
         verbose_name_plural = _("ATH Móvil Payment Line Items")
 
@@ -196,6 +198,11 @@ class Refund(models.Model):
 
     transaction_date = models.DateTimeField()
     created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "athm_refund"
+        verbose_name = _("ATH Móvil Refund")
+        verbose_name_plural = _("ATH Móvil Refunds")
 
 
 class WebhookEvent(models.Model):
@@ -254,12 +261,15 @@ class WebhookEvent(models.Model):
     modified = models.DateTimeField(auto_now=True)
 
     class Meta:
+        db_table = "athm_webhook_event"
         verbose_name = _("ATH Móvil Webhook Event")
         verbose_name_plural = _("ATH Móvil Webhook Events")
         ordering = ["-created"]
         indexes = [
-            models.Index(fields=["-created"]),
-            models.Index(fields=["event_type", "processed"]),
+            models.Index(fields=["-created"], name="athm_webhook_created_idx"),
+            models.Index(
+                fields=["event_type", "processed"], name="athm_webhook_type_idx"
+            ),
         ]
 
     def __str__(self):
