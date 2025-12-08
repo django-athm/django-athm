@@ -84,7 +84,7 @@ def initiate(request):
         return JsonResponse({"error": str(e)}, status=500)
 
     # Store auth_token in session for later authorization
-    request.session[f"athm_auth_{payment.ecommerce_id}"] = auth_token
+    request.session[f"athm_auth_{payment.ecommerce_id!s}"] = auth_token
 
     logger.info(f"[django-athm] Payment {payment.ecommerce_id} initiated via API")
 
@@ -140,7 +140,7 @@ def authorize(request):
         return JsonResponse({"error": "Invalid ecommerce_id"}, status=400)
 
     # Get auth token from session
-    auth_token = request.session.get(f"athm_auth_{ecommerce_id}")
+    auth_token = request.session.get(f"athm_auth_{ecommerce_uuid!s}")
     if not auth_token:
         logger.warning(
             f"[django-athm] No auth token in session for payment {ecommerce_id}"
@@ -184,7 +184,7 @@ def authorize(request):
     )
 
     # Clean up session
-    request.session.pop(f"athm_auth_{ecommerce_id}", None)
+    request.session.pop(f"athm_auth_{ecommerce_uuid!s}", None)
 
     return JsonResponse(
         {
@@ -218,6 +218,6 @@ def cancel(request):
         # Still return success - payment may have already completed
 
     # Clean up session
-    request.session.pop(f"athm_auth_{ecommerce_id}", None)
+    request.session.pop(f"athm_auth_{ecommerce_uuid!s}", None)
 
     return JsonResponse({"status": "cancelled"})

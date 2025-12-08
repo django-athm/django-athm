@@ -8,12 +8,7 @@ from django.db import IntegrityError, transaction
 from django.utils import timezone as django_timezone
 
 from django_athm.models import Payment, PaymentLineItem, Refund, WebhookEvent
-from django_athm.signals import (
-    payment_completed,
-    payment_expired,
-    payment_failed,
-    webhook_processed,
-)
+from django_athm.signals import payment_completed, payment_expired, payment_failed
 
 logger = logging.getLogger(__name__)
 
@@ -163,13 +158,6 @@ class WebhookProcessor:
         event.processed = True
         event.transaction = payment
         event.save(update_fields=["processed", "transaction", "modified"])
-
-        # Always trigger general 'webhook_processed' signal
-        webhook_processed.send(
-            sender=WebhookEvent,
-            event=event,
-            success=True,
-        )
 
     @classmethod
     def _parse_datetime(cls, value: Any) -> datetime | None:

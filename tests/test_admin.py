@@ -8,8 +8,8 @@ from django.contrib.sessions.middleware import SessionMiddleware
 from django.urls import reverse
 from django.utils.dateparse import parse_datetime
 from django.utils.timezone import make_aware
-from django_athm.admin import ATHM_TransactionAdmin
 
+from django_athm.admin import ATHM_TransactionAdmin
 from django_athm.models import Payment
 
 pytestmark = pytest.mark.django_db

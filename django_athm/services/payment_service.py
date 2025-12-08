@@ -63,8 +63,8 @@ class PaymentService:
         response = client.create_payment(
             total=str(total),
             phone_number=phone_number,
-            subtotal=float(subtotal) if subtotal else None,
-            tax=float(tax) if tax else None,
+            subtotal=str(subtotal) if subtotal else None,
+            tax=str(tax) if tax else None,
             metadata1=metadata_1,
             metadata2=metadata_2,
             items=athm_items,
