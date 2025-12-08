@@ -3,9 +3,11 @@ from decimal import Decimal
 
 import pytest
 from django.contrib import admin
+from django.contrib.auth.models import User
 from django.contrib.messages import get_messages
 from django.contrib.messages.middleware import MessageMiddleware
 from django.contrib.sessions.middleware import SessionMiddleware
+from django.template.response import TemplateResponse
 
 from django_athm.admin import PaymentAdmin
 from django_athm.models import Payment
@@ -17,19 +19,63 @@ def dummy_get_response(request):
     return None
 
 
+def setup_admin_request(rf, method="post", data=None):
+    """Helper to create a request with session, messages, and admin user."""
+    if method == "post":
+        request = rf.post("/admin/django_athm/payment/", data=data or {})
+    else:
+        request = rf.get("/admin/django_athm/payment/")
+
+    SessionMiddleware(dummy_get_response).process_request(request)
+    MessageMiddleware(dummy_get_response).process_request(request)
+    request.session.save()
+
+    # Create admin user for admin context
+    user, _ = User.objects.get_or_create(
+        username="admin",
+        defaults={"is_staff": True, "is_active": True, "is_superuser": True},
+    )
+    request.user = user
+    return request
+
+
 class TestPaymentAdmin:
+    def test_refund_shows_confirmation_page(self, rf):
+        """Test that selecting refund action shows confirmation page first."""
+        request = setup_admin_request(rf)
+
+        payment = Payment.objects.create(
+            ecommerce_id=uuid.uuid4(),
+            reference_number="test-123",
+            status=Payment.Status.COMPLETED,
+            total=Decimal("25.50"),
+            subtotal=Decimal("23.10"),
+            tax=Decimal("2.40"),
+            net_amount=Decimal("25.50"),
+            total_refunded_amount=Decimal("0.00"),
+        )
+
+        response = PaymentAdmin(
+            model=Payment, admin_site=admin.site
+        ).refund_selected_payments(
+            request=request,
+            queryset=Payment.objects.filter(ecommerce_id=payment.ecommerce_id),
+        )
+
+        # Should return TemplateResponse with confirmation page
+        assert isinstance(response, TemplateResponse)
+        assert "refund_confirmation.html" in response.template_name
+        assert payment in response.context_data["refundable_payments"]
+
     def test_refund_selected_payments_success(self, rf, mocker):
-        # Mock the PaymentService.refund method
+        """Test that confirmed refund executes successfully."""
         mock_refund = mocker.patch(
             "django_athm.admin.PaymentService.refund",
             return_value=mocker.Mock(reference_number="refund-123"),
         )
 
-        request = rf.post("/admin/django_athm/payment/")
-
-        SessionMiddleware(dummy_get_response).process_request(request)
-        MessageMiddleware(dummy_get_response).process_request(request)
-        request.session.save()
+        # Request with "post" parameter indicates confirmation
+        request = setup_admin_request(rf, data={"post": "yes"})
 
         payment = Payment.objects.create(
             ecommerce_id=uuid.uuid4(),
@@ -52,12 +98,9 @@ class TestPaymentAdmin:
         messages = list(get_messages(request))
         assert "Successfully refunded 1 payments" in str(messages[0])
 
-    def test_refund_selected_payments_not_refundable(self, rf, mocker):
-        request = rf.post("/admin/django_athm/payment/")
-
-        SessionMiddleware(dummy_get_response).process_request(request)
-        MessageMiddleware(dummy_get_response).process_request(request)
-        request.session.save()
+    def test_refund_selected_payments_not_refundable(self, rf):
+        """Test that non-refundable payments are shown in confirmation but not processed."""
+        request = setup_admin_request(rf)
 
         # Create a non-refundable payment (status=OPEN)
         payment = Payment.objects.create(
@@ -69,26 +112,27 @@ class TestPaymentAdmin:
             tax=Decimal("2.40"),
         )
 
-        PaymentAdmin(model=Payment, admin_site=admin.site).refund_selected_payments(
+        response = PaymentAdmin(
+            model=Payment, admin_site=admin.site
+        ).refund_selected_payments(
             request=request,
             queryset=Payment.objects.filter(ecommerce_id=payment.ecommerce_id),
         )
 
-        messages = list(get_messages(request))
-        assert "Failed to refund payments: 1 errors occurred" in str(messages[0])
+        # Should show confirmation page with payment in non_refundable list
+        assert isinstance(response, TemplateResponse)
+        assert payment in response.context_data["non_refundable_payments"]
+        assert len(response.context_data["refundable_payments"]) == 0
 
     def test_refund_selected_payments_api_error(self, rf, mocker):
-        # Mock the PaymentService.refund to raise an error
+        """Test that API errors during refund are handled gracefully."""
         mocker.patch(
             "django_athm.admin.PaymentService.refund",
             side_effect=Exception("API Error"),
         )
 
-        request = rf.post("/admin/django_athm/payment/")
-
-        SessionMiddleware(dummy_get_response).process_request(request)
-        MessageMiddleware(dummy_get_response).process_request(request)
-        request.session.save()
+        # Request with "post" parameter indicates confirmation
+        request = setup_admin_request(rf, data={"post": "yes"})
 
         payment = Payment.objects.create(
             ecommerce_id=uuid.uuid4(),
