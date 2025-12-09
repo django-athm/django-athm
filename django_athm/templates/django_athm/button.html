@@ -5,60 +5,363 @@
 
         const style = document.createElement("style");
         style.textContent = `
-            .athm-container { display: inline-block; font-family: system-ui, -apple-system, sans-serif; }
+            /* CSS Custom Properties - Theme-aware colors */
+            :root {
+                color-scheme: light dark;
+                accent-color: #E86D00;
+
+                /* Light theme colors */
+                --athm-bg-base: #ffffff;
+                --athm-bg-elevated: #ffffff;
+                --athm-bg-muted: #f9fafb;
+                --athm-bg-hover: #f3f4f6;
+                --athm-border: #e5e7eb;
+                --athm-border-subtle: #f0f0f0;
+                --athm-text-primary: #111827;
+                --athm-text-secondary: #6b7280;
+                --athm-text-muted: #9ca3af;
+                --athm-accent: #E86D00;
+                --athm-accent-hover: #d06300;
+                --athm-success-bg: #dcfce7;
+                --athm-success-text: #16a34a;
+                --athm-error-bg: #fee2e2;
+                --athm-error-text: #dc2626;
+                --athm-shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+                --athm-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+                --athm-shadow-lg: 0 20px 40px -12px rgba(0, 0, 0, 0.15);
+            }
+
+            @media (prefers-color-scheme: dark) {
+                :root {
+                    /* Dark theme colors */
+                    --athm-bg-base: #1f2937;
+                    --athm-bg-elevated: #374151;
+                    --athm-bg-muted: #111827;
+                    --athm-bg-hover: #4b5563;
+                    --athm-border: #4b5563;
+                    --athm-border-subtle: #374151;
+                    --athm-text-primary: #f9fafb;
+                    --athm-text-secondary: #d1d5db;
+                    --athm-text-muted: #9ca3af;
+                    --athm-success-bg: #064e3b;
+                    --athm-success-text: #6ee7b7;
+                    --athm-error-bg: #7f1d1d;
+                    --athm-error-text: #fca5a5;
+                    --athm-shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+                    --athm-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
+                    --athm-shadow-lg: 0 20px 40px -12px rgba(0, 0, 0, 0.8);
+                }
+            }
+
+            /* Container */
+            .athm-container {
+                display: inline-block;
+                font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            }
 
             /* Button */
-            .athm-button { display: inline-flex; align-items: center; gap: 8px; padding: 14px 28px; border: none; border-radius: 8px; font: 500 15px/1 system-ui, sans-serif; cursor: pointer; transition: transform 0.1s, box-shadow 0.15s; }
-            .athm-button:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(0,0,0,0.12); }
-            .athm-button:active { transform: translateY(0); }
-            .athm-button:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
-            .athm-button svg { height: 18px; width: auto; }
-            .athm-btn { background: #E86D00; color: white; }
-            .athm-btn-dark { background: #18181B; color: white; }
-            .athm-btn-light { background: white; color: #18181B; box-shadow: inset 0 0 0 1px rgba(0,0,0,0.12); }
+            .athm-button {
+                display: inline-flex;
+                align-items: center;
+                gap: 8px;
+                padding: 14px 28px;
+                border: none;
+                border-radius: 8px;
+                font-size: 15px;
+                font-weight: 500;
+                line-height: 1.2;
+                font-family: inherit;
+                cursor: pointer;
+                transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            }
+            .athm-button:hover:not(:disabled) {
+                transform: translateY(-1px);
+                box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+            }
+            .athm-button:active:not(:disabled) {
+                transform: translateY(0);
+                box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            }
+            .athm-button:disabled {
+                opacity: 0.5;
+                cursor: not-allowed;
+            }
+            .athm-button svg {
+                height: 18px;
+                width: auto;
+            }
+            .athm-btn {
+                background: var(--athm-accent);
+                color: white;
+            }
+            .athm-btn:hover:not(:disabled) {
+                background: var(--athm-accent-hover);
+            }
+            .athm-btn-dark {
+                background: var(--athm-text-primary);
+                color: var(--athm-bg-base);
+            }
+            .athm-btn-light {
+                background: var(--athm-bg-base);
+                color: var(--athm-text-primary);
+                box-shadow: inset 0 0 0 1px var(--athm-border);
+            }
 
             /* Dialog backdrop */
-            .athm-dialog::backdrop { background: rgba(0,0,0,0.6); backdrop-filter: blur(2px); }
-            .athm-dialog { border: none; border-radius: 16px; padding: 0; width: min(360px, calc(100vw - 32px)); box-shadow: 0 24px 48px rgba(0,0,0,0.16); }
-            .athm-dialog[open] { animation: athm-appear 0.2s ease-out; }
-            @keyframes athm-appear { from { opacity: 0; transform: scale(0.96) translateY(8px); } }
+            .athm-dialog::backdrop {
+                background: rgba(0, 0, 0, 0.65);
+                backdrop-filter: blur(4px);
+                animation: athm-backdrop-appear 0.3s ease-out;
+            }
+            @keyframes athm-backdrop-appear {
+                from { opacity: 0; }
+                to { opacity: 1; }
+            }
 
-            /* Modal structure */
-            .athm-modal-header { display: flex; justify-content: space-between; align-items: center; padding: 20px 24px; border-bottom: 1px solid #f0f0f0; }
-            .athm-modal-header h3 { margin: 0; font: 600 16px/1.2 system-ui, sans-serif; color: #18181B; }
-            .athm-modal-close { all: unset; width: 32px; height: 32px; display: grid; place-items: center; border-radius: 8px; cursor: pointer; color: #71717A; transition: background 0.15s; }
-            .athm-modal-close:hover { background: #f4f4f5; }
-            .athm-modal-close svg { width: 20px; height: 20px; }
-            .athm-modal-body { padding: 24px; text-align: center; }
+            .athm-dialog {
+                border: none;
+                border-radius: 12px;
+                padding: 0;
+                width: min(360px, calc(100vw - 32px));
+                box-shadow: var(--athm-shadow-lg);
+                background: var(--athm-bg-elevated);
+                color: var(--athm-text-primary);
+            }
+            .athm-dialog[open] {
+                animation: athm-appear 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            }
+            @keyframes athm-appear {
+                from {
+                    opacity: 0;
+                    transform: scale(0.95) translateY(12px);
+                }
+                to {
+                    opacity: 1;
+                    transform: scale(1) translateY(0);
+                }
+            }
+
+            @media (prefers-reduced-motion: reduce) {
+                .athm-dialog[open],
+                .athm-dialog::backdrop,
+                .athm-button {
+                    animation: none;
+                    transition: none;
+                }
+            }
+
+            /* Modal header */
+            .athm-modal-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 20px 24px;
+                border-bottom: 1px solid var(--athm-border-subtle);
+            }
+            .athm-modal-header h3 {
+                margin: 0;
+                font-size: 17px;
+                font-weight: 700;
+                line-height: 1.3;
+                color: var(--athm-text-primary);
+            }
+            .athm-modal-close {
+                all: unset;
+                width: 32px;
+                height: 32px;
+                display: grid;
+                place-items: center;
+                border-radius: 8px;
+                cursor: pointer;
+                color: var(--athm-text-secondary);
+                transition: background 0.2s ease, color 0.2s ease;
+            }
+            .athm-modal-close:hover {
+                background: var(--athm-bg-hover);
+                color: var(--athm-text-primary);
+            }
+            .athm-modal-close:focus-visible {
+                outline: 2px solid var(--athm-accent);
+                outline-offset: 2px;
+            }
+            .athm-modal-close svg {
+                width: 20px;
+                height: 20px;
+            }
+
+            /* Modal body */
+            .athm-modal-body {
+                padding: 28px 24px 24px;
+                text-align: center;
+            }
 
             /* Phone step */
-            .athm-instructions { color: #52525B; font: 400 14px/1.5 system-ui, sans-serif; margin: 0 0 20px; }
-            .athm-phone-input { width: 100%; padding: 14px 16px; font: 400 18px/1.4 system-ui, sans-serif; letter-spacing: 0.5px; border: 2px solid #E4E4E7; border-radius: 10px; text-align: center; box-sizing: border-box; transition: border-color 0.15s, box-shadow 0.15s; }
-            .athm-phone-input::placeholder { color: #A1A1AA; }
-            .athm-phone-input:focus { outline: none; border-color: #E86D00; box-shadow: 0 0 0 3px rgba(232,109,0,0.1); }
-            .athm-modal-body .athm-button { width: 100%; justify-content: center; margin-top: 16px; }
-            .athm-error { color: #DC2626; font: 500 13px/1.4 system-ui, sans-serif; margin: 12px 0 0; }
+            .athm-instructions {
+                color: var(--athm-text-secondary);
+                font-size: 14px;
+                font-weight: 400;
+                line-height: 1.5;
+                margin: 0 0 20px;
+            }
+            .athm-phone-input {
+                width: 100%;
+                padding: 14px 16px;
+                font-size: 17px;
+                font-weight: 400;
+                line-height: 1.4;
+                letter-spacing: 0.5px;
+                border: 2px solid var(--athm-border);
+                border-radius: 10px;
+                text-align: center;
+                box-sizing: border-box;
+                background: var(--athm-bg-base);
+                color: var(--athm-text-primary);
+                transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+            }
+            .athm-phone-input::placeholder {
+                color: var(--athm-text-muted);
+            }
+            .athm-phone-input:focus {
+                outline: none;
+                border-color: var(--athm-accent);
+                box-shadow: 0 0 0 4px rgba(232, 109, 0, 0.1);
+            }
+            @keyframes athm-input-pulse {
+                0%, 100% { box-shadow: 0 0 0 0 rgba(232, 109, 0, 0); }
+                50% { box-shadow: 0 0 0 4px rgba(232, 109, 0, 0.08); }
+            }
+            @media (prefers-reduced-motion: no-preference) {
+                .athm-phone-input {
+                    animation: athm-input-pulse 2.5s ease-in-out;
+                }
+            }
+            .athm-modal-body .athm-button {
+                width: 100%;
+                justify-content: center;
+                margin-top: 18px;
+            }
+            .athm-error {
+                color: var(--athm-error-text);
+                font-size: 13px;
+                font-weight: 500;
+                line-height: 1.4;
+                margin: 12px 0 0;
+            }
 
             /* Loading states */
-            .athm-spinner { width: 32px; height: 32px; border: 3px solid #f0f0f0; border-top-color: #E86D00; border-radius: 50%; margin: 0 auto 20px; animation: athm-spin 0.7s linear infinite; }
-            @keyframes athm-spin { to { transform: rotate(360deg); } }
-            .athm-waiting-text { font: 500 15px/1.4 system-ui, sans-serif; color: #18181B; margin: 0 0 6px; }
-            .athm-waiting-subtext { color: #71717A; font: 400 14px/1.4 system-ui, sans-serif; margin: 0; }
-            .athm-cancel-link { all: unset; color: #71717A; font: 400 14px/1 system-ui, sans-serif; cursor: pointer; margin-top: 20px; display: inline-block; padding: 8px 16px; border-radius: 6px; transition: background 0.15s; }
-            .athm-cancel-link:hover { background: #f4f4f5; }
+            .athm-spinner {
+                width: 36px;
+                height: 36px;
+                border: 3px solid var(--athm-border);
+                border-top-color: var(--athm-accent);
+                border-radius: 50%;
+                margin: 0 auto 20px;
+            }
+            @media (prefers-reduced-motion: no-preference) {
+                .athm-spinner {
+                    animation: athm-spin 0.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+                }
+            }
+            @keyframes athm-spin {
+                to { transform: rotate(360deg); }
+            }
+            .athm-waiting-text {
+                font-size: 16px;
+                font-weight: 600;
+                line-height: 1.4;
+                color: var(--athm-text-primary);
+                margin: 0 0 8px;
+            }
+            .athm-waiting-subtext {
+                color: var(--athm-text-secondary);
+                font-size: 14px;
+                font-weight: 400;
+                line-height: 1.4;
+                margin: 0;
+            }
+            .athm-cancel-link {
+                all: unset;
+                color: var(--athm-text-secondary);
+                font-size: 14px;
+                font-weight: 400;
+                line-height: 1;
+                cursor: pointer;
+                margin-top: 20px;
+                display: inline-block;
+                padding: 8px 16px;
+                border-radius: 6px;
+                transition: background 0.2s ease, color 0.2s ease;
+            }
+            .athm-cancel-link:hover {
+                background: var(--athm-bg-hover);
+                color: var(--athm-text-primary);
+            }
+            .athm-cancel-link:focus-visible {
+                outline: 2px solid var(--athm-accent);
+                outline-offset: 2px;
+            }
 
-            /* Success */
-            .athm-success-icon { width: 48px; height: 48px; background: #DCFCE7; border-radius: 50%; display: grid; place-items: center; margin: 0 auto 16px; }
-            .athm-success-icon svg { width: 24px; height: 24px; color: #16A34A; }
-            .athm-success-text { font: 500 15px/1.4 system-ui, sans-serif; color: #18181B; margin: 0 0 8px; }
-            .athm-reference { color: #71717A; font: 400 13px/1.4 ui-monospace, monospace; background: #f4f4f5; padding: 6px 12px; border-radius: 6px; display: inline-block; }
+            /* Success state */
+            .athm-success-icon {
+                width: 56px;
+                height: 56px;
+                background: var(--athm-success-bg);
+                border-radius: 50%;
+                display: grid;
+                place-items: center;
+                margin: 0 auto 18px;
+            }
+            .athm-success-icon svg {
+                width: 28px;
+                height: 28px;
+                color: var(--athm-success-text);
+            }
+            .athm-success-text {
+                font-size: 16px;
+                font-weight: 600;
+                line-height: 1.4;
+                color: var(--athm-text-primary);
+                margin: 0 0 10px;
+            }
+            .athm-reference {
+                color: var(--athm-text-secondary);
+                font-size: 13px;
+                font-weight: 400;
+                line-height: 1.4;
+                font-family: ui-monospace, 'SF Mono', Monaco, 'Cascadia Code', monospace;
+                background: var(--athm-bg-muted);
+                padding: 8px 14px;
+                border-radius: 6px;
+                display: inline-block;
+            }
 
-            /* Error */
-            .athm-error-icon { width: 48px; height: 48px; background: #FEE2E2; border-radius: 50%; display: grid; place-items: center; margin: 0 auto 16px; }
-            .athm-error-icon svg { width: 24px; height: 24px; color: #DC2626; }
-            .athm-error-text { color: #52525B; font: 400 14px/1.5 system-ui, sans-serif; margin: 0 0 20px; }
+            /* Error state */
+            .athm-error-icon {
+                width: 56px;
+                height: 56px;
+                background: var(--athm-error-bg);
+                border-radius: 50%;
+                display: grid;
+                place-items: center;
+                margin: 0 auto 18px;
+            }
+            .athm-error-icon svg {
+                width: 28px;
+                height: 28px;
+                color: var(--athm-error-text);
+            }
+            .athm-error-text {
+                color: var(--athm-text-secondary);
+                font-size: 14px;
+                font-weight: 400;
+                line-height: 1.5;
+                margin: 0 0 20px;
+            }
 
-            .hidden { display: none !important; }
+            /* Utility */
+            .hidden {
+                display: none !important;
+            }
         `;
         document.head.appendChild(style);
     }
@@ -226,11 +529,6 @@
                 // Main button disabled state
                 if (this.#elements.button) {
                     this.#elements.button.disabled = this.#state.isProcessing;
-                }
-
-                // Focus phone input when modal opens on phone step
-                if (this.#state.showModal && this.#state.step === "phone" && this.#elements.phoneInput) {
-                    setTimeout(() => this.#elements.phoneInput.focus(), 100);
                 }
             }
 
@@ -602,7 +900,7 @@
             <div data-athm-step="waiting" class="hidden">
                 <div class="athm-spinner"></div>
                 <p class="athm-waiting-text">{% trans "Confirm in ATH Móvil" %}</p>
-                <p class="athm-waiting-subtext">{% trans "Check the notification on your phone" %}</p>
+                <p class="athm-waiting-subtext">{% trans "Check your ATH Móvil app" %}</p>
                 <button type="button" data-athm-cancel class="athm-cancel-link">{% trans "Cancel" %}</button>
             </div>
 

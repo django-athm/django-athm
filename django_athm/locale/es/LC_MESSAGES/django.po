@@ -349,11 +349,11 @@ msgstr "Continuar"
 
 #: templates/django_athm/button.html:567
 msgid "Confirm the payment in your ATH Móvil app"
-msgstr "Confirma el pago en tu aplicacion ATH Móvil"
+msgstr "Confirma el pago en tu app de ATH Móvil"
 
-#: templates/django_athm/button.html:570
-msgid "Check the notifications on your phone"
-msgstr "Revisa las notificaciones en tu telefono"
+#: templates/django_athm/button.html:903
+msgid "Check your ATH Móvil app"
+msgstr "Verifica tu app de ATH Móvil"
 
 #: templates/django_athm/button.html:583
 msgid "Processing payment..."
