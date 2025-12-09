@@ -69,7 +69,7 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/')
     environment:
       name: pypi
-      url: https://pypi.org/p/athm
+      url: https://pypi.org/p/django-athm
 
     steps:
       - uses: actions/checkout@v4
