@@ -164,4 +164,3 @@ See [Webhook Configuration](config.md#webhook-configuration) for detailed setup 
 - [Configuration Reference](config.md) - All settings and options
 - [API Reference](api.md) - Models, fields, and services
 - [Signals](signals.md) - Respond to payment events
-- [Upgrading](upgrading.md) - Migration guide for new versions
