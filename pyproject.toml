@@ -11,7 +11,7 @@ include = ["django_athm"]
 
 [project]
 name = "django-athm"
-version = "0.7.0"
+version = "1.0.0b1"
 description = "Django + ATH Móvil"
 readme = "README.md"
 license = {text = "MIT"}
@@ -150,11 +150,11 @@ markers = [
 
 [tool.commitizen]
 name = "cz_conventional_commits"
-version = "0.7.0"
+version = "1.0.0b1"
 version_files = [
     "django_athm/__init__.py:__version__",
     "pyproject.toml:version"
 ]
-tag_format = "v$version"
+tag_format = "$version"
 update_changelog_on_bump = true
 changelog_file = "CHANGELOG.md"

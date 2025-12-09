@@ -381,7 +381,7 @@ wheels = [
 
 [[package]]
 name = "django-athm"
-version = "0.7.0"
+version = "1.0.0b1"
 source = { editable = "." }
 dependencies = [
     { name = "athm" },
