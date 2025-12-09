@@ -1,5 +1,3 @@
-"""Tests for PaymentService API interactions and state management."""
-
 import uuid
 from decimal import Decimal
 from unittest.mock import Mock
@@ -22,8 +20,6 @@ def mock_client(mocker):
 
 
 class TestInitiate:
-    """Test payment initiation."""
-
     def test_creates_payment_and_returns_auth_token(self, mock_client):
         ecommerce_id = str(uuid.uuid4())
         auth_token = "test-auth-token-123"
@@ -99,8 +95,6 @@ class TestInitiate:
 
 
 class TestFindStatus:
-    """Test status polling."""
-
     def test_returns_remote_status(self, mock_client):
         mock_client.find_payment.return_value = Mock(
             data=Mock(ecommerce_status="CONFIRM")
@@ -119,8 +113,6 @@ class TestFindStatus:
 
 
 class TestAuthorize:
-    """Test payment authorization."""
-
     def test_returns_reference_number(self, mock_client):
         mock_client.authorize_payment.return_value = Mock(
             data=Mock(reference_number="ref-12345")
@@ -139,8 +131,6 @@ class TestAuthorize:
 
 
 class TestCancel:
-    """Test payment cancellation."""
-
     def test_updates_payment_status_to_cancel(self, mock_client):
         ecommerce_id = uuid.uuid4()
         payment = Payment.objects.create(
@@ -175,8 +165,6 @@ class TestCancel:
 
 
 class TestRefund:
-    """Test refund processing."""
-
     def test_creates_refund_record(self, mock_client):
         payment = Payment.objects.create(
             ecommerce_id=uuid.uuid4(),
@@ -307,8 +295,6 @@ class TestRefund:
 
 
 class TestSyncStatus:
-    """Test status synchronization with remote."""
-
     def test_updates_open_to_confirm(self, mock_client):
         payment = Payment.objects.create(
             ecommerce_id=uuid.uuid4(),
@@ -410,8 +396,6 @@ class TestSyncStatus:
 
 
 class TestUpdatePhoneNumber:
-    """Test phone number updates."""
-
     def test_calls_api_with_correct_params(self, mock_client):
         ecommerce_id = uuid.uuid4()
 

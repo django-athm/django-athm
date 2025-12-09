@@ -49,7 +49,6 @@ def setup_admin_request(rf, method="post", data=None):
 
 class TestPaymentAdmin:
     def test_refund_shows_confirmation_page(self, rf):
-        """Test that selecting refund action shows confirmation page first."""
         request = setup_admin_request(rf)
 
         payment = Payment.objects.create(
@@ -75,7 +74,6 @@ class TestPaymentAdmin:
         assert payment in response.context_data["payments"]
 
     def test_refund_selected_payments_success(self, rf, mocker):
-        """Test that confirmed refund executes successfully."""
         mock_refund = mocker.patch(
             "django_athm.admin.PaymentService.refund",
             return_value=mocker.Mock(reference_number="refund-123"),
@@ -104,7 +102,6 @@ class TestPaymentAdmin:
         assert "Refunded 1 payment(s)" in str(msgs[0])
 
     def test_refund_selected_payments_not_refundable(self, rf):
-        """Test that non-refundable payments are filtered out."""
         request = setup_admin_request(rf)
 
         payment = Payment.objects.create(
@@ -127,7 +124,6 @@ class TestPaymentAdmin:
         assert len(response.context_data["payments"]) == 0
 
     def test_refund_selected_payments_api_error(self, rf, mocker):
-        """Test that API errors during refund are handled gracefully."""
         mocker.patch(
             "django_athm.admin.PaymentService.refund",
             side_effect=Exception("API Error"),

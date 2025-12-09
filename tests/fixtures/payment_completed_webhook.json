@@ -1,0 +1,36 @@
+{
+    "businessName": "Test Business",
+    "dailyTransactionId": "0002",
+    "date": "2025-12-08 16:30:52",
+    "ecommerceId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "email": "customer@example.com",
+    "fee": 0.07,
+    "isNonProfit": false,
+    "items": [
+        {
+            "description": "Support Django ATHM Development",
+            "formattedPrice": "",
+            "metadata": "demo-tip",
+            "name": "Tip",
+            "price": 3.0,
+            "quantity": 1,
+            "sku": "",
+            "tax": 0.0
+        }
+    ],
+    "message": "",
+    "metadata1": "Django ATHM Demo",
+    "metadata2": "Project Support Tip",
+    "name": "Test Customer",
+    "netAmount": 2.93,
+    "phoneNumber": 7875551234,
+    "referenceNumber": "11223344-aabbccdd11223344aabbccdd11223344",
+    "referenceTransactionId": "",
+    "status": "COMPLETED",
+    "subTotal": 3,
+    "tax": 0.0,
+    "total": 3,
+    "totalRefundedAmount": 0,
+    "transactionDate": "2025-12-08 16:30:49",
+    "transactionType": "ECOMMERCE"
+}

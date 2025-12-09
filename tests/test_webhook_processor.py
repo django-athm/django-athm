@@ -1,5 +1,3 @@
-"""Tests for WebhookProcessor idempotency and event handling."""
-
 import hashlib
 import uuid
 from decimal import Decimal
@@ -69,8 +67,6 @@ def make_refund_payload(reference_number: str) -> dict:
 
 
 class TestIdempotencyKeyComputation:
-    """Test that idempotency keys are computed correctly and deterministically."""
-
     def test_ecommerce_completed_key_uses_id_and_status(self):
         payload = {
             "ecommerceId": "abc-123",
@@ -120,8 +116,6 @@ class TestIdempotencyKeyComputation:
 
 
 class TestEventTypeDetection:
-    """Test that event types are correctly detected from payloads."""
-
     def test_ecommerce_completed(self):
         payload = {"ecommerceId": "123", "status": "COMPLETED"}
         assert (
@@ -185,8 +179,6 @@ class TestEventTypeDetection:
 
 
 class TestStoreEvent:
-    """Test webhook event storage and duplicate detection."""
-
     def test_creates_new_event(self):
         payload = make_completed_payload()
 
@@ -223,8 +215,6 @@ class TestStoreEvent:
 
 
 class TestProcessEvent:
-    """Test event processing and handler dispatch."""
-
     def test_skips_already_processed_event(self, mocker):
         event = WebhookEvent.objects.create(
             idempotency_key="test-key",
@@ -255,8 +245,6 @@ class TestProcessEvent:
 
 
 class TestHandleEcommerceCompleted:
-    """Test COMPLETED webhook handler."""
-
     def test_creates_payment_from_webhook(self):
         ecommerce_id = str(uuid.uuid4())
         payload = make_completed_payload(ecommerce_id)
@@ -362,8 +350,6 @@ class TestHandleEcommerceCompleted:
 
 
 class TestHandleEcommerceCancelled:
-    """Test CANCEL webhook handler."""
-
     def test_updates_payment_to_cancelled(self):
         ecommerce_id = str(uuid.uuid4())
         Payment.objects.create(
@@ -436,8 +422,6 @@ class TestHandleEcommerceCancelled:
 
 
 class TestHandleEcommerceExpired:
-    """Test EXPIRED webhook handler."""
-
     def test_updates_payment_to_expired(self):
         ecommerce_id = str(uuid.uuid4())
         Payment.objects.create(
@@ -480,8 +464,6 @@ class TestHandleEcommerceExpired:
 
 
 class TestHandleRefund:
-    """Test REFUND webhook handler."""
-
     def test_creates_refund_linked_to_payment(self):
         payment = Payment.objects.create(
             ecommerce_id=uuid.uuid4(),
@@ -562,8 +544,6 @@ class TestHandleRefund:
 
 
 class TestSyncItems:
-    """Test line item syncing from webhooks."""
-
     def test_creates_line_items_from_payload(self):
         ecommerce_id = str(uuid.uuid4())
         payload = make_completed_payload(ecommerce_id)
@@ -613,8 +593,6 @@ class TestSyncItems:
 
 
 class TestParseDatetime:
-    """Test datetime parsing from various ATH Móvil formats."""
-
     def test_parses_string_format(self):
         dt = WebhookProcessor._parse_datetime("2024-01-15 10:30:00")
         assert dt is not None
@@ -638,8 +616,6 @@ class TestParseDatetime:
 
 
 class TestTerminalStateChecks:
-    """Test terminal state checking logic."""
-
     def test_completed_payment_is_already_completed(self):
         payment = Payment(status=Payment.Status.COMPLETED)
         assert WebhookProcessor._is_already_completed(payment)
@@ -667,3 +643,77 @@ class TestTerminalStateChecks:
     def test_confirm_payment_is_not_terminal(self):
         payment = Payment(status=Payment.Status.CONFIRM)
         assert not WebhookProcessor._is_terminal(payment)
+
+
+class TestRealWebhookIntegration:
+    """Integration tests using real webhook payloads from production."""
+
+    def test_processes_real_payment_completed_webhook(
+        self, payment_completed_webhook_payload
+    ):
+        event, created = WebhookProcessor.store_event(
+            payment_completed_webhook_payload, remote_ip="127.0.0.1"
+        )
+
+        assert created is True
+        assert event.event_type == WebhookEvent.Type.ECOMMERCE_COMPLETED
+
+        WebhookProcessor.process(event)
+
+        event.refresh_from_db()
+        assert event.processed is True
+
+        payment = Payment.objects.get(
+            ecommerce_id=payment_completed_webhook_payload["ecommerceId"]
+        )
+        assert payment.status == Payment.Status.COMPLETED
+        assert (
+            payment.reference_number
+            == payment_completed_webhook_payload["referenceNumber"]
+        )
+        assert payment.total == Decimal("3.00")
+        assert payment.fee == Decimal("0.07")
+        assert payment.net_amount == Decimal("2.93")
+        assert payment.customer_name == "Test Customer"
+        assert payment.customer_email == "customer@example.com"
+        assert payment.customer_phone == "7875551234"
+        assert payment.metadata_1 == "Django ATHM Demo"
+        assert payment.metadata_2 == "Project Support Tip"
+
+        assert payment.items.count() == 1
+        item = payment.items.first()
+        assert item.name == "Tip"
+        assert item.description == "Support Django ATHM Development"
+        assert item.price == Decimal("3.00")
+        assert item.quantity == 1
+        assert item.tax == Decimal("0.00")
+
+    def test_processes_real_refund_webhook(self, refund_webhook_payload):
+        # Create the original payment first
+        payment = Payment.objects.create(
+            ecommerce_id=uuid.uuid4(),
+            reference_number=refund_webhook_payload["referenceNumber"],
+            status=Payment.Status.COMPLETED,
+            total=Decimal("3.00"),
+        )
+
+        event, created = WebhookProcessor.store_event(
+            refund_webhook_payload, remote_ip="127.0.0.1"
+        )
+
+        assert created is True
+        assert event.event_type == WebhookEvent.Type.REFUND_SENT
+
+        WebhookProcessor.process(event)
+
+        event.refresh_from_db()
+        assert event.processed is True
+
+        refund = Refund.objects.get(
+            reference_number=refund_webhook_payload["referenceNumber"]
+        )
+        assert refund.payment == payment
+        assert refund.amount == Decimal("3.00")
+        assert refund.status == "COMPLETED"
+        assert refund.customer_name == "Test Customer"
+        assert refund.customer_email == "customer@example.com"

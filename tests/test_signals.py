@@ -12,28 +12,7 @@ pytestmark = pytest.mark.django_db
 
 
 class TestPaymentSignals:
-    def test_payment_created_signal_exists(self):
-        """Test that payment_created signal is defined."""
-        assert hasattr(signals, "payment_created")
-
-    def test_payment_completed_signal_exists(self):
-        """Test that payment_completed signal is defined."""
-        assert hasattr(signals, "payment_completed")
-
-    def test_payment_failed_signal_exists(self):
-        """Test that payment_failed signal is defined."""
-        assert hasattr(signals, "payment_failed")
-
-    def test_payment_expired_signal_exists(self):
-        """Test that payment_expired signal is defined."""
-        assert hasattr(signals, "payment_expired")
-
-    def test_refund_completed_signal_exists(self):
-        """Test that refund_completed signal is defined."""
-        assert hasattr(signals, "refund_completed")
-
     def test_payment_completed_signal_fires(self):
-        """Test that payment_completed signal can be sent and received."""
         handler = MagicMock()
         signals.payment_completed.connect(handler)
 
@@ -54,7 +33,6 @@ class TestPaymentSignals:
         signals.payment_completed.disconnect(handler)
 
     def test_payment_failed_signal_fires(self):
-        """Test that payment_failed signal can be sent and received."""
         handler = MagicMock()
         signals.payment_failed.connect(handler)
 
@@ -75,7 +53,6 @@ class TestPaymentSignals:
         signals.payment_failed.disconnect(handler)
 
     def test_payment_expired_signal_fires(self):
-        """Test that payment_expired signal can be sent and received."""
         handler = MagicMock()
         signals.payment_expired.connect(handler)
 
@@ -95,7 +72,6 @@ class TestPaymentSignals:
         signals.payment_expired.disconnect(handler)
 
     def test_refund_completed_signal_fires(self):
-        """Test that refund_completed signal can be sent and received."""
         handler = MagicMock()
         signals.refund_completed.connect(handler)
 

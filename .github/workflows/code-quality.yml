@@ -28,7 +28,7 @@ jobs:
         run: uv sync --all-extras --dev
 
       - name: Run Ruff linter
-        run: uv run ruff check athm tests
+        run: uv run ruff check django_athm tests
 
       - name: Run Ruff formatter
-        run: uv run ruff format --check athm tests
+        run: uv run ruff format --check django_athm tests

@@ -93,11 +93,8 @@ class TestPayment:
         assert not_completed.is_refundable is False
 
     def test_is_refundable_when_net_amount_not_populated(self):
-        """Completed payments should be refundable even if net_amount is 0.00.
-
-        net_amount is only populated via webhooks and may not be set.
-        Refundability should be based on total, not net_amount.
-        """
+        # Completed payments should be refundable even if net_amount is 0.00
+        # net_amount is only populated via webhooks and may not be set
         payment = models.Payment(
             ecommerce_id=uuid.uuid4(),
             reference_number="no-net-amount",

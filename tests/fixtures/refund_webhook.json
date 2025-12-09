@@ -1,0 +1,15 @@
+{
+    "dailyTransactionID": "3",
+    "date": "2025-12-08 16:39:08",
+    "email": "customer@example.com",
+    "fee": "0.00",
+    "message": "Refunded via admin",
+    "name": "Test Customer",
+    "netAmount": "0.00",
+    "phoneNumber": "(787) 555-1234",
+    "referenceNumber": "11223344-aabbccdd11223344aabbccdd11223344",
+    "status": "COMPLETED",
+    "total": "3.00",
+    "totalRefundedAmount": "0",
+    "transactionType": "REFUND"
+}
