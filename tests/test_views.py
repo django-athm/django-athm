@@ -113,7 +113,7 @@ class TestWebhookView:
             "name": "Test Customer",
             "phoneNumber": "7871234567",
             "email": "test@example.com",
-            "amount": 25.00,
+            "total": 25.00,
             "date": "2024-01-15 10:30:00",
         }
 

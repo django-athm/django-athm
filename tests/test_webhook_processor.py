@@ -4,6 +4,7 @@ import uuid
 from decimal import Decimal
 
 import pytest
+from athm import parse_webhook
 from django.db import connection
 
 from django_athm import signals
@@ -16,6 +17,7 @@ pytestmark = pytest.mark.django_db
 def make_completed_payload(ecommerce_id: str | None = None) -> dict:
     """Build a COMPLETED webhook payload."""
     return {
+        "transactionType": "ecommerce",
         "ecommerceId": ecommerce_id or str(uuid.uuid4()),
         "status": "COMPLETED",
         "referenceNumber": f"ref-{uuid.uuid4().hex[:8]}",
@@ -33,24 +35,29 @@ def make_completed_payload(ecommerce_id: str | None = None) -> dict:
         "metadata1": "meta1",
         "metadata2": "meta2",
         "items": [],
+        "date": "2024-01-15 10:30:00",
     }
 
 
 def make_cancelled_payload(ecommerce_id: str | None = None) -> dict:
     """Build a CANCEL webhook payload."""
     return {
+        "transactionType": "ecommerce",
         "ecommerceId": ecommerce_id or str(uuid.uuid4()),
         "status": "CANCEL",
         "total": 50.00,
+        "date": "2024-01-15 10:30:00",
     }
 
 
 def make_expired_payload(ecommerce_id: str | None = None) -> dict:
     """Build an EXPIRED webhook payload."""
     return {
+        "transactionType": "ecommerce",
         "ecommerceId": ecommerce_id or str(uuid.uuid4()),
         "status": "EXPIRED",
         "total": 50.00,
+        "date": "2024-01-15 10:30:00",
     }
 
 
@@ -64,7 +71,7 @@ def make_refund_payload(reference_number: str) -> dict:
         "name": "Test Customer",
         "phoneNumber": "7871234567",
         "email": "test@example.com",
-        "amount": 25.00,
+        "total": 25.00,
         "date": "2024-01-15 10:30:00",
     }
 
@@ -228,20 +235,26 @@ class TestProcessEvent:
         )
         spy = mocker.spy(WebhookProcessor, "_handle_ecommerce_completed")
 
-        WebhookProcessor.process(event)
+        WebhookProcessor.process(event, parse_webhook(event.payload))
 
         spy.assert_not_called()
 
     def test_marks_unknown_event_as_processed(self):
+        payload = {
+            "transactionType": "donation",
+            "status": "completed",
+            "total": 0.00,
+            "date": "2024-01-15 10:30:00",
+        }
         event = WebhookEvent.objects.create(
             idempotency_key="unknown-key",
             event_type=WebhookEvent.Type.UNKNOWN,
-            payload={"foo": "bar"},
+            payload=payload,
             remote_ip="127.0.0.1",
             processed=False,
         )
 
-        WebhookProcessor.process(event)
+        WebhookProcessor.process(event, parse_webhook(event.payload))
 
         event.refresh_from_db()
         assert event.processed is True
@@ -258,7 +271,7 @@ class TestHandleEcommerceCompleted:
             remote_ip="127.0.0.1",
         )
 
-        WebhookProcessor.process(event)
+        WebhookProcessor.process(event, parse_webhook(event.payload))
 
         payment = Payment.objects.get(ecommerce_id=ecommerce_id)
         assert payment.status == Payment.Status.COMPLETED
@@ -283,7 +296,7 @@ class TestHandleEcommerceCompleted:
             remote_ip="127.0.0.1",
         )
 
-        WebhookProcessor.process(event)
+        WebhookProcessor.process(event, parse_webhook(event.payload))
 
         payment = Payment.objects.get(ecommerce_id=ecommerce_id)
         assert payment.status == Payment.Status.COMPLETED
@@ -306,7 +319,7 @@ class TestHandleEcommerceCompleted:
             remote_ip="127.0.0.1",
         )
 
-        WebhookProcessor.process(event)
+        WebhookProcessor.process(event, parse_webhook(event.payload))
 
         payment = Payment.objects.get(ecommerce_id=ecommerce_id)
         assert payment.reference_number == original_ref  # Unchanged
@@ -327,7 +340,7 @@ class TestHandleEcommerceCompleted:
                 remote_ip="127.0.0.1",
             )
 
-            WebhookProcessor.process(event)
+            WebhookProcessor.process(event, parse_webhook(event.payload))
 
             handler.assert_called_once()
             call_kwargs = handler.call_args[1]
@@ -337,7 +350,12 @@ class TestHandleEcommerceCompleted:
             signals.payment_completed.disconnect(handler)
 
     def test_missing_ecommerce_id_marks_processed(self):
-        payload = {"status": "COMPLETED"}  # Missing ecommerceId
+        payload = {
+            "transactionType": "ecommerce",
+            "status": "COMPLETED",
+            "total": 100.00,
+            "date": "2024-01-15 10:30:00",
+        }
         event = WebhookEvent.objects.create(
             idempotency_key="missing-id",
             event_type=WebhookEvent.Type.ECOMMERCE_COMPLETED,
@@ -345,7 +363,7 @@ class TestHandleEcommerceCompleted:
             remote_ip="127.0.0.1",
         )
 
-        WebhookProcessor.process(event)
+        WebhookProcessor.process(event, parse_webhook(event.payload))
 
         event.refresh_from_db()
         assert event.processed is True
@@ -368,7 +386,7 @@ class TestHandleEcommerceCancelled:
             remote_ip="127.0.0.1",
         )
 
-        WebhookProcessor.process(event)
+        WebhookProcessor.process(event, parse_webhook(event.payload))
 
         payment = Payment.objects.get(ecommerce_id=ecommerce_id)
         assert payment.status == Payment.Status.CANCEL
@@ -388,7 +406,7 @@ class TestHandleEcommerceCancelled:
             remote_ip="127.0.0.1",
         )
 
-        WebhookProcessor.process(event)
+        WebhookProcessor.process(event, parse_webhook(event.payload))
 
         payment = Payment.objects.get(ecommerce_id=ecommerce_id)
         assert payment.status == Payment.Status.COMPLETED  # Unchanged
@@ -415,11 +433,12 @@ class TestHandleEcommerceCancelled:
                 remote_ip="127.0.0.1",
             )
 
-            WebhookProcessor.process(event)
+            WebhookProcessor.process(event, parse_webhook(event.payload))
 
             handler.assert_called_once()
             call_kwargs = handler.call_args[1]
-            assert call_kwargs["reason"] == "cancelled"
+            assert call_kwargs["sender"] == Payment
+            assert call_kwargs["payment"].status == Payment.Status.CANCEL
         finally:
             signals.payment_failed.disconnect(handler)
 
@@ -440,7 +459,7 @@ class TestHandleEcommerceExpired:
             remote_ip="127.0.0.1",
         )
 
-        WebhookProcessor.process(event)
+        WebhookProcessor.process(event, parse_webhook(event.payload))
 
         payment = Payment.objects.get(ecommerce_id=ecommerce_id)
         assert payment.status == Payment.Status.EXPIRED
@@ -460,7 +479,7 @@ class TestHandleEcommerceExpired:
             remote_ip="127.0.0.1",
         )
 
-        WebhookProcessor.process(event)
+        WebhookProcessor.process(event, parse_webhook(event.payload))
 
         payment = Payment.objects.get(ecommerce_id=ecommerce_id)
         assert payment.status == Payment.Status.COMPLETED  # Unchanged
@@ -482,7 +501,7 @@ class TestHandleRefund:
             remote_ip="127.0.0.1",
         )
 
-        WebhookProcessor.process(event)
+        WebhookProcessor.process(event, parse_webhook(event.payload))
 
         refund = Refund.objects.get(reference_number="ref-for-refund")
         assert refund.payment == payment
@@ -512,7 +531,7 @@ class TestHandleRefund:
             remote_ip="127.0.0.1",
         )
 
-        WebhookProcessor.process(event)
+        WebhookProcessor.process(event, parse_webhook(event.payload))
 
         assert Refund.objects.filter(reference_number="ref-dup").count() == 1
 
@@ -525,14 +544,19 @@ class TestHandleRefund:
             remote_ip="127.0.0.1",
         )
 
-        WebhookProcessor.process(event)
+        WebhookProcessor.process(event, parse_webhook(event.payload))
 
         event.refresh_from_db()
         assert event.processed is True
         assert Refund.objects.count() == 0
 
     def test_missing_reference_number_marks_processed(self):
-        payload = {"transactionType": "REFUND"}  # Missing referenceNumber
+        payload = {
+            "transactionType": "REFUND",
+            "status": "COMPLETED",
+            "total": 25.00,
+            "date": "2024-01-15 10:30:00",
+        }
         event = WebhookEvent.objects.create(
             idempotency_key="bad-refund",
             event_type=WebhookEvent.Type.REFUND_SENT,
@@ -540,7 +564,7 @@ class TestHandleRefund:
             remote_ip="127.0.0.1",
         )
 
-        WebhookProcessor.process(event)
+        WebhookProcessor.process(event, parse_webhook(event.payload))
 
         event.refresh_from_db()
         assert event.processed is True
@@ -551,8 +575,20 @@ class TestSyncItems:
         ecommerce_id = str(uuid.uuid4())
         payload = make_completed_payload(ecommerce_id)
         payload["items"] = [
-            {"name": "Item 1", "price": 50.00, "quantity": 2, "tax": 5.00},
-            {"name": "Item 2", "price": 45.00, "quantity": 1, "tax": 0.00},
+            {
+                "name": "Item 1",
+                "description": "First item",
+                "price": 50.00,
+                "quantity": 2,
+                "tax": 5.00,
+            },
+            {
+                "name": "Item 2",
+                "description": "Second item",
+                "price": 45.00,
+                "quantity": 1,
+                "tax": 0.00,
+            },
         ]
         event = WebhookEvent.objects.create(
             idempotency_key="items-test",
@@ -561,7 +597,7 @@ class TestSyncItems:
             remote_ip="127.0.0.1",
         )
 
-        WebhookProcessor.process(event)
+        WebhookProcessor.process(event, parse_webhook(event.payload))
 
         payment = Payment.objects.get(ecommerce_id=ecommerce_id)
         assert payment.items.count() == 2
@@ -577,10 +613,15 @@ class TestSyncItems:
             total=Decimal("100.00"),
         )
         PaymentLineItem.objects.create(
-            transaction=payment, name="Existing Item", price=Decimal("100.00")
+            transaction=payment,
+            name="Existing Item",
+            description="Existing",
+            price=Decimal("100.00"),
         )
         payload = make_completed_payload(ecommerce_id)
-        payload["items"] = [{"name": "New Item", "price": 50.00}]
+        payload["items"] = [
+            {"name": "New Item", "description": "New", "price": 50.00, "quantity": 1}
+        ]
         event = WebhookEvent.objects.create(
             idempotency_key="skip-items",
             event_type=WebhookEvent.Type.ECOMMERCE_COMPLETED,
@@ -588,34 +629,11 @@ class TestSyncItems:
             remote_ip="127.0.0.1",
         )
 
-        WebhookProcessor.process(event)
+        WebhookProcessor.process(event, parse_webhook(event.payload))
 
         payment.refresh_from_db()
         assert payment.items.count() == 1
         assert payment.items.first().name == "Existing Item"
-
-
-class TestParseDatetime:
-    def test_parses_string_format(self):
-        dt = WebhookProcessor._parse_datetime("2024-01-15 10:30:00")
-        assert dt is not None
-        assert dt.year == 2024
-        assert dt.month == 1
-        assert dt.day == 15
-
-    def test_parses_millisecond_timestamp(self):
-        # 1705315800000 = 2024-01-15 10:30:00 UTC
-        dt = WebhookProcessor._parse_datetime(1705315800000)
-        assert dt is not None
-
-    def test_parses_second_timestamp(self):
-        dt = WebhookProcessor._parse_datetime(1705315800)
-        assert dt is not None
-
-    def test_returns_none_for_invalid(self):
-        assert WebhookProcessor._parse_datetime("invalid") is None
-        assert WebhookProcessor._parse_datetime(None) is None
-        assert WebhookProcessor._parse_datetime("") is None
 
 
 class TestTerminalStateChecks:
@@ -689,11 +707,11 @@ class TestIdempotencyGuarantees:
 
             # First delivery
             event1, _ = WebhookProcessor.store_event(payload, remote_ip="127.0.0.1")
-            WebhookProcessor.process(event1)
+            WebhookProcessor.process(event1, parse_webhook(event1.payload))
 
             # Duplicate delivery (already processed)
             event2, _ = WebhookProcessor.store_event(payload, remote_ip="127.0.0.1")
-            WebhookProcessor.process(event2)
+            WebhookProcessor.process(event2, parse_webhook(event2.payload))
 
             # Signal should fire only once
             handler.assert_called_once()
@@ -729,7 +747,7 @@ class TestIdempotencyGuarantees:
 
         # First delivery - creates payment
         event1, _ = WebhookProcessor.store_event(payload, remote_ip="127.0.0.1")
-        WebhookProcessor.process(event1)
+        WebhookProcessor.process(event1, parse_webhook(event1.payload))
 
         payment = Payment.objects.get(ecommerce_id=ecommerce_id)
         original_modified = payment.modified
@@ -737,7 +755,7 @@ class TestIdempotencyGuarantees:
         # Duplicate delivery (already processed, same event)
         event2, created = WebhookProcessor.store_event(payload, remote_ip="127.0.0.1")
         assert not created  # Same event returned
-        WebhookProcessor.process(event2)
+        WebhookProcessor.process(event2, parse_webhook(event2.payload))
 
         payment.refresh_from_db()
         # Payment should not be modified on duplicate
@@ -757,7 +775,7 @@ class TestRealWebhookIntegration:
         assert created is True
         assert event.event_type == WebhookEvent.Type.ECOMMERCE_COMPLETED
 
-        WebhookProcessor.process(event)
+        WebhookProcessor.process(event, parse_webhook(event.payload))
 
         event.refresh_from_db()
         assert event.processed is True
@@ -803,7 +821,7 @@ class TestRealWebhookIntegration:
         assert created is True
         assert event.event_type == WebhookEvent.Type.REFUND_SENT
 
-        WebhookProcessor.process(event)
+        WebhookProcessor.process(event, parse_webhook(event.payload))
 
         event.refresh_from_db()
         assert event.processed is True

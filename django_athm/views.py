@@ -2,6 +2,8 @@ import json
 import logging
 from uuid import UUID
 
+from athm import parse_webhook
+from athm.exceptions import ValidationError as ATHMValidationError
 from django.core.exceptions import ValidationError
 from django.http import HttpResponse, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
@@ -63,6 +65,7 @@ def process_webhook_request(request):
         logger.warning("[django-athm] Malformed webhook payload")
         return HttpResponse(status=200)
 
+    # Store event (computes idempotency from raw payload)
     event, created = WebhookProcessor.store_event(
         payload=payload,
         remote_ip=_get_client_ip(request),
@@ -72,8 +75,22 @@ def process_webhook_request(request):
         logger.debug(f"[django-athm] Duplicate webhook: {event.idempotency_key}")
         return HttpResponse(status=200)
 
+    # Parse and validate payload
     try:
-        WebhookProcessor.process(event)
+        normalized = parse_webhook(payload)
+    except ATHMValidationError as e:
+        logger.error(
+            "[django-athm] Invalid webhook payload for event %s: %s",
+            event.id,
+            str(e),
+        )
+        # Mark as processed to prevent retry
+        WebhookProcessor.mark_processed(event)
+        return HttpResponse(status=200)
+
+    # Process the validated event
+    try:
+        WebhookProcessor.process(event, normalized)
     except Exception:
         logger.exception(f"[django-athm] Webhook processing failed: {event.id}")
 

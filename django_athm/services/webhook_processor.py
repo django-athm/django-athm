@@ -1,9 +1,8 @@
 import hashlib
 import logging
-from datetime import datetime
 from decimal import Decimal
-from typing import Any
 
+from athm.models import WebhookPayload
 from django.db import IntegrityError, transaction
 from django.utils import timezone as django_timezone
 
@@ -122,7 +121,7 @@ class WebhookProcessor:
             return event, False
 
     @classmethod
-    def process(cls, event: WebhookEvent) -> None:
+    def process(cls, event: WebhookEvent, normalized: WebhookPayload) -> None:
         """
         Process a webhook event idempotently.
 
@@ -130,6 +129,7 @@ class WebhookProcessor:
 
         Args:
             event: The WebhookEvent to process
+            normalized: Validated and normalized webhook payload from parse_webhook
 
         Raises:
             Exception: On processing failure (for retry handling)
@@ -141,7 +141,7 @@ class WebhookProcessor:
         handler_name = cls.HANDLERS.get(str(event.event_type))
         if handler_name:
             handler = getattr(cls, handler_name)
-            handler(event)
+            handler(event, normalized)
         else:
             logger.warning(
                 "[django-athm] No handler for event type: %s", event.event_type
@@ -160,67 +160,61 @@ class WebhookProcessor:
         event.save(update_fields=["processed", "transaction", "modified"])
 
     @classmethod
-    def _parse_datetime(cls, value: Any) -> datetime | None:
-        """Parse datetime from ATH Móvil format."""
-        if not value:
-            return None
+    def mark_processed(cls, event: WebhookEvent) -> None:
+        """
+        Public method to mark event as processed (for view error handling).
 
-        # Format: "2023-01-13 16:17:06" or timestamp
-        if isinstance(value, str):
-            try:
-                dt = datetime.strptime(value, "%Y-%m-%d %H:%M:%S")
-                return django_timezone.make_aware(dt)
-            except ValueError:
-                pass
-
-        # Try timestamp (milliseconds)
-        try:
-            val_int = int(value)
-            # If > 1e10, assume milliseconds
-            ts = val_int / 1000 if val_int > 1e10 else val_int
-            return django_timezone.make_aware(datetime.fromtimestamp(ts))
-        except (ValueError, TypeError, OSError):
-            return None
+        Args:
+            event: The WebhookEvent to mark as processed
+        """
+        cls._mark_processed(event)
 
     @classmethod
     def _get_locked_payment(
-        cls, ecommerce_id: str, payload: dict
+        cls, ecommerce_id: str, normalized: WebhookPayload
     ) -> tuple[Payment, bool]:
         """
         Get or create a payment record with row-level locking.
+
+        Args:
+            ecommerce_id: The ecommerce transaction ID
+            normalized: Normalized WebhookPayload object from parse_webhook
         """
         return Payment.objects.select_for_update().get_or_create(
             ecommerce_id=ecommerce_id,
             defaults={
                 "status": Payment.Status.OPEN,
-                "total": Decimal(str(payload.get("total", 0))),
-                "subtotal": Decimal(str(payload.get("subTotal", 0))),
-                "tax": Decimal(str(payload.get("tax", 0))),
-                "metadata_1": payload.get("metadata1", ""),
-                "metadata_2": payload.get("metadata2", ""),
+                "total": normalized.total or Decimal("0"),
+                "subtotal": normalized.subtotal or Decimal("0"),
+                "tax": normalized.tax or Decimal("0"),
+                "metadata_1": normalized.metadata1 or "",
+                "metadata_2": normalized.metadata2 or "",
             },
         )
 
     @classmethod
     def _get_payment_safe(
-        cls, event: WebhookEvent
+        cls, event: WebhookEvent, normalized: WebhookPayload
     ) -> tuple[Payment, bool] | tuple[None, None]:
         """
         Common helper to lock payment and check terminal state.
 
+        Args:
+            event: The webhook event being processed
+            normalized: Normalized WebhookPayload object from parse_webhook
+
         Returns:
             (payment, created)
-            or (None, None) if missing ecommerceId.
+            or (None, None) if missing ecommerce_id.
         """
-        payload = event.payload
-        ecommerce_id = payload.get("ecommerceId")
+        ecommerce_id = normalized.ecommerce_id
 
         if not ecommerce_id:
-            logger.error("[django-athm] Missing ecommerceId in event %s", event.id)
+            logger.error("[django-athm] Missing ecommerce_id in event %s", event.id)
             cls._mark_processed(event)
             return None, None
 
-        payment, created = cls._get_locked_payment(ecommerce_id, payload)
+        payment, created = cls._get_locked_payment(ecommerce_id, normalized)
 
         if created:
             logger.info("[django-athm] Created payment %s from webhook", ecommerce_id)
@@ -244,10 +238,12 @@ class WebhookProcessor:
         return payment.status in cls.TERMINAL_STATUSES
 
     @classmethod
-    def _handle_ecommerce_completed(cls, event: WebhookEvent) -> None:
+    def _handle_ecommerce_completed(
+        cls, event: WebhookEvent, normalized: WebhookPayload
+    ) -> None:
         """Handle completed ecommerce payment webhook."""
         with transaction.atomic():
-            payment, _ = cls._get_payment_safe(event)
+            payment, _ = cls._get_payment_safe(event, normalized)
             if not payment:
                 return
 
@@ -259,29 +255,31 @@ class WebhookProcessor:
                 cls._mark_processed(event, payment)
                 return
 
-            # Apply Updates
-            payload = event.payload
-            payment.reference_number = payload.get("referenceNumber", "")
-            payment.daily_transaction_id = payload.get("dailyTransactionId", "")
-            payment.fee = Decimal(str(payload.get("fee", 0)))
-            payment.net_amount = Decimal(str(payload.get("netAmount", 0)))
-            payment.total_refunded_amount = Decimal(
-                str(payload.get("totalRefundedAmount", 0))
+            # Apply Updates (using normalized snake_case fields)
+            payment.reference_number = normalized.reference_number or ""
+            payment.daily_transaction_id = normalized.daily_transaction_id or ""
+            payment.fee = normalized.fee or Decimal("0")
+            payment.net_amount = normalized.net_amount or Decimal("0")
+            payment.total_refunded_amount = normalized.total_refunded_amount or Decimal(
+                "0"
             )
-            payment.customer_name = payload.get("name", "")
-            payment.customer_phone = str(payload.get("phoneNumber", ""))
-            payment.customer_email = payload.get("email", "")
-            payment.message = payload.get("message", "")
-            payment.business_name = payload.get("businessName", "")
-            payment.transaction_date = cls._parse_datetime(
-                payload.get("transactionDate") or payload.get("date")
+            payment.customer_name = normalized.name or ""
+            payment.customer_phone = normalized.phone_number or ""
+            payment.customer_email = normalized.email or ""
+            payment.message = normalized.message or ""
+            payment.business_name = normalized.business_name or ""
+            payment.transaction_date = (
+                django_timezone.make_aware(normalized.transaction_date)
+                if normalized.transaction_date
+                and normalized.transaction_date.tzinfo is None
+                else normalized.transaction_date
             )
 
             payment.status = Payment.Status.COMPLETED
             payment.save()
 
             # Sync Items
-            cls._sync_items(payment, payload.get("items", []))
+            cls._sync_items(payment, normalized.items)
 
             cls._mark_processed(event, payment)
 
@@ -295,10 +293,12 @@ class WebhookProcessor:
             )
 
     @classmethod
-    def _handle_ecommerce_cancelled(cls, event: WebhookEvent) -> None:
+    def _handle_ecommerce_cancelled(
+        cls, event: WebhookEvent, normalized: WebhookPayload
+    ) -> None:
         """Handle cancelled ecommerce payment webhook."""
         with transaction.atomic():
-            payment, _ = cls._get_payment_safe(event)
+            payment, _ = cls._get_payment_safe(event, normalized)
             if not payment:
                 return
 
@@ -318,9 +318,7 @@ class WebhookProcessor:
             cls._mark_processed(event, payment)
 
             transaction.on_commit(
-                lambda: payment_failed.send(
-                    sender=Payment, payment=payment, reason="cancelled"
-                )
+                lambda: payment_failed.send(sender=Payment, payment=payment)
             )
 
             logger.info(
@@ -328,10 +326,12 @@ class WebhookProcessor:
             )
 
     @classmethod
-    def _handle_ecommerce_expired(cls, event: WebhookEvent) -> None:
+    def _handle_ecommerce_expired(
+        cls, event: WebhookEvent, normalized: WebhookPayload
+    ) -> None:
         """Handle expired ecommerce payment webhook."""
         with transaction.atomic():
-            payment, _ = cls._get_payment_safe(event)
+            payment, _ = cls._get_payment_safe(event, normalized)
             if not payment:
                 return
 
@@ -359,14 +359,13 @@ class WebhookProcessor:
             )
 
     @classmethod
-    def _handle_refund(cls, event: WebhookEvent) -> None:
+    def _handle_refund(cls, event: WebhookEvent, normalized: WebhookPayload) -> None:
         """Handle refund webhook."""
-        payload = event.payload
-        reference_number = payload.get("referenceNumber")
+        reference_number = normalized.reference_number
 
         if not reference_number:
             logger.error(
-                "[django-athm] Missing referenceNumber in refund event %s", event.id
+                "[django-athm] Missing reference_number in refund event %s", event.id
             )
             cls._mark_processed(event)
             return
@@ -378,15 +377,15 @@ class WebhookProcessor:
                 cls._mark_processed(event)
                 return
 
-            # Attempt to link to a Payment via referenceNumber
+            # Attempt to link to a Payment via reference_number
             # "Refunds cannot be referenced to original payment" - documentation.
-            # However, we allow strict linking if the referenceNumber happens to match a Payment.
+            # However, we allow strict linking if the reference_number happens to match a Payment.
             linked_payment = None
             try:
                 linked_payment = Payment.objects.get(reference_number=reference_number)
             except Payment.DoesNotExist:
                 logger.warning(
-                    "[django-athm] Received refund %s but could not find matching Payment by referenceNumber",
+                    "[django-athm] Received refund %s but could not find matching Payment by reference_number",
                     reference_number,
                 )
 
@@ -397,22 +396,22 @@ class WebhookProcessor:
             # So if we can't link it, we log and skip.
 
             if linked_payment:
+                transaction_date = normalized.transaction_date or normalized.date
                 Refund.objects.create(
                     payment=linked_payment,
                     reference_number=reference_number,
-                    daily_transaction_id=payload.get("dailyTransactionId", ""),
-                    amount=Decimal(
-                        str(payload.get("amount", 0) or payload.get("total", 0))
-                    ),  # Payload might vary
-                    message=payload.get("message", ""),
+                    daily_transaction_id=normalized.daily_transaction_id or "",
+                    amount=normalized.total or Decimal("0"),
+                    message=normalized.message or "",
                     status="COMPLETED",
-                    customer_name=payload.get("name", ""),
-                    customer_phone=str(payload.get("phoneNumber", "")),
-                    customer_email=payload.get("email", ""),
-                    transaction_date=cls._parse_datetime(
-                        payload.get("transactionDate") or payload.get("date")
-                    )
-                    or django_timezone.now(),
+                    customer_name=normalized.name or "",
+                    customer_phone=normalized.phone_number or "",
+                    customer_email=normalized.email or "",
+                    transaction_date=(
+                        django_timezone.make_aware(transaction_date)
+                        if transaction_date and transaction_date.tzinfo is None
+                        else transaction_date or django_timezone.now()
+                    ),
                 )
                 logger.info(
                     "[django-athm] Recorded refund %s linked to payment %s",
@@ -428,7 +427,9 @@ class WebhookProcessor:
             cls._mark_processed(event, linked_payment)
 
     @classmethod
-    def _handle_payment_received(cls, event: WebhookEvent) -> None:
+    def _handle_payment_received(
+        cls, event: WebhookEvent, normalized: WebhookPayload
+    ) -> None:
         """Handle non-ecommerce payment (Pay a Business from app)."""
         logger.debug(
             "[django-athm] Ignoring non-ecommerce payment webhook %s",
@@ -437,20 +438,27 @@ class WebhookProcessor:
         cls._mark_processed(event)
 
     @classmethod
-    def _handle_donation_received(cls, event: WebhookEvent) -> None:
+    def _handle_donation_received(
+        cls, event: WebhookEvent, normalized: WebhookPayload
+    ) -> None:
         """Handle donation webhook."""
         logger.debug("[django-athm] Ignoring donation webhook %s", event.id)
         cls._mark_processed(event)
 
     @classmethod
-    def _handle_simulated(cls, event: WebhookEvent) -> None:
+    def _handle_simulated(cls, event: WebhookEvent, normalized: WebhookPayload) -> None:
         """Handle simulated/test webhook."""
         logger.info("[django-athm] Processing simulated event %s", event.id)
-        cls._handle_ecommerce_completed(event)
+        cls._handle_ecommerce_completed(event, normalized)
 
     @classmethod
     def _sync_items(cls, payment: Payment, items: list) -> None:
-        """Sync line items from webhook payload."""
+        """Sync line items from webhook payload.
+
+        Args:
+            payment: The payment to sync items to
+            items: List of WebhookItem objects from normalized payload
+        """
         if not items:
             return
 
@@ -458,15 +466,15 @@ class WebhookProcessor:
         if payment.items.exists():
             return
 
-        for item_data in items:
+        for item in items:
             PaymentLineItem.objects.create(
                 transaction=payment,
-                name=item_data.get("name", ""),
-                description=item_data.get("description", ""),
-                quantity=int(item_data.get("quantity", 1)),
-                price=Decimal(str(item_data.get("price", 0))),
-                tax=Decimal(str(item_data.get("tax", 0))),
-                metadata=item_data.get("metadata", ""),
+                name=item.name,
+                description=item.description,
+                quantity=item.quantity,
+                price=item.price,
+                tax=item.tax or Decimal("0"),
+                metadata=item.metadata or "",
             )
 
         logger.debug(
