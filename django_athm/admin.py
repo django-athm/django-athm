@@ -5,7 +5,7 @@ from typing import Any
 from django import forms
 from django.contrib import admin, messages
 from django.contrib.admin import helpers
-from django.core.validators import URLValidator
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db.models import QuerySet
 from django.http import HttpRequest, HttpResponseRedirect
 from django.template.response import TemplateResponse
@@ -16,6 +16,7 @@ from django.utils.translation import gettext_lazy as _
 from django_athm.models import Payment, PaymentLineItem, Refund, WebhookEvent
 from django_athm.services.payment_service import PaymentService
 from django_athm.services.webhook_processor import WebhookProcessor
+from django_athm.utils import get_webhook_url, validate_webhook_url
 
 logger = logging.getLogger(__name__)
 
@@ -499,16 +500,24 @@ class WebhookEventAdmin(admin.ModelAdmin):
         ]
         return custom_urls + urls
 
-    def install_webhooks_view(self, request: HttpRequest) -> TemplateResponse:
-        """View for installing ATH Móvil webhooks."""
+    def install_webhooks_view(
+        self, request: HttpRequest
+    ) -> TemplateResponse | HttpResponseRedirect:
+        """Install webhook with auto-detected URL."""
+        # Auto-detect URL
+        try:
+            initial_url = get_webhook_url(request=request)
+        except DjangoValidationError:
+            initial_url = ""
 
         class WebhookURLForm(forms.Form):
             url = forms.URLField(
                 label=_("Webhook URL"),
-                validators=[URLValidator(schemes=["https"])],
-                widget=forms.URLInput(attrs={"class": "vLargeTextField", "size": "60"}),
-                assume_scheme="https",
+                help_text=_("Auto-detected from current request"),
             )
+
+            def clean_url(self):
+                return validate_webhook_url(self.cleaned_data["url"])
 
         if request.method == "POST":
             form = WebhookURLForm(request.POST)
@@ -516,9 +525,7 @@ class WebhookEventAdmin(admin.ModelAdmin):
                 try:
                     client = PaymentService.get_client()
                     client.subscribe_webhook(listener_url=form.cleaned_data["url"])
-                    self.message_user(
-                        request, _("Webhook installed."), messages.SUCCESS
-                    )
+                    self.message_user(request, _("Webhook installed"), messages.SUCCESS)
                     return HttpResponseRedirect(
                         reverse("admin:django_athm_webhookevent_changelist")
                     )
@@ -526,7 +533,7 @@ class WebhookEventAdmin(admin.ModelAdmin):
                     logger.exception(f"[django-athm] Webhook install failed: {e}")
                     self.message_user(request, f"Failed: {e}", messages.ERROR)
         else:
-            form = WebhookURLForm()
+            form = WebhookURLForm(initial={"url": initial_url})
 
         return TemplateResponse(
             request,

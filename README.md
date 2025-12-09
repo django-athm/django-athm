@@ -146,15 +146,48 @@ You can also build your own payment UI and use only the webhook synchronization 
 
 ### Installing Webhooks
 
-You can install your webhook URL via the Django Admin:
+**Recommended: Use Django Admin** (auto-detects your webhook URL):
 
 1. Navigate to **ATH Móvil Webhook Events** in the admin
 2. Click **Install Webhooks** button
-3. Enter your webhook URL (must be HTTPS): `https://yourdomain.com/athm/webhook/`
+3. Verify the auto-detected URL (edit if needed)
+4. Click submit to register with ATH Móvil
+
+**Alternative: Management command**
+
+```bash
+# Auto-detect from DJANGO_ATHM_WEBHOOK_URL setting
+python manage.py install_webhook
+
+# Or provide explicit URL
+python manage.py install_webhook https://yourdomain.com/athm/webhook/
+```
 
 ### Webhook Idempotency
 
 All webhooks are processed idempotently using deterministic keys based on the event payload. Duplicate events are automatically detected and ignored.
+
+### Custom Webhook Views
+
+If you need custom logic before/after webhook processing:
+
+```python
+from django.views.decorators.csrf import csrf_exempt
+from django_athm.views import process_webhook_request
+
+@csrf_exempt
+def my_custom_webhook(request):
+    # Pre-processing (logging, rate limiting, etc.)
+    log_webhook(request)
+
+    # Call django-athm handler (maintains idempotency)
+    response = process_webhook_request(request)
+
+    # Post-processing (notifications, analytics, etc.)
+    notify_team()
+
+    return response
+```
 
 ## Django Admin
 

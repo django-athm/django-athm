@@ -141,11 +141,23 @@ The package includes read-only admin views for:
 
 ### install_webhook
 
-Register a webhook URL with ATH Móvil to receive payment events:
+Register a webhook URL with ATH Móvil to receive payment events.
 
+**Recommended: Use Django Admin** - The admin interface auto-detects your webhook URL from the current request. Navigate to **Webhook Events > Install Webhooks**.
+
+**Command line usage:**
+
+Auto-detect from `DJANGO_ATHM_WEBHOOK_URL` setting:
+```bash
+python manage.py install_webhook
+```
+
+Or provide explicit URL:
 ```bash
 python manage.py install_webhook https://yourdomain.com/athm/webhook/
 ```
+
+See [Webhook Configuration](config.md#webhook-configuration) for detailed setup instructions.
 
 ## Next Steps
 

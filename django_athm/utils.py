@@ -2,6 +2,10 @@ from decimal import Decimal
 from typing import Any
 
 from django.core.exceptions import ValidationError
+from django.core.validators import URLValidator
+from django.urls import reverse
+
+from django_athm.conf import settings
 
 
 def safe_decimal(value: Any, default: Decimal | None = None) -> Decimal | None:
@@ -56,3 +60,30 @@ def validate_phone_number(value: Any) -> str:
         raise ValidationError("Invalid phone number")
 
     return phone
+
+
+def get_webhook_url(request=None):
+    """
+    Resolve webhook URL.
+
+    Priority:
+    1. DJANGO_ATHM_WEBHOOK_URL setting
+    2. request.build_absolute_uri() if request provided
+    3. ValidationError
+    """
+    if settings.WEBHOOK_URL:
+        return settings.WEBHOOK_URL
+
+    if request:
+        return request.build_absolute_uri(reverse("django_athm:webhook"))
+
+    raise ValidationError(
+        "Set DJANGO_ATHM_WEBHOOK_URL in settings or use admin interface"
+    )
+
+
+def validate_webhook_url(url):
+    """Validate webhook URL is HTTPS."""
+    validator = URLValidator(schemes=["https"])
+    validator(url)
+    return url

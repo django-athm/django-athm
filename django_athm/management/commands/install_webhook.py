@@ -1,28 +1,38 @@
 from django.core.exceptions import ValidationError
 from django.core.management.base import BaseCommand, CommandError
-from django.core.validators import URLValidator
 
 from django_athm.services.payment_service import PaymentService
+from django_athm.utils import get_webhook_url, validate_webhook_url
 
 
 class Command(BaseCommand):
-    help = "Register a webhook URL with ATH Móvil"
+    help = "Register webhook URL with ATH Móvil"
 
     def add_arguments(self, parser):
-        parser.add_argument("url", help="Webhook URL (must be HTTPS)")
+        parser.add_argument(
+            "url",
+            nargs="?",
+            help="Webhook URL (uses DJANGO_ATHM_WEBHOOK_URL if not provided)",
+        )
 
     def handle(self, *args, **options):
-        url = options["url"]
+        url = options.get("url")
 
-        validator = URLValidator(schemes=["https"])
+        if not url:
+            try:
+                url = get_webhook_url(request=None)
+                self.stdout.write(f"Using: {url}")
+            except ValidationError as e:
+                raise CommandError(str(e)) from e
+
         try:
-            validator(url)
-        except ValidationError:
-            raise CommandError("URL must use HTTPS scheme") from None
+            url = validate_webhook_url(url)
+        except ValidationError as e:
+            raise CommandError(f"Invalid URL: {e}") from e
 
         try:
             client = PaymentService.get_client()
             client.subscribe_webhook(listener_url=url)
-            self.stdout.write(self.style.SUCCESS(f"Webhook installed: {url}"))
+            self.stdout.write(self.style.SUCCESS(f"Installed: {url}"))
         except Exception as e:
-            raise CommandError(f"Failed to install webhook: {e}") from e
+            raise CommandError(f"Failed: {e}") from e

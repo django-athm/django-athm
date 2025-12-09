@@ -20,6 +20,80 @@ Your private token from the ATH Móvil Business app.
 * Required: Yes
 * Default: `None`
 
+### DJANGO_ATHM_WEBHOOK_URL
+
+Your webhook URL for receiving ATH Móvil payment events. Optional - the admin interface auto-detects from the current request.
+
+* Type: String (HTTPS URL)
+* Required: No
+* Default: `None`
+
+**When to set this:**
+- You want to explicitly control the webhook URL
+- Your app runs behind a reverse proxy and URL detection doesn't work correctly
+- You're using the management command without the admin interface
+
+**Example:**
+```python
+DJANGO_ATHM_WEBHOOK_URL = "https://yourdomain.com/athm/webhook/"
+```
+
+## Webhook Configuration
+
+### Using the Admin Interface (Recommended)
+
+The admin interface automatically detects your webhook URL from the current request. No configuration needed.
+
+1. Navigate to Django Admin > Webhook Events
+2. Click "Install Webhooks" button
+3. Verify the auto-detected URL
+4. Click "Submit" to register with ATH Móvil
+
+### Using the Management Command
+
+For automated deployments or when the admin interface isn't available:
+
+**With setting configured:**
+```bash
+python manage.py install_webhook
+```
+
+**With explicit URL:**
+```bash
+python manage.py install_webhook https://yourdomain.com/athm/webhook/
+```
+
+### Custom Webhook Views
+
+If you need to add custom logic before or after webhook processing, you can wrap the built-in webhook handler:
+
+```python
+from django.views.decorators.csrf import csrf_exempt
+from django_athm.views import process_webhook_request
+
+@csrf_exempt
+def my_custom_webhook(request):
+    # Pre-processing (e.g., logging, rate limiting)
+    log_webhook_received(request)
+
+    # Call django-athm webhook handler (maintains idempotency)
+    response = process_webhook_request(request)
+
+    # Post-processing (e.g., notifications, analytics)
+    send_slack_notification()
+
+    return response
+```
+
+Register your custom webhook in `urls.py`:
+```python
+urlpatterns = [
+    path("athm/custom-webhook/", my_custom_webhook, name="custom_webhook"),
+]
+```
+
+Then register it with ATH Móvil using the URL to your custom view.
+
 ## athm_button Template Tag
 
 The `athm_button` template tag renders the ATH Móvil checkout button with an integrated payment modal. Pass a configuration dictionary with the following options:

@@ -145,15 +145,48 @@ También puedes desarollar tu propia interfaz de pago y usar solamente las carac
 
 ### Instalación de Webhooks
 
-Puedes instalar tu URL de webhook mediante el Django Admin:
+**Recomendado: Usar Django Admin** (detecta automáticamente tu URL de webhook):
 
 1. Navegar a **ATH Móvil Webhook Events** en el admin
 2. Hacer clic en el botón **Install Webhooks**
-3. Ingresar tu URL de webhook (debe ser HTTPS): `https://example.com/athm/webhook/`
+3. Verificar la URL detectada automáticamente (editar si es necesario)
+4. Hacer clic en submit para registrar con ATH Móvil
+
+**Alternativa: Comando de gestión**
+
+```bash
+# Auto-detectar desde el setting DJANGO_ATHM_WEBHOOK_URL
+python manage.py install_webhook
+
+# O proveer URL explícita
+python manage.py install_webhook https://example.com/athm/webhook/
+```
 
 ### Idempotencia de Webhooks
 
 Todos los webhooks se procesan de manera idempotente usando claves determinísticas basadas en el payload del evento. Los eventos duplicados se detectan e ignoran automáticamente.
+
+### Vistas de Webhook Personalizadas
+
+Si necesitas lógica personalizada antes/después del procesamiento de webhook:
+
+```python
+from django.views.decorators.csrf import csrf_exempt
+from django_athm.views import process_webhook_request
+
+@csrf_exempt
+def mi_webhook_personalizado(request):
+    # Pre-procesamiento (logging, rate limiting, etc.)
+    log_webhook(request)
+
+    # Llamar al handler de django-athm (mantiene idempotencia)
+    response = process_webhook_request(request)
+
+    # Post-procesamiento (notificaciones, analytics, etc.)
+    notificar_equipo()
+
+    return response
+```
 
 ## Django Admin
 

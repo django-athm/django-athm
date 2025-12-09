@@ -482,3 +482,30 @@ class TestWebhookEventAdmin:
 
         msgs = list(get_messages(request))
         assert "Failed" in str(msgs[0])
+
+    def test_install_webhooks_view_autopopulates_url(self, rf):
+        """Test that admin form auto-populates with detected URL."""
+        request = setup_admin_request(rf, method="get")
+
+        event_admin = WebhookEventAdmin(model=WebhookEvent, admin_site=admin.site)
+        response = event_admin.install_webhooks_view(request)
+
+        assert isinstance(response, TemplateResponse)
+        form = response.context_data["form"]
+
+        # Should have initial value from request.build_absolute_uri()
+        assert form.initial.get("url")
+        assert "/athm/webhook/" in form.initial["url"]
+
+    def test_install_webhooks_view_validates_https(self, rf):
+        """Test that non-HTTPS URLs are rejected."""
+        request = setup_admin_request(
+            rf, method="post", data={"url": "http://example.com/webhook/"}
+        )
+
+        event_admin = WebhookEventAdmin(model=WebhookEvent, admin_site=admin.site)
+        response = event_admin.install_webhooks_view(request)
+
+        assert isinstance(response, TemplateResponse)
+        assert response.context_data["form"].errors
+        assert "url" in response.context_data["form"].errors

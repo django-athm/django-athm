@@ -4,6 +4,7 @@ from django.core.signals import setting_changed
 DEFAULTS = {
     "PUBLIC_TOKEN": None,
     "PRIVATE_TOKEN": None,
+    "WEBHOOK_URL": None,
 }
 
 
