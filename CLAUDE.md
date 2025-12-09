@@ -4,13 +4,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-`django-athm` is a Django package that integrates ATH Móvil payments (Puerto Rico's mobile payment system) into Django applications. The package provides:
+`django-athm` is a Django package that integrates ATH Móvil payments (Puerto Rico's mobile payment system) into Django applications.
 
-- Backend-first modal payment flow with ATH Móvil's eCommerce API
-- Webhook handling for payment events with idempotency and ACID guarantees
-- Transaction persistence with line items and refunds
-- Read-only Django Admin interface with refund actions and webhook management
-- Django signals for payment lifecycle events
+**Core Purpose:** Payment/Refund synchronization via webhooks with idempotency and ACID guarantees.
+
+The package provides:
+
+- **Webhook handling** for payment events with SHA-256 idempotency and ACID guarantees (core feature)
+- **Transaction persistence** with line items and refunds for complete audit trails
+- **Read-only Django Admin interface** with refund actions and webhook management
+- **Django signals** for payment lifecycle events to integrate with your business logic
+- **Optional backend-first, zero-dependency JavaScript powered template tag** as an optional feature for quick integration
 
 ## Development Commands
 
@@ -58,17 +62,21 @@ python manage.py install_webhook https://yourdomain.com/athm/webhook/
 
 ## Architecture
 
-### Payment Flow (Backend-First Modal)
+### Core Architecture: Webhook-Driven Synchronization
 
-The v1.0 architecture uses a **backend-first modal flow**:
+The library's primary function is to receive and process ATH Móvil webhook events to synchronize Payment and Refund records in your Django database. Webhooks provide definitive transaction data including fees, net amounts, and customer information.
+
+### Optional Feature: Backend-First Modal Payment Flow
+
+For quick integration, the library includes an **optional** JavaScript-powered template tag that provides a complete payment UI:
 
 1. **Initiate** (`/api/initiate/`): Backend creates payment via ATH Móvil API, returns `ecommerce_id`. Stores `auth_token` in session.
 2. **Customer Confirmation**: Customer confirms in ATH Móvil app. Status changes OPEN -> CONFIRM.
-3. **Status Polling** (`/api/status/`): Frontend should poll until status is CONFIRM.
+3. **Status Polling** (`/api/status/`): Frontend polls until status is CONFIRM.
 4. **Authorize** (`/api/authorize/`): Backend confirms payment using session `auth_token`. Returns `reference_number`.
 5. **Webhook** (`/webhook/`): ATH Móvil sends completion event with final details (fee, net_amount, customer info).
 
-The frontend modal (`button.html`) is self-contained vanilla JS with no external dependencies.
+The frontend modal (`button.html`) is self-contained vanilla JS with no external dependencies. Users can choose to implement their own payment UI and use only the webhook synchronization features.
 
 ### URL Endpoints
 
@@ -133,9 +141,9 @@ DJANGO_ATHM_PUBLIC_TOKEN = "your-public-token"
 DJANGO_ATHM_PRIVATE_TOKEN = "your-private-token"
 ```
 
-## Template Tag
+## Template Tag (Optional Feature)
 
-Use the `athm_button` template tag to render payment buttons:
+For quick integration, use the `athm_button` template tag to render payment buttons with a zero-dependency JavaScript modal. This is completely optional - you can build your own payment UI and use only the webhook synchronization features:
 
 ```django
 {% load django_athm %}
