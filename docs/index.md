@@ -1,5 +1,11 @@
 # Getting Started
 
+## Overview
+
+django-athm's **core purpose** is webhook-driven payment and refund synchronization with SHA-256 idempotency and ACID guarantees. ATH Móvil sends definitive transaction data via webhooks, providing complete audit trails with fees, net amounts, and customer information.
+
+The package includes an **optional** backend-first modal payment flow via the `athm_button` template tag for quick integration. You can also build your own payment UI and use only the webhook synchronization features.
+
 ## Installation
 
 Install the package from PyPI:
@@ -23,36 +29,35 @@ DJANGO_ATHM_PRIVATE_TOKEN = "your-private-token"
 Run migrations to create the database tables:
 
 ```bash
-python manage.py migrate
+python manage.py migrate django_athm
 ```
 
 ## URL Configuration
 
-Add the callback URL to your root `urls.py`:
+Add the URL patterns to your root `urls.py`:
 
 ```python
 from django.urls import include, path
 
 urlpatterns = [
     # ...
-    path("athm/", include("django_athm.urls", namespace="django_athm")),
+    path("athm/", include("django_athm.urls")),
 ]
 ```
 
-## Displaying the Checkout Button
+## Displaying the Checkout Button (Optional)
+
+The `athm_button` template tag provides a complete payment UI for quick integration. This is **optional** - you can build your own payment UI and use only the webhook features.
 
 ### 1. Create the Configuration in Your View
 
 ```python
 from django.views.decorators.csrf import requires_csrf_token
-from django_athm.constants import BUTTON_COLOR_DEFAULT, BUTTON_LANGUAGE_SPANISH
 
 @requires_csrf_token
 def checkout_view(request):
     context = {
         "ATHM_CONFIG": {
-            "theme": BUTTON_COLOR_DEFAULT,
-            "language": BUTTON_LANGUAGE_SPANISH,
             "total": 25.00,
             "subtotal": 24.00,
             "tax": 1.00,
@@ -67,6 +72,8 @@ def checkout_view(request):
                     "tax": 1.00,
                 }
             ],
+            "success_url": "/checkout/success/",
+            "failure_url": "/checkout/failure/",
         }
     }
     return render(request, "checkout.html", context)
@@ -84,61 +91,76 @@ The CSRF token must be available in your template. Use the `@requires_csrf_token
 
 ## Payment Flow
 
-1. Customer clicks the ATH Movil checkout button
-2. The ATH Movil modal opens and prompts the customer for their phone number
-3. Customer receives a push notification on their ATH Movil app
-4. Customer approves (or cancels) the payment in their app
-5. django-athm receives a callback and creates a transaction record
-6. Your application responds to payment events via [signals](signals.md) or a [custom callback](config.md#django_athm_callback_view)
+django-athm uses a backend-first modal flow:
+
+1. Customer clicks the ATH Móvil checkout button
+2. Modal opens and prompts for phone number
+3. Backend creates payment via ATH Móvil API (`/api/initiate/`)
+4. Customer receives push notification on their ATH Móvil app
+5. Customer approves the payment in their app
+6. Frontend polls for status changes (`/api/status/`)
+7. Backend authorizes the payment (`/api/authorize/`)
+8. ATH Móvil sends webhook with final transaction details
+9. Your application responds to payment events via [signals](signals.md)
 
 ## Accessing Transaction Data
 
-Query transactions and items from the database:
+Query payments from the database:
 
 ```python
-from django_athm.models import ATHM_Transaction, ATHM_Item
+from django_athm.models import Payment, PaymentLineItem, Refund
 
-# Get all transactions
-transactions = ATHM_Transaction.objects.all()
+# Get all payments
+payments = Payment.objects.all()
 
-# Get completed transactions
-completed = ATHM_Transaction.objects.completed()
+# Get completed payments
+completed = Payment.objects.filter(status=Payment.Status.COMPLETED)
 
-# Get refundable transactions
-refundable = ATHM_Transaction.objects.refundable()
+# Get a payment with its line items
+payment = Payment.objects.prefetch_related("items").get(ecommerce_id=uuid)
 
-# Get transactions with items prefetched
-with_items = ATHM_Transaction.objects.with_items()
+# Access line items
+for item in payment.items.all():
+    print(f"{item.name}: ${item.price}")
 
-# Filter by date range
-from datetime import datetime
-recent = ATHM_Transaction.objects.by_date_range(
-    start_date=datetime(2025, 1, 1),
-    end_date=datetime(2025, 1, 31)
-)
+# Check if refundable
+if payment.is_refundable:
+    print(f"Can refund up to ${payment.refundable_amount}")
 ```
 
 ## Django Admin
 
-The package includes admin views for managing transactions. You can:
+The package includes read-only admin views for:
 
-- View transaction details
-- Refund completed transactions
-- Sync transaction data with ATH Movil API
+- Viewing payment details
+- Processing refunds on completed payments
+- Viewing and reprocessing webhook events
+- Installing webhook URLs with ATH Móvil
 
 ## Management Commands
 
-### athm_sync
+### install_webhook
 
-Synchronize your database with transactions from ATH Movil:
+Register a webhook URL with ATH Móvil to receive payment events.
 
+**Recommended: Use Django Admin** - The admin interface auto-detects your webhook URL from the current request. Navigate to **Webhook Events > Install Webhooks**.
+
+**Command line usage:**
+
+Auto-detect from `DJANGO_ATHM_WEBHOOK_URL` setting:
 ```bash
-python manage.py athm_sync --start "2025-01-01 00:00:00" --end "2025-01-31 23:59:59"
+python manage.py install_webhook
 ```
+
+Or provide explicit URL:
+```bash
+python manage.py install_webhook https://yourdomain.com/athm/webhook/
+```
+
+See [Webhook Configuration](config.md#webhook-configuration) for detailed setup instructions.
 
 ## Next Steps
 
 - [Configuration Reference](config.md) - All settings and options
-- [API Reference](api.md) - Models, methods, and QuerySets
+- [API Reference](api.md) - Models, fields, and services
 - [Signals](signals.md) - Respond to payment events
-- [Upgrading](upgrading.md) - Migration guide for new versions

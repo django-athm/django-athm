@@ -2,13 +2,14 @@ import os
 
 DEBUG = True
 
+ALLOWED_HOSTS = ["*"]
+
 PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 BASE_DIR = os.path.dirname(PROJECT_DIR)
 
 DJANGO_ATHM_PUBLIC_TOKEN = "public-token"
 DJANGO_ATHM_PRIVATE_TOKEN = "private-token"
-DJANGO_ATHM_SANDBOX_MODE = True
 
 SECRET_KEY = "its-a-secret-to-everybody"
 
@@ -17,6 +18,10 @@ SITE_ID = 1
 TIME_ZONE = "UTC"
 
 USE_TZ = True
+
+USE_I18N = True
+
+LANGUAGE_CODE = "en-us"
 
 ROOT_URLCONF = "tests.urls"
 
@@ -29,6 +34,7 @@ INSTALLED_APPS = [
     "django.contrib.sites",
     "django.contrib.staticfiles",
     "django_athm",
+    "tests.apps.testapp",
     "tests",
 ]
 

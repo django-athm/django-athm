@@ -7,11 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0-beta1] - 2025-12-09
+
+This is a complete architectural rewrite of django-athm. The library now uses a backend-first modal payment flow with webhooks instead of the frontend JavaScript SDK approach. **No migration path is provided**; this is a clean break from v0.7.0.
+
+### Added
+
+- **Optional Backend-first, zero-dependency JavaScript powered templatetag** as an optional feature for quick integration (POST /api/initiate/ → poll /api/status/ → POST /api/authorize/)
+- **Webhook URL auto-detection**: Admin interface automatically detects webhook URL from current request; management command supports optional URL argument with DJANGO_ATHM_WEBHOOK_URL setting fallback
+- **Custom webhook view support**: New process_webhook_request() function allows wrapping webhook handler with custom pre/post-processing logic while maintaining idempotency
+- **New models**: Refund, WebhookEvent
+- **Multilingual support** with Spanish and English translations using Django i18n
+- **Django signals system** for webhook events: payment_completed, payment_cancelled, payment_expired, refund_sent (all webhook-triggered, aligned with ATH Móvil event names)
+
 ### Changed (BREAKING)
 
-- **Updated Django support:** Now requires Django 5.1 minimum. Supports Django 5.1, 5.2. Dropped Django 4.2.
-- **Updated Python support:** Now requires Python 3.10 minimum. Supports Python 3.10-3.13. Dropped Python 3.8, 3.9.
-- **New dependency: athm-python** - Added [athm-python](https://github.com/django-athm/athm-python) v0.4.0 for API communication
+- **Complete architectural rewrite**: Frontend JavaScript SDK → Backend-first modal with webhooks
+- **Model renames**: ATHM_Transaction → Payment, ATHM_Item → PaymentLineItem
+- **Database table names**: Explicit athm_ prefixes (athm_payment, athm_payment_item, athm_refund, athm_webhook_event)
+- **Signal renames**: All payment lifecycle signals renamed with new signatures
+- **Monetary fields**: FloatField → DecimalField for precision
+- **Admin actions**: Read-only enforcement on all models, confirmation flows for destructive operations
+- **Payment flow**: Backend initiates payment, (optionally) frontend polls status, backend authorizes on customer confirmation
+- **Primary key**: Payment uses ecommerce_id (UUID) as primary key instead of auto-increment
+- **Status constants**: New enum with OPEN, CONFIRM, COMPLETED, CANCEL, EXPIRED
+- **Updated Django support**: Now requires Django 5.1 minimum. Supports Django 5.1, 5.2. Dropped Django 4.2.
+- **Updated Python support**: Now requires Python 3.10 minimum. Supports Python 3.10-3.13. Dropped Python 3.8, 3.9.
+- **New dependency**: `athm-python` package for ATH Móvil API communication
+
+### Removed
+
+- **Frontend JavaScript SDK integration** - No longer uses ATH Móvil's client-side SDK
+- **Legacy callback view** (/callback/) - Replaced by webhook endpoint
+- **DJANGO_ATHM_CALLBACK_VIEW setting** - No longer configurable callback views
 
 ## [0.7.0] - 2022-08-05
 
@@ -105,7 +133,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.2.0] - 2019-02-03
 
 ### Added
-- Support [list transactions API](https://github.com/evertec/athmovil-javascript-api#transactions)
+- Support [list transactions API](https://github.com/evertec/athMóvil-javascript-api#transactions)
 
 ## [0.1.1] - 2019-02-02
 

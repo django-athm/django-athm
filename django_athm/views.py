@@ -1,70 +1,257 @@
 import json
 import logging
+from uuid import UUID
 
-from django.http import HttpResponse
-from django.utils import timezone
+from athm import parse_webhook
+from athm.exceptions import ValidationError as ATHMValidationError
+from django.core.exceptions import ValidationError
+from django.http import HttpResponse, JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_http_methods
 
-from django_athm import models
+from django_athm.models import Payment
+from django_athm.services import PaymentService, WebhookProcessor
+from django_athm.utils import safe_decimal, validate_phone_number, validate_total
 
 logger = logging.getLogger(__name__)
 
-app_name = "django_athm"
+
+def _get_client_ip(request) -> str:
+    """Extract client IP from request."""
+    x_forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR")
+    if x_forwarded_for:
+        return x_forwarded_for.split(",")[0].strip()
+    return request.META.get("REMOTE_ADDR", "")
 
 
-def default_callback(request):
-    reference_number = request.POST["referenceNumber"]
-    total = float(request.POST["total"])
+def _parse_ecommerce_id(
+    ecommerce_id: str | None,
+) -> tuple[UUID | None, JsonResponse | None]:
+    """
+    Validate and parse ecommerce_id.
 
-    subtotal = request.POST["subtotal"]
-    if subtotal:
-        subtotal = float(subtotal)
-    else:
-        subtotal = None
+    Returns:
+        (uuid, None) on success
+        (None, error_response) on failure
+    """
+    if not ecommerce_id:
+        return None, JsonResponse({"error": "Missing ecommerce_id"}, status=400)
 
-    tax = request.POST["tax"]
-    if tax:
-        tax = float(tax)
-    else:
-        tax = None
+    try:
+        return UUID(str(ecommerce_id)), None
+    except ValueError:
+        return None, JsonResponse({"error": "Invalid ecommerce_id"}, status=400)
 
-    metadata_1 = request.POST["metadata1"]
-    if not metadata_1:
-        metadata_1 = None
 
-    metadata_2 = request.POST["metadata2"]
-    if not metadata_2:
-        metadata_2 = None
+def _get_payment(ecommerce_uuid: UUID) -> tuple[Payment | None, JsonResponse | None]:
+    """
+    Fetch payment by UUID.
 
-    transaction = models.ATHM_Transaction.objects.create(
-        reference_number=reference_number,
-        status=models.ATHM_Transaction.Status.COMPLETED,
-        total=total,
-        subtotal=subtotal,
-        tax=tax,
-        metadata_1=metadata_1,
-        metadata_2=metadata_2,
-        date=timezone.now(),
+    Returns:
+        (payment, None) on success
+        (None, error_response) on failure
+    """
+    try:
+        return Payment.objects.get(ecommerce_id=ecommerce_uuid), None
+    except Payment.DoesNotExist:
+        return None, JsonResponse({"error": "Payment not found"}, status=404)
+
+
+def process_webhook_request(request):
+    """Process ATH Móvil webhook request with idempotency."""
+    try:
+        payload = json.loads(request.body)
+    except json.JSONDecodeError:
+        logger.warning("[django-athm] Malformed webhook payload")
+        return HttpResponse(status=200)
+
+    # Store event (computes idempotency from raw payload)
+    event, created = WebhookProcessor.store_event(
+        payload=payload,
+        remote_ip=_get_client_ip(request),
     )
 
-    item_instances = []
-    items = json.loads(request.POST["items"])
+    if not created:
+        logger.debug(f"[django-athm] Duplicate webhook: {event.idempotency_key}")
+        return HttpResponse(status=200)
 
-    for item in items:
-        item_instances.append(
-            models.ATHM_Item(
-                transaction=transaction,
-                name=item["name"],
-                description=item["description"],
-                quantity=int(item["quantity"]),
-                price=float(item["price"]),
-                tax=float(item["tax"]) if item["tax"] else None,
-                metadata=item["metadata"] if item["metadata"] else None,
-            )
+    # Parse and validate payload
+    try:
+        normalized = parse_webhook(payload)
+    except ATHMValidationError as e:
+        logger.error(
+            "[django-athm] Invalid webhook payload for event %s: %s",
+            event.id,
+            str(e),
+        )
+        # Mark as processed to prevent retry
+        WebhookProcessor.mark_processed(event)
+        return HttpResponse(status=200)
+
+    # Process the validated event
+    try:
+        WebhookProcessor.process(event, normalized)
+    except Exception:
+        logger.exception(f"[django-athm] Webhook processing failed: {event.id}")
+
+    return HttpResponse(status=200)
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def webhook(request):
+    return process_webhook_request(request)
+
+
+@require_http_methods(["POST"])
+def initiate(request):
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
+
+    # Validate required fields
+    try:
+        total = validate_total(data.get("total"))
+        phone_number = validate_phone_number(data.get("phone_number"))
+    except ValidationError as e:
+        return JsonResponse({"error": str(e.message)}, status=400)
+
+    # Optional fields
+    subtotal = safe_decimal(data.get("subtotal"))
+    tax = safe_decimal(data.get("tax"))
+
+    try:
+        payment, auth_token = PaymentService.initiate(
+            total=total,
+            subtotal=subtotal,
+            tax=tax,
+            metadata_1=str(data.get("metadata_1", ""))[:40],
+            metadata_2=str(data.get("metadata_2", ""))[:40],
+            items=data.get("items"),
+            phone_number=phone_number,
+        )
+    except Exception as e:
+        logger.exception("[django-athm] Failed to initiate payment")
+        return JsonResponse({"error": str(e)}, status=500)
+
+    # Store auth_token in session for later authorization
+    request.session[f"athm_auth_{payment.ecommerce_id!s}"] = auth_token
+
+    logger.info(f"[django-athm] Payment {payment.ecommerce_id} initiated via API")
+
+    return JsonResponse(
+        {
+            "ecommerce_id": str(payment.ecommerce_id),
+            "status": payment.status,
+        }
+    )
+
+
+@require_http_methods(["GET"])
+def status(request):
+    ecommerce_uuid, error = _parse_ecommerce_id(request.GET.get("ecommerce_id"))
+    if error:
+        return error
+
+    payment, error = _get_payment(ecommerce_uuid)
+    if error:
+        return error
+
+    PaymentService.sync_status(payment)
+
+    return JsonResponse(
+        {
+            "status": payment.status,
+            "reference_number": payment.reference_number,
+        }
+    )
+
+
+@require_http_methods(["POST"])
+def authorize(request):
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
+
+    ecommerce_uuid, error = _parse_ecommerce_id(data.get("ecommerce_id"))
+    if error:
+        return error
+
+    # Get auth token from session
+    auth_token = request.session.get(f"athm_auth_{ecommerce_uuid!s}")
+    if not auth_token:
+        logger.warning(
+            f"[django-athm] No auth token in session for payment {ecommerce_uuid}"
+        )
+        return JsonResponse({"error": "Session expired"}, status=400)
+
+    payment, error = _get_payment(ecommerce_uuid)
+    if error:
+        return error
+
+    # Check current status
+    if payment.status == Payment.Status.COMPLETED:
+        return JsonResponse(
+            {
+                "status": payment.status,
+                "reference_number": payment.reference_number,
+            }
         )
 
-    if item_instances:
-        models.ATHM_Item.objects.bulk_create(item_instances)
+    if payment.status == Payment.Status.CANCEL:
+        return JsonResponse({"error": "Payment was cancelled"}, status=400)
 
-    # TODO: Create ATHM_Client instance
+    if payment.status not in (Payment.Status.OPEN, Payment.Status.CONFIRM):
+        return JsonResponse({"error": f"Invalid status: {payment.status}"}, status=400)
 
-    return HttpResponse(status=201)
+    try:
+        reference_number = PaymentService.authorize(ecommerce_uuid, auth_token)
+    except Exception as e:
+        logger.exception(f"[django-athm] Failed to authorize payment {ecommerce_uuid}")
+        return JsonResponse({"error": str(e)}, status=500)
+
+    # Update local status optimistically
+    # Webhook will confirm with full details (fee, net_amount, etc.)
+    payment.status = Payment.Status.COMPLETED
+    payment.reference_number = reference_number
+    payment.save(update_fields=["status", "reference_number", "modified"])
+
+    logger.info(
+        f"[django-athm] Authorized payment {ecommerce_uuid} -> {reference_number}"
+    )
+
+    # Clean up session
+    request.session.pop(f"athm_auth_{ecommerce_uuid!s}", None)
+
+    return JsonResponse(
+        {
+            "status": payment.status,
+            "reference_number": payment.reference_number,
+        }
+    )
+
+
+@require_http_methods(["POST"])
+def cancel(request):
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
+
+    ecommerce_uuid, error = _parse_ecommerce_id(data.get("ecommerce_id"))
+    if error:
+        return error
+
+    try:
+        PaymentService.cancel(ecommerce_uuid)
+        logger.info(f"[django-athm] Payment {ecommerce_uuid} cancelled via API")
+    except Exception as e:
+        logger.warning(f"[django-athm] Failed to cancel payment {ecommerce_uuid}: {e}")
+        # Still return success - payment may have already completed
+
+    # Clean up session
+    request.session.pop(f"athm_auth_{ecommerce_uuid!s}", None)
+
+    return JsonResponse({"status": "cancelled"})

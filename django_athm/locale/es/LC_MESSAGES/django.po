@@ -1,0 +1,372 @@
+# Spanish translations for django-athm.
+# Copyright (C) 2025
+# This file is distributed under the same license as the django-athm package.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: django-athm 0.7.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2025-12-08 21:23+0000\n"
+"PO-Revision-Date: 2025-12-08 21:23+0000\n"
+"Last-Translator: \n"
+"Language-Team: Spanish\n"
+"Language: es\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: admin.py:62
+msgid "Transaction Information"
+msgstr "Informacion de la transaccion"
+
+#: admin.py:76 admin.py:296
+msgid "Financial Details"
+msgstr "Detalles financieros"
+
+#: admin.py:91 admin.py:300
+msgid "Customer Information"
+msgstr "Informacion del cliente"
+
+#: admin.py:101
+msgid "Business Information"
+msgstr "Informacion del negocio"
+
+#: admin.py:105
+msgid "Metadata & Notes"
+msgstr "Metadatos y notas"
+
+#: admin.py:153
+msgid "Status"
+msgstr "Estado"
+
+#: admin.py:169
+msgid "Is Refundable"
+msgstr "Es reembolsable"
+
+#: admin.py:173
+msgid "Refundable Amount"
+msgstr "Cantidad reembolsable"
+
+#: admin.py:177
+msgid "Refund selected payments (full refund)"
+msgstr "Reembolsar pagos seleccionados (reembolso completo)"
+
+#: admin.py:207 templates/admin/django_athm/payment/refund_confirmation.html:9
+msgid "Confirm refund"
+msgstr "Confirmar reembolso"
+
+#: admin.py:248 admin.py:436
+msgid "Transaction"
+msgstr "Transaccion"
+
+#: admin.py:283
+msgid "Refund Information"
+msgstr "Informacion del reembolso"
+
+#: admin.py:310
+msgid "Notes"
+msgstr "Notas"
+
+#: admin.py:343
+msgid "Payment"
+msgstr "Pago"
+
+#: admin.py:352
+msgid "Amount"
+msgstr "Cantidad"
+
+#: admin.py:375
+msgid "Event Information"
+msgstr "Informacion del evento"
+
+#: admin.py:388
+msgid "Request Details"
+msgstr "Detalles de la solicitud"
+
+#: admin.py:392
+msgid "Payload"
+msgstr "Payload"
+
+#: admin.py:396
+msgid "Processing"
+msgstr "Procesamiento"
+
+#: admin.py:428
+msgid "ID"
+msgstr "ID"
+
+#: admin.py:432
+msgid "Processed"
+msgstr "Procesado"
+
+#: admin.py:445
+msgid "Payload (JSON)"
+msgstr "Payload (JSON)"
+
+#: admin.py:453
+msgid "Reprocess selected webhook events"
+msgstr "Reprocesar eventos de webhook seleccionados"
+
+#: admin.py:473
+msgid "No unprocessed events selected."
+msgstr "No se seleccionaron eventos sin procesar."
+
+#: admin.py:507
+msgid "Webhook URL"
+msgstr "URL del webhook"
+
+#: admin.py:520
+msgid "Webhook installed."
+msgstr "Webhook instalado."
+
+#: admin.py:536 templates/admin/django_athm/webhookevent/change_list.html:8
+#: templates/admin/django_athm/webhookevent/install_webhooks.html:9
+msgid "Install Webhooks"
+msgstr "Instalar webhooks"
+
+#: models.py:10
+msgid "Open (Pending Customer Confirmation)"
+msgstr "Abierto (Pendiente confirmacion del cliente)"
+
+#: models.py:11
+msgid "Confirmed (Pending Authorization)"
+msgstr "Confirmado (Pendiente autorizacion)"
+
+#: models.py:12
+msgid "Completed"
+msgstr "Completado"
+
+#: models.py:13
+msgid "Cancelled"
+msgstr "Cancelado"
+
+#: models.py:14
+msgid "Expired"
+msgstr "Expirado"
+
+#: models.py:19
+msgid "Unique ecommerce transaction identifier"
+msgstr "Identificador unico de transaccion ecommerce"
+
+#: models.py:26
+msgid "ATH Móvil reference number for completed transactions"
+msgstr "Numero de referencia de ATH Móvil para transacciones completadas"
+
+#: models.py:31 models.py:186
+msgid "ATH Móvil daily transaction ID"
+msgstr "ID de transaccion diaria de ATH Móvil"
+
+#: models.py:44
+msgid "Transaction completion date from ATH Móvil"
+msgstr "Fecha de completacion de transaccion de ATH Móvil"
+
+#: models.py:49
+msgid "Total transaction amount"
+msgstr "Monto total de la transaccion"
+
+#: models.py:55
+msgid "Subtotal before tax"
+msgstr "Subtotal antes de impuestos"
+
+#: models.py:61
+msgid "Tax amount"
+msgstr "Monto de impuestos"
+
+#: models.py:67
+msgid "ATH Móvil processing fee"
+msgstr "Cargo de procesamiento de ATH Móvil"
+
+#: models.py:73
+msgid "Amount after possible fees"
+msgstr "Monto despues de posibles cargos"
+
+#: models.py:79
+msgid "Amount refunded"
+msgstr "Monto reembolsado"
+
+#: models.py:86
+msgid "Customer name from ATH Móvil at the time of payment"
+msgstr "Nombre del cliente de ATH Móvil al momento del pago"
+
+#: models.py:91
+msgid "Customer phone number from ATH Móvil at the time of payment"
+msgstr "Numero de telefono del cliente de ATH Móvil al momento del pago"
+
+#: models.py:95
+msgid "Customer email address from ATH Móvil at the time of payment"
+msgstr "Correo electronico del cliente de ATH Móvil al momento del pago"
+
+#: models.py:104
+msgid "Business name from ATH Móvil"
+msgstr "Nombre del negocio de ATH Móvil"
+
+#: models.py:109
+msgid "ATH Móvil Transaction"
+msgstr "Transaccion ATH Móvil"
+
+#: models.py:110
+msgid "ATH Móvil Transactions"
+msgstr "Transacciones ATH Móvil"
+
+#: models.py:150
+msgid "Item name"
+msgstr "Nombre del articulo"
+
+#: models.py:151
+msgid "Item description"
+msgstr "Descripcion del articulo"
+
+#: models.py:156
+msgid "Item price"
+msgstr "Precio del articulo"
+
+#: models.py:162
+msgid "Item tax"
+msgstr "Impuesto del articulo"
+
+#: models.py:168
+msgid "ATH Móvil Payment Line Item"
+msgstr "Articulo de pago ATH Móvil"
+
+#: models.py:169
+msgid "ATH Móvil Payment Line Items"
+msgstr "Articulos de pago ATH Móvil"
+
+#: models.py:204
+msgid "ATH Móvil Refund"
+msgstr "Reembolso ATH Móvil"
+
+#: models.py:205
+msgid "ATH Móvil Refunds"
+msgstr "Reembolsos ATH Móvil"
+
+#: models.py:214
+msgid "Payment Simulation"
+msgstr "Simulacion de pago"
+
+#: models.py:215
+msgid "Payment Received"
+msgstr "Pago recibido"
+
+#: models.py:216
+msgid "Donation Received"
+msgstr "Donacion recibida"
+
+#: models.py:217
+msgid "Refund Sent"
+msgstr "Reembolso enviado"
+
+#: models.py:218
+msgid "eCommerce Payment Completed"
+msgstr "Pago eCommerce completado"
+
+#: models.py:219
+msgid "eCommerce Payment Cancelled"
+msgstr "Pago eCommerce cancelado"
+
+#: models.py:220
+msgid "eCommerce Payment Expired"
+msgstr "Pago eCommerce expirado"
+
+#: models.py:221
+msgid "Unknown"
+msgstr "Desconocido"
+
+#: models.py:233
+msgid "Type of webhook event"
+msgstr "Tipo de evento de webhook"
+
+#: models.py:238
+msgid "IP address of the webhook request"
+msgstr "Direccion IP de la solicitud de webhook"
+
+#: models.py:246
+msgid "Whether the webhook was successfully processed"
+msgstr "Si el webhook fue procesado exitosamente"
+
+#: models.py:256
+msgid "Associated transaction if found/created"
+msgstr "Transaccion asociada si fue encontrada/creada"
+
+#: models.py:265
+msgid "ATH Móvil Webhook Event"
+msgstr "Evento de webhook ATH Móvil"
+
+#: models.py:266
+msgid "ATH Móvil Webhook Events"
+msgstr "Eventos de webhook ATH Móvil"
+
+#: templates/admin/django_athm/payment/refund_confirmation.html:6
+#: templates/admin/django_athm/webhookevent/install_webhooks.html:6
+msgid "Home"
+msgstr "Inicio"
+
+#: templates/admin/django_athm/payment/refund_confirmation.html:15
+#, python-format
+msgid "Are you sure you want to refund the following payment?"
+msgid_plural ""
+"Are you sure you want to refund the following %(count)s payments?"
+msgstr[0] "Esta seguro que desea reembolsar el siguiente pago?"
+msgstr[1] "Esta seguro que desea reembolsar los siguientes %(count)s pagos?"
+
+#: templates/admin/django_athm/payment/refund_confirmation.html:25
+msgid "Yes, refund"
+msgstr "Si, reembolsar"
+
+#: templates/admin/django_athm/payment/refund_confirmation.html:26
+msgid "No, cancel"
+msgstr "No, cancelar"
+
+#: templates/admin/django_athm/payment/refund_confirmation.html:29
+msgid "No refundable payments selected."
+msgstr "No se seleccionaron pagos reembolsables."
+
+#: templates/admin/django_athm/payment/refund_confirmation.html:30
+msgid "Go back"
+msgstr "Regresar"
+
+#: templates/admin/django_athm/webhookevent/install_webhooks.html:14
+msgid "Register your webhook URL with ATH Móvil to receive payment events."
+msgstr "Registra tu URL de webhook con ATH Móvil para recibir eventos de pago."
+
+#: templates/admin/django_athm/webhookevent/install_webhooks.html:20
+msgid "Install"
+msgstr "Instalar"
+
+#: templates/admin/django_athm/webhookevent/install_webhooks.html:21
+#: templates/django_athm/button.html:576
+msgid "Cancel"
+msgstr "Cancelar"
+
+#: templates/django_athm/button.html:542
+msgid "Enter your phone number registered with ATH Móvil"
+msgstr "Ingresa tu numero de telefono registrado en ATH Móvil"
+
+#: templates/django_athm/button.html:558
+msgid "Continue"
+msgstr "Continuar"
+
+#: templates/django_athm/button.html:567
+msgid "Confirm the payment in your ATH Móvil app"
+msgstr "Confirma el pago en tu aplicacion ATH Móvil"
+
+#: templates/django_athm/button.html:570
+msgid "Check the notifications on your phone"
+msgstr "Revisa las notificaciones en tu telefono"
+
+#: templates/django_athm/button.html:583
+msgid "Processing payment..."
+msgstr "Procesando pago..."
+
+#: templates/django_athm/button.html:591
+msgid "Payment completed"
+msgstr "Pago completado"
+
+#: templates/django_athm/button.html:606
+msgid "Try again"
+msgstr "Intentar de nuevo"
+
+#: templatetags/django_athm.py:70
+msgid "ATH Móvil Payment"
+msgstr "Pago ATH Móvil"

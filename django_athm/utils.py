@@ -1,46 +1,89 @@
-import logging
-from abc import ABC, abstractmethod
+from decimal import Decimal
+from typing import Any
 
-import httpx
+from django.core.exceptions import ValidationError
+from django.core.validators import URLValidator
+from django.urls import reverse
 
-from .constants import API_BASE_URL, ERROR_DICT
-
-logger = logging.getLogger(__name__)
-
-
-def parse_error_code(error_code):
-    return ERROR_DICT.get(error_code, "unknown error")
+from django_athm.conf import settings
 
 
-class BaseHTTPAdapter(ABC):
-    client = None
+def safe_decimal(value: Any, default: Decimal | None = None) -> Decimal | None:
+    """
+    Safely convert a value to Decimal.
 
-    @abstractmethod
-    def get_with_data(self, url, data):
-        raise NotImplementedError
+    Args:
+        value: Value to convert (int, float, str, Decimal, None)
+        default: Default value if conversion fails or value is None
 
-    @abstractmethod
-    def post(self, url, data):
-        raise NotImplementedError
-
-
-class SyncHTTPAdapter(BaseHTTPAdapter):
-    def get_with_data(self, url, data):
-        extra = {"url": url}
-        logger.debug("[django_athm:get_with_data]", extra=extra)
-
-        with httpx.Client(base_url=API_BASE_URL) as client:
-            response = client.request(method="GET", url=url, json=data)
-            return response.json()
-
-    def post(self, url, data):
-        extra = {"url": url}
-        logger.debug("[django_athm:post]", extra=extra)
-
-        with httpx.Client(base_url=API_BASE_URL) as client:
-            response = client.post(url, json=data)
-            return response.json()
+    Returns:
+        Decimal or default value
+    """
+    if value is None:
+        return default
+    if isinstance(value, Decimal):
+        return value
+    try:
+        return Decimal(str(value))
+    except (ValueError, TypeError, ArithmeticError):
+        return default
 
 
-def get_http_adapter():
-    return SyncHTTPAdapter()
+def validate_total(value: Any) -> Decimal:
+    """
+    Validate that total is a valid decimal between 1.00 and 1500.00.
+
+    Returns:
+        Decimal total if valid
+
+    Raises:
+        ValidationError: If invalid
+    """
+    total = safe_decimal(value)
+    if total is None:
+        raise ValidationError("Invalid total")
+
+    if total < Decimal("1.00") or total > Decimal("1500.00"):
+        raise ValidationError("Total must be between 1.00 and 1500.00")
+
+    return total
+
+
+def validate_phone_number(value: Any) -> str:
+    """
+    Validate and normalize phone number.
+    Must be 10 digits.
+    """
+    phone = str(value or "").replace("-", "").replace(" ", "").strip()
+
+    if not phone or len(phone) != 10 or not phone.isdigit():
+        raise ValidationError("Invalid phone number")
+
+    return phone
+
+
+def get_webhook_url(request=None):
+    """
+    Resolve webhook URL.
+
+    Priority:
+    1. DJANGO_ATHM_WEBHOOK_URL setting
+    2. request.build_absolute_uri() if request provided
+    3. ValidationError
+    """
+    if settings.WEBHOOK_URL:
+        return settings.WEBHOOK_URL
+
+    if request:
+        return request.build_absolute_uri(reverse("django_athm:webhook"))
+
+    raise ValidationError(
+        "Set DJANGO_ATHM_WEBHOOK_URL in settings or use admin interface"
+    )
+
+
+def validate_webhook_url(url):
+    """Validate webhook URL is HTTPS."""
+    validator = URLValidator(schemes=["https"])
+    validator(url)
+    return url

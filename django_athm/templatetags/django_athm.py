@@ -1,30 +1,71 @@
-import logging
+import json
 
 from django import template
+from django.urls import reverse
+from django.utils.translation import gettext_lazy as _
 
-from django_athm.conf import settings as app_settings
 from django_athm.constants import BUTTON_COLOR_DEFAULT, BUTTON_LANGUAGE_SPANISH
 
 register = template.Library()
 
-logger = logging.getLogger(__name__)
 
+@register.inclusion_tag("django_athm/button.html", takes_context=True)
+def athm_button(context, config):
+    """
+    Render an ATH Móvil payment button with modal.
 
-@register.inclusion_tag("athm_button.html")
-def athm_button(athm_config):
-    logger.debug("[django_athm:template:athm_button]")
-    # TODO: Pre-process/validate data here
+    Usage:
+        {% load django_athm %}
+        {% athm_button ATHM_CONFIG %}
+
+    Args:
+        config: Dict with payment config keys:
+            - total: Payment amount (required, 1.00-1500.00)
+            - subtotal: Optional subtotal for display
+            - tax: Optional tax amount
+            - metadata_1: Custom field (max 40 chars)
+            - metadata_2: Custom field (max 40 chars)
+            - items: List of item dicts
+            - theme: Button theme (btn, btn-dark, btn-light)
+            - lang: Language code (es, en)
+            - success_url: Redirect URL on success. Query params
+              `reference_number` and `ecommerce_id` are appended
+              automatically (e.g., "/thanks/" -> "/thanks/?reference_number=...&ecommerce_id=...")
+            - failure_url: Redirect URL on failure
+    """
+    total = config.get("total")
+    if total is None:
+        raise ValueError("config must include 'total'")
+
+    subtotal = config.get("subtotal")
+    tax = config.get("tax")
+    metadata_1 = config.get("metadata_1", "")
+    metadata_2 = config.get("metadata_2", "")
+    items = config.get("items")
+    success_url = config.get("success_url", "")
+    failure_url = config.get("failure_url", "")
+    theme = config.get("theme") or BUTTON_COLOR_DEFAULT
+    language = config.get("lang") or config.get("language") or BUTTON_LANGUAGE_SPANISH
+
+    csrf_token = context.get("csrf_token", "")
 
     return {
-        "env": "sandbox" if app_settings.SANDBOX_MODE else "production",
-        "publicToken": athm_config.get("public_token", app_settings.PUBLIC_TOKEN),
-        "lang": athm_config.get("language", BUTTON_LANGUAGE_SPANISH),
-        "timeout": athm_config.get("timeout", 600),
-        "theme": athm_config.get("theme", BUTTON_COLOR_DEFAULT),
-        "total": athm_config["total"],
-        "subtotal": athm_config["subtotal"],
-        "items": athm_config["items"],
-        "tax": athm_config["tax"],
-        "metadata1": athm_config.get("metadata_1", ""),
-        "metadata2": athm_config.get("metadata_2", ""),
+        "total": str(total),
+        "subtotal": str(subtotal) if subtotal else "",
+        "tax": str(tax) if tax else "",
+        "metadata_1": metadata_1[:40] if metadata_1 else "",
+        "metadata_2": metadata_2[:40] if metadata_2 else "",
+        "items_json": json.dumps(items) if items else "[]",
+        "success_url": success_url,
+        "failure_url": failure_url,
+        "theme": theme,
+        "language": language,
+        "poll_interval": 5,
+        "max_poll_attempts": 60,
+        "initiate_url": reverse("django_athm:initiate"),
+        "status_url": reverse("django_athm:status"),
+        "authorize_url": reverse("django_athm:authorize"),
+        "cancel_url": reverse("django_athm:cancel"),
+        "csrf_token": csrf_token,
+        "modal_title": _("ATH Móvil Payment"),
     }

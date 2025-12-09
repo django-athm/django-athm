@@ -1,14 +1,13 @@
 from django.urls import path
 
-from django_athm.conf import settings as app_settings
-from django_athm.views import default_callback
+from django_athm import views
 
 app_name = "django_athm"
 
 urlpatterns = [
-    path(
-        "callback/",
-        getattr(app_settings, "CALLBACK_VIEW", default_callback),
-        name="athm_callback",
-    ),
+    path("webhook/", views.webhook, name="webhook"),
+    path("api/initiate/", views.initiate, name="initiate"),
+    path("api/status/", views.status, name="status"),
+    path("api/authorize/", views.authorize, name="authorize"),
+    path("api/cancel/", views.cancel, name="cancel"),
 ]

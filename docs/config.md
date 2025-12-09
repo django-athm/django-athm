@@ -20,116 +20,103 @@ Your private token from the ATH Móvil Business app.
 * Required: Yes
 * Default: `None`
 
-### DJANGO_ATHM_CALLBACK_VIEW
+### DJANGO_ATHM_WEBHOOK_URL
 
-A Django view that receives the POST request with payment data after a transaction completes, is cancelled, or expires.
+Your webhook URL for receiving ATH Móvil payment events. Optional - the admin interface auto-detects from the current request.
 
-* Type: Callable or import path string
+* Type: String (HTTPS URL)
 * Required: No
-* Default: `django_athm.views.default_callback`
+* Default: `None`
 
-**What the default callback does:**
+**When to set this:**
+- You want to explicitly control the webhook URL
+- Your app runs behind a reverse proxy and URL detection doesn't work correctly
+- You're using the management command without the admin interface
 
-1. Parses POST data from ATH Movil
-2. Creates `ATHM_Transaction` and `ATHM_Item` records
-3. Creates or updates `ATHM_Client` records if customer info is provided
-4. Dispatches [signals](signals.md) for your handlers to respond
-
-**Example with custom callback:**
-
+**Example:**
 ```python
-# settings.py
-DJANGO_ATHM_CALLBACK_VIEW = "myapp.views.my_payment_callback"
+DJANGO_ATHM_WEBHOOK_URL = "https://yourdomain.com/athm/webhook/"
 ```
 
-#### Implementing a Custom Callback
+## Webhook Configuration
 
-If you need full control over callback processing, implement a custom view:
+### Using the Admin Interface (Recommended)
+
+The admin interface automatically detects your webhook URL from the current request. No configuration needed.
+
+1. Navigate to Django Admin > Webhook Events
+2. Click "Install Webhooks" button
+3. Verify the auto-detected URL
+4. Click "Submit" to register with ATH Móvil
+
+### Using the Management Command
+
+For automated deployments or when the admin interface isn't available:
+
+**With setting configured:**
+```bash
+python manage.py install_webhook
+```
+
+**With explicit URL:**
+```bash
+python manage.py install_webhook https://yourdomain.com/athm/webhook/
+```
+
+### Custom Webhook Views
+
+If you need to add custom logic before or after webhook processing, you can wrap the built-in webhook handler:
 
 ```python
-# myapp/views.py
-from django.http import HttpResponse, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.http import require_POST
-from django.db import transaction
-
-from django_athm.models import ATHM_Transaction
-from django_athm.signals import (
-    athm_response_received,
-    athm_completed_response,
-    athm_cancelled_response,
-    athm_expired_response,
-)
+from django_athm.views import process_webhook_request
 
 @csrf_exempt
-@require_POST
-@transaction.atomic
-def my_payment_callback(request):
-    """Custom callback with manual signal dispatch."""
-    reference_number = request.POST.get("referenceNumber")
-    total = request.POST.get("total")
-    status = request.POST.get("ecommerceStatus", "COMPLETED")
+def my_custom_webhook(request):
+    # Pre-processing (e.g., logging, rate limiting)
+    log_webhook_received(request)
 
-    if not reference_number or not total:
-        return JsonResponse({"error": "Missing required fields"}, status=400)
+    # Call django-athm webhook handler (maintains idempotency)
+    response = process_webhook_request(request)
 
-    # Your custom validation/processing logic here
+    # Post-processing (e.g., notifications, analytics)
+    send_slack_notification()
 
-    transaction_obj = ATHM_Transaction.objects.create(
-        reference_number=reference_number,
-        total=float(total),
-        status=ATHM_Transaction.Status.COMPLETED,
-        # ... other fields as needed
-    )
-
-    # Dispatch signals manually if you want handlers to run
-    athm_response_received.send(
-        sender=ATHM_Transaction,
-        transaction=transaction_obj,
-    )
-
-    if status == "COMPLETED":
-        athm_completed_response.send(
-            sender=ATHM_Transaction,
-            transaction=transaction_obj,
-        )
-    elif status == "EXPIRED":
-        athm_expired_response.send(
-            sender=ATHM_Transaction,
-            transaction=transaction_obj,
-        )
-    elif status in ("CANCEL", "CANCELLED"):
-        athm_cancelled_response.send(
-            sender=ATHM_Transaction,
-            transaction=transaction_obj,
-        )
-
-    return HttpResponse(status=201)
+    return response
 ```
 
-**Note:** The `@csrf_exempt` decorator is required because ATH Movil sends callbacks without CSRF tokens.
+Register your custom webhook in `urls.py`:
+```python
+urlpatterns = [
+    path("athm/custom-webhook/", my_custom_webhook, name="custom_webhook"),
+]
+```
+
+Then register it with ATH Móvil using the URL to your custom view.
 
 ## athm_button Template Tag
 
-The `athm_button` template tag renders the ATH Móvil checkout button. Pass a configuration dictionary with the following options:
+The `athm_button` template tag renders the ATH Móvil checkout button with an integrated payment modal. Pass a configuration dictionary with the following options:
 
 ### Required Fields
 
 | Field | Type | Description |
 |-------|------|-------------|
 | `total` | float | Total amount to charge. Must be between $1.00 and $1,500.00 |
-| `items` | list | List of item dictionaries (see Items section below). At least one item required. |
-| `metadata_1` | string | Required metadata field (max 40 characters, auto-truncated) |
-| `metadata_2` | string | Required metadata field (max 40 characters, auto-truncated) |
 
 ### Optional Fields
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `subtotal` | float | 0 | Subtotal before tax |
-| `tax` | float | 0 | Tax amount |
-| `public_token` | string | `DJANGO_ATHM_PUBLIC_TOKEN` | Override the public token for this transaction |
-| `timeout` | int | 600 | Seconds before checkout times out (120-600) |
+| `subtotal` | float | - | Subtotal before tax (for display) |
+| `tax` | float | - | Tax amount |
+| `metadata_1` | string | "" | Custom metadata field (max 40 chars, auto-truncated) |
+| `metadata_2` | string | "" | Custom metadata field (max 40 chars, auto-truncated) |
+| `items` | list | [] | List of item dictionaries (see Items section below) |
+| `theme` | string | "btn" | Button theme |
+| `lang` | string | "es" | Language code ("es" or "en") |
+| `success_url` | string | "" | Redirect URL on success (query params appended) |
+| `failure_url` | string | "" | Redirect URL on failure |
 
 ### Items
 
@@ -137,20 +124,21 @@ Each item in the `items` list should be a dictionary with:
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `name` | string | Yes | Item name (max 32 characters) |
-| `description` | string | Yes | Item description (max 128 characters) |
-| `quantity` | int | Yes | Quantity |
+| `name` | string | Yes | Item name |
+| `description` | string | No | Item description |
+| `quantity` | int | No | Quantity (default: 1) |
 | `price` | float | Yes | Price per item |
 | `tax` | float | No | Tax for this item |
-| `metadata` | string | No | Item metadata (max 40 characters) |
+| `metadata` | string | No | Item metadata |
 
-### Validation Rules
+### Success URL Query Parameters
 
-The template tag validates your configuration:
+When a payment completes successfully and `success_url` is provided, the user is redirected with query parameters appended:
 
-* **Total amount**: Must be between $1.00 and $1,500.00
-* **Metadata fields**: Both `metadata_1` and `metadata_2` are required. Values exceeding 40 characters are automatically truncated with a warning logged.
-* **Timeout**: Values outside 120-600 seconds default to 600 with a warning logged.
+- `reference_number`: The ATH Móvil reference number
+- `ecommerce_id`: The eCommerce transaction ID
+
+Example: `/checkout/success/` becomes `/checkout/success/?reference_number=ABC123&ecommerce_id=uuid-here`
 
 ### Example Configuration
 
@@ -171,30 +159,67 @@ context = {
                 "tax": 1.00,
             }
         ],
+        "success_url": "/checkout/success/",
+        "failure_url": "/checkout/failure/",
+        "lang": "es",
     }
 }
 ```
 
-## Known Limitations (ATH Móvil v4 API Bugs)
+## URL Endpoints
 
-The ATH Móvil v4 API has several known bugs that affect functionality. django-athm works around these issues automatically:
+All endpoints are namespaced under `django_athm:`:
 
-### phone_number (BTRA_0041 Error)
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/webhook/` | POST | Receives ATH Móvil webhook events |
+| `/api/initiate/` | POST | Creates new payment |
+| `/api/status/` | GET | Polls payment status |
+| `/api/authorize/` | POST | Confirms payment with auth_token |
+| `/api/cancel/` | POST | Cancels pending payment |
 
-Providing a `phone_number` in the configuration causes a `BTRA_0041` error from the ATH Móvil API. The checkout modal will always prompt the customer to enter their phone number regardless of whether you provide it.
+## Management Commands
 
-**Workaround**: django-athm ignores any `phone_number` value you provide and logs a warning. Do not pass `phone_number` in your configuration.
+### install_webhook
 
-### theme (Only "btn" Works)
+Registers a webhook URL with ATH Móvil to receive payment events.
 
-The `theme` option is broken in the ATH Móvil v4 API. Only the default theme (`"btn"`) works. The `"btn-light"` and `"btn-dark"` themes are ignored by ATH Móvil.
+```bash
+python manage.py install_webhook https://yourdomain.com/athm/webhook/
+```
 
-**Workaround**: django-athm always uses `"btn"` regardless of the value you provide. If you pass a different theme, a warning is logged.
+The URL must use HTTPS. This is the same functionality available in the Django Admin under Webhook Events > Install Webhooks.
 
-### language (Only "es" Works)
+## Internationalization
 
-The `language` option is broken in the ATH Móvil v4 API. Only Spanish (`"es"`) works. The English option (`"en"`) is ignored by ATH Móvil.
+django-athm includes translations for Spanish (es) and English (en). To enable translations:
 
-**Workaround**: django-athm always uses `"es"` regardless of the value you provide. If you pass a different language, a warning is logged.
+### Django Settings
 
-These limitations are on ATH Móvil's side. We will update django-athm when these issues are resolved.
+```python
+USE_I18N = True
+LANGUAGE_CODE = "es"  # or "en-us"
+```
+
+### Button Language
+
+The `athm_button` template tag accepts a `lang` parameter:
+
+```python
+context = {
+    "ATHM_CONFIG": {
+        "total": 25.00,
+        "lang": "es",  # "es" or "en"
+        # ... other fields
+    }
+}
+```
+
+The button UI text (phone prompt, status messages) will display in the selected language.
+
+### Supported Languages
+
+| Code | Language |
+|------|----------|
+| `es` | Spanish |
+| `en` | English |

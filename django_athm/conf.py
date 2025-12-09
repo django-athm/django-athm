@@ -1,31 +1,11 @@
 from django.conf import settings as dj_settings
-from django.core.exceptions import ImproperlyConfigured
 from django.core.signals import setting_changed
-from django.utils.module_loading import import_string
-
-from django_athm.views import default_callback
 
 DEFAULTS = {
-    "SANDBOX_PUBLIC_TOKEN": "sandboxtoken01875617264",
-    "SANDBOX_MODE": True,
-    "CALLBACK_VIEW": default_callback,
     "PUBLIC_TOKEN": None,
     "PRIVATE_TOKEN": None,
+    "WEBHOOK_URL": None,
 }
-
-
-def is_callable(value):
-    return callable(value) and not isinstance(value, type)
-
-
-def get_callback_function(func):
-    if is_callable(func):
-        return func
-
-    if isinstance(func, str):
-        return import_string(func)
-
-    raise ImproperlyConfigured(f"{func} must be callable.")
 
 
 class Settings:
@@ -42,12 +22,7 @@ class Settings:
 
     def get_setting(self, setting):
         django_setting = f"DJANGO_ATHM_{setting}"
-        value = getattr(dj_settings, django_setting, DEFAULTS[setting])
-
-        if setting == "CALLBACK_VIEW":
-            return get_callback_function(value)
-
-        return value
+        return getattr(dj_settings, django_setting, DEFAULTS[setting])
 
     def change_setting(self, setting, value, enter, **kwargs):
         if not setting.startswith("DJANGO_ATHM_"):

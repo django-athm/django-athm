@@ -1,9 +1,8 @@
-import django.dispatch
+from django.dispatch import Signal
 
-# General signal
-athm_response_received = django.dispatch.Signal()
+# Webhook-triggered signals aligned with ATH Móvil event names
+payment_completed = Signal()  # sender=Payment, payment=instance
+payment_cancelled = Signal()  # sender=Payment, payment=instance
+payment_expired = Signal()  # sender=Payment, payment=instance
 
-# Status specific signals
-athm_completed_response = django.dispatch.Signal()
-athm_cancelled_response = django.dispatch.Signal()
-athm_expired_response = django.dispatch.Signal()
+refund_sent = Signal()  # sender=Refund, refund=instance, payment=instance
