@@ -70,29 +70,6 @@ class TestInitiate:
         assert item1.price == Decimal("50.00")
         assert item1.quantity == 2
 
-    def test_sends_payment_created_signal(self, mock_client, mocker):
-        from django_athm import signals
-
-        handler = mocker.Mock()
-        signals.payment_created.connect(handler)
-
-        try:
-            mock_client.create_payment.return_value = Mock(
-                data=Mock(ecommerce_id=str(uuid.uuid4()), auth_token="token")
-            )
-
-            payment, _ = PaymentService.initiate(
-                total=Decimal("50.00"),
-                phone_number="7871234567",
-            )
-
-            handler.assert_called_once()
-            call_kwargs = handler.call_args[1]
-            assert call_kwargs["sender"] == Payment
-            assert call_kwargs["payment"] == payment
-        finally:
-            signals.payment_created.disconnect(handler)
-
 
 class TestFindStatus:
     def test_returns_remote_status(self, mock_client):

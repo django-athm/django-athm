@@ -51,16 +51,17 @@ Payment.Status.COMPLETED = "COMPLETED"
 
 #### 3. Signal Renames
 
-All signals have been renamed:
+All signals are now webhook-triggered and aligned with ATH Móvil event names:
 
 | Old Signal | New Signal |
 |------------|------------|
 | `athm_response_received` | Removed |
 | `athm_completed_response` | `payment_completed` |
-| `athm_cancelled_response` | `payment_failed` |
+| `athm_cancelled_response` | `payment_cancelled` |
 | `athm_expired_response` | `payment_expired` |
-| - | `payment_created` (new) |
-| - | `refund_completed` (new) |
+| - | `refund_sent` (new) |
+
+**Note:** `payment_created` and `refund_completed` signals were removed - all signals are now webhook-triggered only.
 
 **Signal arguments changed from `transaction=` to `payment=`:**
 

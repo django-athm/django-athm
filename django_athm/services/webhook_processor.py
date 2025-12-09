@@ -7,7 +7,12 @@ from django.db import IntegrityError, transaction
 from django.utils import timezone as django_timezone
 
 from django_athm.models import Payment, PaymentLineItem, Refund, WebhookEvent
-from django_athm.signals import payment_completed, payment_expired, payment_failed
+from django_athm.signals import (
+    payment_cancelled,
+    payment_completed,
+    payment_expired,
+    refund_sent,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -318,7 +323,7 @@ class WebhookProcessor:
             cls._mark_processed(event, payment)
 
             transaction.on_commit(
-                lambda: payment_failed.send(sender=Payment, payment=payment)
+                lambda: payment_cancelled.send(sender=Payment, payment=payment)
             )
 
             logger.info(
@@ -425,6 +430,15 @@ class WebhookProcessor:
                 )
 
             cls._mark_processed(event, linked_payment)
+
+            # Send signal only if refund was created
+            if linked_payment:
+                refund = Refund.objects.get(reference_number=reference_number)
+                transaction.on_commit(
+                    lambda: refund_sent.send(
+                        sender=Refund, refund=refund, payment=linked_payment
+                    )
+                )
 
     @classmethod
     def _handle_payment_received(

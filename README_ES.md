@@ -227,11 +227,10 @@ Suscríbete a eventos del ciclo de vida de pagos:
 
 ```python
 from django_athm.signals import (
-    payment_created,    # Pago iniciado
-    payment_completed,  # Pago exitoso
-    payment_failed,     # Pago cancelado
-    payment_expired,    # Pago expirado
-    refund_completed,   # Reembolso procesado
+    payment_completed,  # Pago exitoso (webhook)
+    payment_cancelled,  # Pago cancelado (webhook)
+    payment_expired,    # Pago expirado (webhook)
+    refund_sent,        # Reembolso procesado (webhook)
 )
 ```
 

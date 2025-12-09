@@ -110,11 +110,11 @@ All endpoints are namespaced under `django_athm:`:
 - `RefundAdmin`: View refund records
 
 **Signals** (`django_athm/signals.py`):
-- `payment_created`: Fired after Payment record created
-- `payment_completed`: Fired after payment confirmed via webhook
-- `payment_failed`: Fired when payment cancelled
-- `payment_expired`: Fired when payment expires
-- `refund_completed`: Fired after successful refund
+All signals are webhook-triggered and aligned with ATH Móvil event names:
+- `payment_completed`: Fired when eCommerce payment completed webhook received
+- `payment_cancelled`: Fired when eCommerce payment cancelled webhook received
+- `payment_expired`: Fired when eCommerce payment expired webhook received
+- `refund_sent`: Fired when refund sent webhook received
 
 ### Webhook Idempotency
 

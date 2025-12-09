@@ -228,11 +228,10 @@ Subscribe to payment lifecycle events:
 
 ```python
 from django_athm.signals import (
-    payment_created,    # Payment initiated
-    payment_completed,  # Payment successful
-    payment_failed,     # Payment cancelled
-    payment_expired,    # Payment expired
-    refund_completed,   # Refund processed
+    payment_completed,  # Payment successful (webhook)
+    payment_cancelled,  # Payment cancelled (webhook)
+    payment_expired,    # Payment expired (webhook)
+    refund_sent,        # Refund processed (webhook)
 )
 ```
 

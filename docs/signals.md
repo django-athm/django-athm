@@ -2,37 +2,26 @@
 
 django-athm provides Django signals to notify your application of payment events. Use these to trigger business logic like sending confirmation emails, updating order status, or logging events.
 
+All signals are webhook-triggered and aligned with ATH Móvil's official webhook event names.
+
 ## Available Signals
 
 All signals are available from `django_athm.signals`:
 
 ```python
 from django_athm.signals import (
-    payment_created,
     payment_completed,
-    payment_failed,
+    payment_cancelled,
     payment_expired,
-    refund_completed,
+    refund_sent,
 )
 ```
-
-### payment_created
-
-Dispatched when a new payment is initiated.
-
-**When it fires:** After a Payment record is created via the initiate API endpoint.
-
-**Use case:** Reserve inventory, create pending order records.
-
-**Arguments:**
-- `sender`: `Payment` class
-- `payment`: The `Payment` instance
 
 ### payment_completed
 
 Dispatched when a payment is successfully completed.
 
-**When it fires:** After the webhook confirms a successful payment with final transaction details.
+**When it fires:** When ATH Móvil sends an "eCommerce Payment Completed" webhook event.
 
 **Use case:** Send confirmation emails, update order status to "paid", trigger fulfillment.
 
@@ -40,11 +29,11 @@ Dispatched when a payment is successfully completed.
 - `sender`: `Payment` class
 - `payment`: The `Payment` instance
 
-### payment_failed
+### payment_cancelled
 
 Dispatched when a payment is cancelled.
 
-**When it fires:** When the payment is cancelled by the customer or merchant.
+**When it fires:** When ATH Móvil sends an "eCommerce Payment Cancelled" webhook event (customer cancelled in ATH Móvil app).
 
 **Use case:** Release reserved inventory, notify customer of cancellation.
 
@@ -56,7 +45,7 @@ Dispatched when a payment is cancelled.
 
 Dispatched when a payment expires before completion.
 
-**When it fires:** When the webhook indicates the payment session expired.
+**When it fires:** When ATH Móvil sends an "eCommerce Payment Expired" webhook event (payment session timed out).
 
 **Use case:** Distinguish between explicit cancellation and session timeout, implement retry logic.
 
@@ -64,11 +53,11 @@ Dispatched when a payment expires before completion.
 - `sender`: `Payment` class
 - `payment`: The `Payment` instance
 
-### refund_completed
+### refund_sent
 
-Dispatched when a refund is successfully processed.
+Dispatched when a refund is processed.
 
-**When it fires:** After a refund is confirmed by ATH Móvil.
+**When it fires:** When ATH Móvil sends a "Refund Sent" webhook event.
 
 **Use case:** Update order status, send refund confirmation email.
 
@@ -83,7 +72,7 @@ Use Django's `@receiver` decorator to connect your handlers:
 
 ```python
 from django.dispatch import receiver
-from django_athm.signals import payment_completed, payment_failed, refund_completed
+from django_athm.signals import payment_completed, payment_cancelled, refund_sent
 
 @receiver(payment_completed)
 def handle_payment_completed(sender, payment, **kwargs):
@@ -96,16 +85,16 @@ def handle_payment_completed(sender, payment, **kwargs):
     # Send confirmation email
     send_confirmation_email(order)
 
-@receiver(payment_failed)
-def handle_payment_failed(sender, payment, **kwargs):
+@receiver(payment_cancelled)
+def handle_payment_cancelled(sender, payment, **kwargs):
     """Handle cancelled payment."""
     # Release reserved inventory
     order = Order.objects.get(reference=payment.metadata_1)
     order.release_inventory()
 
-@receiver(refund_completed)
-def handle_refund_completed(sender, refund, payment, **kwargs):
-    """Handle completed refund."""
+@receiver(refund_sent)
+def handle_refund_sent(sender, refund, payment, **kwargs):
+    """Handle refund sent."""
     # Update order status
     order = Order.objects.get(reference=payment.metadata_1)
     order.status = "refunded"
@@ -122,22 +111,13 @@ def handle_refund_completed(sender, refund, payment, **kwargs):
 import logging
 from django.dispatch import receiver
 from django_athm.signals import (
-    payment_created,
     payment_completed,
-    payment_failed,
+    payment_cancelled,
     payment_expired,
-    refund_completed,
+    refund_sent,
 )
 
 logger = logging.getLogger(__name__)
-
-@receiver(payment_created)
-def log_payment_created(sender, payment, **kwargs):
-    """Log new payment initiation."""
-    logger.info(
-        f"Payment initiated: {payment.ecommerce_id} "
-        f"total=${payment.total}"
-    )
 
 @receiver(payment_completed)
 def process_completed_payment(sender, payment, **kwargs):
@@ -149,7 +129,7 @@ def process_completed_payment(sender, payment, **kwargs):
     # - Send confirmation email
     # - Trigger fulfillment
 
-@receiver(payment_failed)
+@receiver(payment_cancelled)
 def handle_cancelled_payment(sender, payment, **kwargs):
     """Handle payment cancellations."""
     logger.warning(f"Payment cancelled: {payment.ecommerce_id}")
@@ -167,11 +147,11 @@ def handle_expired_payment(sender, payment, **kwargs):
     # - Notify customer about timeout
     # - Offer to retry payment
 
-@receiver(refund_completed)
+@receiver(refund_sent)
 def handle_refund(sender, refund, payment, **kwargs):
-    """Handle completed refunds."""
+    """Handle refunds sent by ATH Móvil."""
     logger.info(
-        f"Refund completed: ${refund.amount} for payment {payment.reference_number}"
+        f"Refund sent: ${refund.amount} for payment {payment.reference_number}"
     )
 ```
 

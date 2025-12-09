@@ -32,25 +32,24 @@ class TestPaymentSignals:
 
         signals.payment_completed.disconnect(handler)
 
-    def test_payment_failed_signal_fires(self):
+    def test_payment_cancelled_signal_fires(self):
         handler = MagicMock()
-        signals.payment_failed.connect(handler)
+        signals.payment_cancelled.connect(handler)
 
         payment = Payment.objects.create(
             ecommerce_id=uuid.uuid4(),
-            reference_number="test-failed",
+            reference_number="test-cancelled",
             status=Payment.Status.CANCEL,
             total=Decimal("50.00"),
         )
 
-        signals.payment_failed.send(sender=Payment, payment=payment, reason="cancelled")
+        signals.payment_cancelled.send(sender=Payment, payment=payment)
 
         handler.assert_called_once()
         call_kwargs = handler.call_args[1]
         assert call_kwargs["payment"] == payment
-        assert call_kwargs["reason"] == "cancelled"
 
-        signals.payment_failed.disconnect(handler)
+        signals.payment_cancelled.disconnect(handler)
 
     def test_payment_expired_signal_fires(self):
         handler = MagicMock()
@@ -71,9 +70,9 @@ class TestPaymentSignals:
 
         signals.payment_expired.disconnect(handler)
 
-    def test_refund_completed_signal_fires(self):
+    def test_refund_sent_signal_fires(self):
         handler = MagicMock()
-        signals.refund_completed.connect(handler)
+        signals.refund_sent.connect(handler)
 
         payment = Payment.objects.create(
             ecommerce_id=uuid.uuid4(),
@@ -90,11 +89,11 @@ class TestPaymentSignals:
             transaction_date=timezone.now(),
         )
 
-        signals.refund_completed.send(sender=Refund, refund=refund, payment=payment)
+        signals.refund_sent.send(sender=Refund, refund=refund, payment=payment)
 
         handler.assert_called_once()
         call_kwargs = handler.call_args[1]
         assert call_kwargs["refund"] == refund
         assert call_kwargs["payment"] == payment
 
-        signals.refund_completed.disconnect(handler)
+        signals.refund_sent.disconnect(handler)

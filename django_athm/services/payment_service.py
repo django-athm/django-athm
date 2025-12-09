@@ -8,7 +8,6 @@ from django.db import transaction
 
 from django_athm.conf import settings as app_settings
 from django_athm.models import Payment, PaymentLineItem, Refund
-from django_athm.signals import payment_created, refund_completed
 
 logger = logging.getLogger(__name__)
 
@@ -98,8 +97,6 @@ class PaymentService:
                     tax=Decimal(str(item.get("tax", 0))),
                     metadata=item.get("metadata", ""),
                 )
-
-        payment_created.send(sender=Payment, payment=payment)
 
         logger.info(f"[django-athm] Created local payment record {ecommerce_id}")
 
@@ -225,14 +222,6 @@ class PaymentService:
 
             payment.total_refunded_amount += refund_amount
             payment.save(update_fields=["total_refunded_amount", "modified"])
-
-        transaction.on_commit(
-            lambda: refund_completed.send(
-                sender=Refund,
-                refund=refund,
-                payment=payment,
-            )
-        )
 
         return refund
 

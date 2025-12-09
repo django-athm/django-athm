@@ -412,11 +412,11 @@ class TestHandleEcommerceCancelled:
         assert payment.status == Payment.Status.COMPLETED  # Unchanged
 
     @pytest.mark.django_db(transaction=True)
-    def test_sends_payment_failed_signal(self, mocker):
+    def test_sends_payment_cancelled_signal(self, mocker):
         from django_athm import signals
 
         handler = mocker.Mock()
-        signals.payment_failed.connect(handler)
+        signals.payment_cancelled.connect(handler)
 
         try:
             ecommerce_id = str(uuid.uuid4())
@@ -440,7 +440,7 @@ class TestHandleEcommerceCancelled:
             assert call_kwargs["sender"] == Payment
             assert call_kwargs["payment"].status == Payment.Status.CANCEL
         finally:
-            signals.payment_failed.disconnect(handler)
+            signals.payment_cancelled.disconnect(handler)
 
 
 class TestHandleEcommerceExpired:

@@ -18,7 +18,7 @@ This is a complete architectural rewrite of django-athm. The library now uses a 
 - **Custom webhook view support**: New process_webhook_request() function allows wrapping webhook handler with custom pre/post-processing logic while maintaining idempotency
 - **New models**: Refund, WebhookEvent
 - **Multilingual support** with Spanish and English translations using Django i18n
-- **Django signals system** for payment lifecycle events: payment_created, payment_completed, payment_failed, payment_expired, refund_completed
+- **Django signals system** for webhook events: payment_completed, payment_cancelled, payment_expired, refund_sent (all webhook-triggered, aligned with ATH Móvil event names)
 
 ### Changed (BREAKING)
 
