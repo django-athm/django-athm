@@ -68,7 +68,7 @@ Dispatched when a payment expires before completion.
 
 Dispatched when a refund is successfully processed.
 
-**When it fires:** After a refund is confirmed by ATH Movil.
+**When it fires:** After a refund is confirmed by ATH Móvil.
 
 **Use case:** Update order status, send refund confirmation email.
 

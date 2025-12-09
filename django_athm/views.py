@@ -55,13 +55,12 @@ def _get_payment(ecommerce_uuid: UUID) -> tuple[Payment | None, JsonResponse | N
         return None, JsonResponse({"error": "Payment not found"}, status=404)
 
 
-@csrf_exempt
-@require_http_methods(["POST"])
-def webhook(request):
+def process_webhook_request(request):
+    """Process ATH Móvil webhook request with idempotency."""
     try:
         payload = json.loads(request.body)
     except json.JSONDecodeError:
-        logger.warning("[django-athm] Received malformed webhook payload")
+        logger.warning("[django-athm] Malformed webhook payload")
         return HttpResponse(status=200)
 
     event, created = WebhookProcessor.store_event(
@@ -70,18 +69,21 @@ def webhook(request):
     )
 
     if not created:
-        logger.debug(
-            f"[django-athm] Duplicate webhook received: {event.idempotency_key}"
-        )
+        logger.debug(f"[django-athm] Duplicate webhook: {event.idempotency_key}")
         return HttpResponse(status=200)
 
-    # Process the event
     try:
         WebhookProcessor.process(event)
     except Exception:
         logger.exception(f"[django-athm] Webhook processing failed: {event.id}")
 
     return HttpResponse(status=200)
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def webhook(request):
+    return process_webhook_request(request)
 
 
 @require_http_methods(["POST"])

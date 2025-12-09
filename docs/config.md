@@ -6,7 +6,7 @@ The following settings can be configured in your Django `settings.py`:
 
 ### DJANGO_ATHM_PUBLIC_TOKEN
 
-Your public token from the ATH Movil Business app.
+Your public token from the ATH Móvil Business app.
 
 * Type: String
 * Required: Yes
@@ -14,7 +14,7 @@ Your public token from the ATH Movil Business app.
 
 ### DJANGO_ATHM_PRIVATE_TOKEN
 
-Your private token from the ATH Movil Business app.
+Your private token from the ATH Móvil Business app.
 
 * Type: String
 * Required: Yes
@@ -22,7 +22,7 @@ Your private token from the ATH Movil Business app.
 
 ## athm_button Template Tag
 
-The `athm_button` template tag renders the ATH Movil checkout button with an integrated payment modal. Pass a configuration dictionary with the following options:
+The `athm_button` template tag renders the ATH Móvil checkout button with an integrated payment modal. Pass a configuration dictionary with the following options:
 
 ### Required Fields
 
@@ -61,7 +61,7 @@ Each item in the `items` list should be a dictionary with:
 
 When a payment completes successfully and `success_url` is provided, the user is redirected with query parameters appended:
 
-- `reference_number`: The ATH Movil reference number
+- `reference_number`: The ATH Móvil reference number
 - `ecommerce_id`: The eCommerce transaction ID
 
 Example: `/checkout/success/` becomes `/checkout/success/?reference_number=ABC123&ecommerce_id=uuid-here`
@@ -98,7 +98,7 @@ All endpoints are namespaced under `django_athm:`:
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/webhook/` | POST | Receives ATH Movil webhook events |
+| `/webhook/` | POST | Receives ATH Móvil webhook events |
 | `/api/initiate/` | POST | Creates new payment |
 | `/api/status/` | GET | Polls payment status |
 | `/api/authorize/` | POST | Confirms payment with auth_token |
@@ -108,7 +108,7 @@ All endpoints are namespaced under `django_athm:`:
 
 ### install_webhook
 
-Registers a webhook URL with ATH Movil to receive payment events.
+Registers a webhook URL with ATH Móvil to receive payment events.
 
 ```bash
 python manage.py install_webhook https://yourdomain.com/athm/webhook/

@@ -6,7 +6,7 @@ from unittest.mock import patch
 import pytest
 from django.test import Client
 
-from django_athm.models import Payment, WebhookEvent
+from django_athm.models import Payment, Refund, WebhookEvent
 
 pytestmark = pytest.mark.django_db
 
@@ -93,6 +93,45 @@ class TestWebhookView:
         )
         event = WebhookEvent.objects.first()
         assert event.remote_ip == "203.0.113.195"
+
+    @pytest.mark.django_db(transaction=True)
+    def test_duplicate_refund_webhook_not_reprocessed(self, client):
+        """Verify refund webhooks are idempotent at HTTP level."""
+        # Create payment first
+        Payment.objects.create(
+            ecommerce_id=uuid.uuid4(),
+            reference_number="ref-for-refund",
+            status=Payment.Status.COMPLETED,
+            total=Decimal("100.00"),
+        )
+
+        refund_payload = {
+            "transactionType": "REFUND",
+            "status": "COMPLETED",
+            "referenceNumber": "ref-for-refund",
+            "dailyTransactionId": "5678",
+            "name": "Test Customer",
+            "phoneNumber": "7871234567",
+            "email": "test@example.com",
+            "amount": 25.00,
+            "date": "2024-01-15 10:30:00",
+        }
+
+        # Send same refund webhook twice
+        client.post(
+            "/athm/webhook/",
+            data=json.dumps(refund_payload),
+            content_type="application/json",
+        )
+        client.post(
+            "/athm/webhook/",
+            data=json.dumps(refund_payload),
+            content_type="application/json",
+        )
+
+        # Only one webhook event and one refund should be created
+        assert WebhookEvent.objects.count() == 1
+        assert Refund.objects.filter(reference_number="ref-for-refund").count() == 1
 
 
 class TestInitiateView:

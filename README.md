@@ -11,15 +11,19 @@
 
 Django integration for ATH Móvil payments (Puerto Rico's mobile payment system).
 
+_See this README in spanish: [README_ES.md](/README_ES.md)_
+
+## Main Purpose
+
+**Webhook-driven payment and refund synchronization**. ATH Móvil sends definitive transaction data via webhooks, providing complete audit trails with fees, net amounts, and customer information.
+
 ## Features
 
-- Backend-first modal payment flow with ATH Móvil's eCommerce API
-- Webhook handling with idempotency and ACID guarantees
-- Persist itemized transaction data and customer information
-- Read-only Django Admin interface with refund actions
-- Webhook management and reprocessing via admin
-- Django signals for payment lifecycle events (created, completed, failed, expired, refunded)
-- Self-contained payment button template tag (no external JS dependencies)
+- **Webhook handling** with idempotency
+- **Transaction persistence** with line items and refunds for complete audit trails
+- **Read-only Django Admin** with refund actions and webhook management
+- **Django signals** for payment lifecycle events (created, completed, failed, expired, refunded)
+- **Optional payment button template tag** with zero-dependency JavaScript for quick integration
 
 ## Requirements
 
@@ -41,7 +45,7 @@ INSTALLED_APPS = [
 ]
 ```
 
-Add your ATH Móvil API tokens:
+Add your ATH Móvil Business API tokens (find these in the mobile app's settings):
 
 ```python
 DJANGO_ATHM_PUBLIC_TOKEN = "your-public-token"
@@ -66,7 +70,7 @@ Run migrations:
 python manage.py migrate django_athm
 ```
 
-## Quick Start
+## Quick Start (using bundled `templatetag`)
 
 ### 1. Create a view with payment configuration
 
@@ -111,9 +115,19 @@ def handle_payment_completed(sender, payment, **kwargs):
     print(f"Payment {payment.reference_number} completed for ${payment.total}")
 ```
 
-## Payment Flow
+## Architecture
 
-The package uses a backend-first modal flow:
+### Webhook-Driven Synchronization
+
+Webhooks provide definitive transaction data with idempotency guarantees:
+
+```
+ATH Móvil webhook -> Idempotent processing -> Payment/Refund sync -> Django signals
+```
+
+### Optional Modal Payment Flow
+
+For quick integration, use the included template tag:
 
 1. **Initiate**: User clicks button, backend creates payment via ATH Móvil API
 2. **Confirm**: User confirms payment in ATH Móvil app
@@ -125,6 +139,8 @@ User clicks    ->  Backend creates  ->  User confirms   ->  Backend authorizes  
 ATH Móvil         payment (OPEN)        in app (CONFIRM)    payment (COMPLETED)     (final details)
 button
 ```
+
+You can also build your own payment UI and use only the webhook synchronization features.
 
 ## Webhooks
 
@@ -151,7 +167,9 @@ The package provides a read-only admin interface:
 
 All models are read-only to preserve data integrity - payments can only be refunded, not edited.
 
-## Template Tag Options
+## Optional Template Tag Configuration
+
+The `athm_button` template tag is **optional** - you can build your own payment UI and use only the webhook features.
 
 ```python
 athm_config = {
@@ -217,7 +235,7 @@ This project is **not** affiliated with or endorsed by [Evertec, Inc.](https://w
 ## References
 
 - [ATH Móvil Business API Documentation](https://developer.athMóvil.com/)
-- [evertec/athMóvil-webhooks](https://github.com/evertec/athMóvil-webhooks)
+- [ATH Móvil Business Webhooks Documentation](https://github.com/evertec/athMóvil-webhooks)
 
 ## License
 

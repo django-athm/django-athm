@@ -1,9 +1,12 @@
+import concurrent.futures
 import hashlib
 import uuid
 from decimal import Decimal
 
 import pytest
+from django.db import connection
 
+from django_athm import signals
 from django_athm.models import Payment, PaymentLineItem, Refund, WebhookEvent
 from django_athm.services.webhook_processor import WebhookProcessor
 
@@ -643,6 +646,102 @@ class TestTerminalStateChecks:
     def test_confirm_payment_is_not_terminal(self):
         payment = Payment(status=Payment.Status.CONFIRM)
         assert not WebhookProcessor._is_terminal(payment)
+
+
+class TestIdempotencyGuarantees:
+    """Critical idempotency scenarios for webhook processing."""
+
+    @pytest.mark.django_db(transaction=True)
+    def test_concurrent_duplicate_webhooks_create_single_event(self):
+        """Verify database constraint prevents duplicate events under race conditions."""
+        payload = make_completed_payload()
+        results = []
+
+        def store_webhook():
+            # Force new connection per thread
+            connection.close()
+            try:
+                _, created = WebhookProcessor.store_event(
+                    payload, remote_ip="127.0.0.1"
+                )
+                return created
+            except Exception:
+                # IntegrityError expected for duplicates
+                return False
+
+        # Simulate 5 concurrent webhook deliveries
+        with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+            futures = [executor.submit(store_webhook) for _ in range(5)]
+            results = [f.result() for f in futures]
+
+        # Exactly one should succeed
+        assert sum(results) == 1
+        assert WebhookEvent.objects.count() == 1
+
+    @pytest.mark.django_db(transaction=True)
+    def test_duplicate_webhook_does_not_fire_signal_twice(self, mocker):
+        """Verify signals fire only once even if webhook received multiple times."""
+        handler = mocker.Mock()
+        signals.payment_completed.connect(handler)
+
+        try:
+            payload = make_completed_payload()
+
+            # First delivery
+            event1, _ = WebhookProcessor.store_event(payload, remote_ip="127.0.0.1")
+            WebhookProcessor.process(event1)
+
+            # Duplicate delivery (already processed)
+            event2, _ = WebhookProcessor.store_event(payload, remote_ip="127.0.0.1")
+            WebhookProcessor.process(event2)
+
+            # Signal should fire only once
+            handler.assert_called_once()
+        finally:
+            signals.payment_completed.disconnect(handler)
+
+    def test_cross_status_webhooks_create_separate_events(self):
+        """Verify same payment with different statuses creates separate events."""
+        ecommerce_id = str(uuid.uuid4())
+
+        # COMPLETED webhook
+        completed_payload = make_completed_payload(ecommerce_id)
+        event1, created1 = WebhookProcessor.store_event(
+            completed_payload, remote_ip="127.0.0.1"
+        )
+
+        # CANCEL webhook for same payment (different idempotency key)
+        cancel_payload = make_cancelled_payload(ecommerce_id)
+        event2, created2 = WebhookProcessor.store_event(
+            cancel_payload, remote_ip="127.0.0.1"
+        )
+
+        assert created1 is True
+        assert created2 is True
+        assert event1.idempotency_key != event2.idempotency_key
+        assert WebhookEvent.objects.count() == 2
+
+    @pytest.mark.django_db(transaction=True)
+    def test_duplicate_webhook_does_not_double_process_payment(self):
+        """Verify duplicate webhook doesn't modify payment twice."""
+        ecommerce_id = str(uuid.uuid4())
+        payload = make_completed_payload(ecommerce_id)
+
+        # First delivery - creates payment
+        event1, _ = WebhookProcessor.store_event(payload, remote_ip="127.0.0.1")
+        WebhookProcessor.process(event1)
+
+        payment = Payment.objects.get(ecommerce_id=ecommerce_id)
+        original_modified = payment.modified
+
+        # Duplicate delivery (already processed, same event)
+        event2, created = WebhookProcessor.store_event(payload, remote_ip="127.0.0.1")
+        assert not created  # Same event returned
+        WebhookProcessor.process(event2)
+
+        payment.refresh_from_db()
+        # Payment should not be modified on duplicate
+        assert payment.modified == original_modified
 
 
 class TestRealWebhookIntegration:

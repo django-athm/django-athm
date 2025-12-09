@@ -4,32 +4,32 @@
 
 ### Payment
 
-Represents a payment transaction from ATH Movil.
+Represents a payment transaction from ATH Móvil.
 
 #### Fields
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `ecommerce_id` | UUIDField | Primary key - ATH Movil eCommerce transaction ID |
-| `reference_number` | CharField | Unique ATH Movil reference number (populated on completion) |
-| `daily_transaction_id` | CharField | ATH Movil daily transaction ID |
+| `ecommerce_id` | UUIDField | Primary key - ATH Móvil eCommerce transaction ID |
+| `reference_number` | CharField | Unique ATH Móvil reference number (populated on completion) |
+| `daily_transaction_id` | CharField | ATH Móvil daily transaction ID |
 | `status` | CharField | Payment status (see Status choices below) |
 | `created` | DateTimeField | Record creation timestamp |
 | `modified` | DateTimeField | Last modification timestamp |
-| `transaction_date` | DateTimeField | Transaction completion date from ATH Movil |
+| `transaction_date` | DateTimeField | Transaction completion date from ATH Móvil |
 | `total` | DecimalField | Total transaction amount |
 | `subtotal` | DecimalField | Subtotal before tax |
 | `tax` | DecimalField | Tax amount |
-| `fee` | DecimalField | ATH Movil processing fee |
+| `fee` | DecimalField | ATH Móvil processing fee |
 | `net_amount` | DecimalField | Net amount after fees |
 | `total_refunded_amount` | DecimalField | Total amount refunded |
-| `customer_name` | CharField | Customer name from ATH Movil |
-| `customer_phone` | CharField | Customer phone from ATH Movil |
-| `customer_email` | EmailField | Customer email from ATH Movil |
+| `customer_name` | CharField | Customer name from ATH Móvil |
+| `customer_phone` | CharField | Customer phone from ATH Móvil |
+| `customer_email` | EmailField | Customer email from ATH Móvil |
 | `metadata_1` | CharField | Custom metadata field (max 64 chars) |
 | `metadata_2` | CharField | Custom metadata field (max 64 chars) |
 | `message` | TextField | Optional message |
-| `business_name` | CharField | Business name from ATH Movil |
+| `business_name` | CharField | Business name from ATH Móvil |
 
 #### Status Choices
 
@@ -122,8 +122,8 @@ Represents a refund for a payment.
 |-------|------|-------------|
 | `id` | UUIDField | Primary key |
 | `payment` | ForeignKey | Related Payment |
-| `reference_number` | CharField | Unique ATH Movil refund reference number |
-| `daily_transaction_id` | CharField | ATH Movil daily transaction ID |
+| `reference_number` | CharField | Unique ATH Móvil refund reference number |
+| `daily_transaction_id` | CharField | ATH Móvil daily transaction ID |
 | `amount` | DecimalField | Refund amount |
 | `message` | CharField | Refund message (max 50 chars) |
 | `status` | CharField | Refund status |
@@ -150,7 +150,7 @@ recent_refunds = Refund.objects.filter(created_at__gte=datetime(2025, 1, 1))
 
 ### WebhookEvent
 
-Tracks webhook events received from ATH Movil.
+Tracks webhook events received from ATH Móvil.
 
 #### Fields
 
@@ -186,13 +186,13 @@ class Type(models.TextChoices):
 
 ### PaymentService
 
-High-level service for managing ATH Movil payments. Located at `django_athm.services.PaymentService`.
+High-level service for managing ATH Móvil payments. Located at `django_athm.services.PaymentService`.
 
 #### Methods
 
 ##### initiate()
 
-Create a new payment with ATH Movil.
+Create a new payment with ATH Móvil.
 
 ```python
 from decimal import Decimal
@@ -219,7 +219,7 @@ payment, auth_token = PaymentService.initiate(
 
 ##### find_status()
 
-Check the current status of a payment with ATH Movil.
+Check the current status of a payment with ATH Móvil.
 
 ```python
 from django_athm.services import PaymentService
@@ -262,7 +262,11 @@ payment = Payment.objects.get(reference_number="abc123")
 refund = PaymentService.refund(payment)
 
 # Partial refund
-refund = PaymentService.refund(payment, amount=Decimal("10.00"), message="Partial refund")
+refund = PaymentService.refund(
+    payment,
+    amount=Decimal("10.00"),
+    message="Partial refund"
+)
 ```
 
 Raises `ValueError` if the payment is not refundable or amount exceeds refundable amount.

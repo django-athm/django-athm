@@ -1,5 +1,11 @@
 # Getting Started
 
+## Overview
+
+django-athm's **core purpose** is webhook-driven payment and refund synchronization with SHA-256 idempotency and ACID guarantees. ATH Móvil sends definitive transaction data via webhooks, providing complete audit trails with fees, net amounts, and customer information.
+
+The package includes an **optional** backend-first modal payment flow via the `athm_button` template tag for quick integration. You can also build your own payment UI and use only the webhook synchronization features.
+
 ## Installation
 
 Install the package from PyPI:
@@ -23,7 +29,7 @@ DJANGO_ATHM_PRIVATE_TOKEN = "your-private-token"
 Run migrations to create the database tables:
 
 ```bash
-python manage.py migrate
+python manage.py migrate django_athm
 ```
 
 ## URL Configuration
@@ -35,11 +41,13 @@ from django.urls import include, path
 
 urlpatterns = [
     # ...
-    path("athm/", include("django_athm.urls", namespace="django_athm")),
+    path("athm/", include("django_athm.urls")),
 ]
 ```
 
-## Displaying the Checkout Button
+## Displaying the Checkout Button (Optional)
+
+The `athm_button` template tag provides a complete payment UI for quick integration. This is **optional** - you can build your own payment UI and use only the webhook features.
 
 ### 1. Create the Configuration in Your View
 
@@ -85,14 +93,14 @@ The CSRF token must be available in your template. Use the `@requires_csrf_token
 
 django-athm uses a backend-first modal flow:
 
-1. Customer clicks the ATH Movil checkout button
+1. Customer clicks the ATH Móvil checkout button
 2. Modal opens and prompts for phone number
-3. Backend creates payment via ATH Movil API (`/api/initiate/`)
-4. Customer receives push notification on their ATH Movil app
+3. Backend creates payment via ATH Móvil API (`/api/initiate/`)
+4. Customer receives push notification on their ATH Móvil app
 5. Customer approves the payment in their app
 6. Frontend polls for status changes (`/api/status/`)
 7. Backend authorizes the payment (`/api/authorize/`)
-8. ATH Movil sends webhook with final transaction details
+8. ATH Móvil sends webhook with final transaction details
 9. Your application responds to payment events via [signals](signals.md)
 
 ## Accessing Transaction Data
@@ -127,13 +135,13 @@ The package includes read-only admin views for:
 - Viewing payment details
 - Processing refunds on completed payments
 - Viewing and reprocessing webhook events
-- Installing webhook URLs with ATH Movil
+- Installing webhook URLs with ATH Móvil
 
 ## Management Commands
 
 ### install_webhook
 
-Register a webhook URL with ATH Movil to receive payment events:
+Register a webhook URL with ATH Móvil to receive payment events:
 
 ```bash
 python manage.py install_webhook https://yourdomain.com/athm/webhook/

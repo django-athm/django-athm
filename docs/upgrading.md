@@ -81,7 +81,7 @@ def handle(sender, payment, **kwargs):
 
 The following settings no longer exist:
 
-- `DJANGO_ATHM_SANDBOX_MODE` - Sandbox mode removed by ATH Movil
+- `DJANGO_ATHM_SANDBOX_MODE` - Sandbox mode removed by ATH Móvil
 - `DJANGO_ATHM_CALLBACK_VIEW` - Custom callbacks removed (use signals instead)
 
 #### 5. Removed Features
@@ -97,7 +97,7 @@ django-athm now uses a backend-first modal flow:
 
 1. Frontend button opens modal and prompts for phone number
 2. Backend creates payment via API (`/api/initiate/`)
-3. Customer confirms in ATH Movil app
+3. Customer confirms in ATH Móvil app
 4. Frontend polls for status (`/api/status/`)
 5. Backend authorizes payment (`/api/authorize/`)
 6. Webhook receives final transaction details
@@ -106,7 +106,7 @@ django-athm now uses a backend-first modal flow:
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/webhook/` | POST | Receives ATH Movil webhook events |
+| `/webhook/` | POST | Receives ATH Móvil webhook events |
 | `/api/initiate/` | POST | Creates new payment |
 | `/api/status/` | GET | Polls payment status |
 | `/api/authorize/` | POST | Confirms payment |
