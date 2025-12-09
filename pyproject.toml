@@ -67,7 +67,7 @@ dev = [
 [project.urls]
 Homepage = "https://github.com/django-athm/django-athm"
 Repository = "https://github.com/django-athm/django-athm"
-Documentation = "https://django-athm.github.io/django-athm/"
+Documentation = "https://django-athm.readthedocs.io"
 Issues = "https://github.com/django-athm/django-athm/issues"
 
 [tool.tox]
