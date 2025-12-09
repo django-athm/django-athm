@@ -135,8 +135,6 @@ class PaymentService:
             ecommerce_id=str(ecommerce_id), auth_token=auth_token
         )
 
-        logger.info("[django-athm] Authorized payment via auth token")
-
         return result.data.reference_number or "" if result.data is not None else ""
 
     @classmethod

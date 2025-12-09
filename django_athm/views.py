@@ -218,10 +218,6 @@ def authorize(request):
     payment.reference_number = reference_number
     payment.save(update_fields=["status", "reference_number", "modified"])
 
-    logger.info(
-        f"[django-athm] Authorized payment {ecommerce_uuid} -> {reference_number}"
-    )
-
     # Clean up session
     request.session.pop(f"athm_auth_{ecommerce_uuid!s}", None)
 
@@ -246,7 +242,6 @@ def cancel(request):
 
     try:
         PaymentService.cancel(ecommerce_uuid)
-        logger.info(f"[django-athm] Payment {ecommerce_uuid} cancelled via API")
     except Exception as e:
         logger.warning(f"[django-athm] Failed to cancel payment {ecommerce_uuid}: {e}")
         # Still return success - payment may have already completed
