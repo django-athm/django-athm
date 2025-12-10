@@ -12,13 +12,12 @@ from django.template.response import TemplateResponse
 from django.utils import timezone
 
 from django_athm.admin import (
+    ClientAdmin,
     PaymentAdmin,
-    PaymentLineItemAdmin,
-    PaymentLineItemInline,
     RefundAdmin,
     WebhookEventAdmin,
 )
-from django_athm.models import Payment, PaymentLineItem, Refund, WebhookEvent
+from django_athm.models import Client, Payment, Refund, WebhookEvent
 
 pytestmark = pytest.mark.django_db
 
@@ -201,41 +200,81 @@ class TestPaymentAdmin:
         assert result == "$75.00"
 
 
-class TestPaymentLineItemInline:
+class TestClientAdmin:
     def test_has_add_permission_returns_false(self, rf):
         request = setup_admin_request(rf, method="get")
-        inline = PaymentLineItemInline(Payment, admin.site)
-        assert inline.has_add_permission(request) is False
+        client_admin = ClientAdmin(Client, admin.site)
+        assert client_admin.has_add_permission(request) is False
 
+    def test_has_change_permission_returns_false(self, rf):
+        request = setup_admin_request(rf, method="get")
+        client_admin = ClientAdmin(Client, admin.site)
+        assert client_admin.has_change_permission(request) is False
 
-class TestPaymentLineItemAdmin:
-    def test_transaction_link_with_payment(self):
+    def test_has_delete_permission_returns_false(self, rf):
+        request = setup_admin_request(rf, method="get")
+        client_admin = ClientAdmin(Client, admin.site)
+        assert client_admin.has_delete_permission(request) is False
+
+    def test_payment_count(self):
+        client = Client.objects.create(
+            phone_number="7875551234",
+            name="Test Client",
+            email="test@example.com",
+        )
+
+        # Create payments linked to client
+        Payment.objects.create(
+            ecommerce_id=uuid.uuid4(),
+            reference_number="test-ref-1",
+            status=Payment.Status.COMPLETED,
+            total=Decimal("100.00"),
+            client=client,
+        )
+        Payment.objects.create(
+            ecommerce_id=uuid.uuid4(),
+            reference_number="test-ref-2",
+            status=Payment.Status.COMPLETED,
+            total=Decimal("50.00"),
+            client=client,
+        )
+
+        client_admin = ClientAdmin(Client, admin.site)
+        assert client_admin.payment_count(client) == 2
+
+    def test_refund_count(self):
+        client = Client.objects.create(
+            phone_number="7875551234",
+            name="Test Client",
+            email="test@example.com",
+        )
+
         payment = Payment.objects.create(
             ecommerce_id=uuid.uuid4(),
             reference_number="test-ref",
             status=Payment.Status.COMPLETED,
-            total=Decimal("50.00"),
-        )
-        item = PaymentLineItem.objects.create(
-            transaction=payment,
-            name="Test Item",
-            price=Decimal("50.00"),
+            total=Decimal("100.00"),
+            client=client,
         )
 
-        item_admin = PaymentLineItemAdmin(model=PaymentLineItem, admin_site=admin.site)
-        result = item_admin.transaction_link(item)
+        # Create refunds linked to client
+        Refund.objects.create(
+            payment=payment,
+            reference_number="refund-1",
+            amount=Decimal("25.00"),
+            transaction_date=timezone.now(),
+            client=client,
+        )
+        Refund.objects.create(
+            payment=payment,
+            reference_number="refund-2",
+            amount=Decimal("25.00"),
+            transaction_date=timezone.now(),
+            client=client,
+        )
 
-        assert "test-ref" in result
-        assert f"/admin/django_athm/payment/{payment.ecommerce_id}/" in result
-
-    def test_transaction_link_without_payment(self):
-        item = Mock(spec=PaymentLineItem)
-        item.transaction = None
-
-        item_admin = PaymentLineItemAdmin(model=PaymentLineItem, admin_site=admin.site)
-        result = item_admin.transaction_link(item)
-
-        assert result == "-"
+        client_admin = ClientAdmin(Client, admin.site)
+        assert client_admin.refund_count(client) == 2
 
 
 class TestRefundAdmin:
@@ -279,20 +318,6 @@ class TestRefundAdmin:
 
 
 class TestWebhookEventAdmin:
-    def test_display_id_short(self):
-        event = WebhookEvent(
-            id=uuid.UUID("12345678-1234-5678-1234-567812345678"),
-            idempotency_key="test-key",
-            event_type=WebhookEvent.Type.ECOMMERCE_COMPLETED,
-            remote_ip="127.0.0.1",
-            payload={},
-        )
-
-        event_admin = WebhookEventAdmin(model=WebhookEvent, admin_site=admin.site)
-        result = event_admin.display_id_short(event)
-
-        assert result == "12345678"
-
     def test_display_processed_icon(self):
         event_admin = WebhookEventAdmin(model=WebhookEvent, admin_site=admin.site)
 
@@ -367,7 +392,7 @@ class TestWebhookEventAdmin:
     def test_reprocess_events_success(self, rf, mocker):
         mocker.patch("django_athm.admin.WebhookProcessor.process")
 
-        request = setup_admin_request(rf)
+        request = setup_admin_request(rf, data={"confirm": "yes"})
 
         event = WebhookEvent.objects.create(
             idempotency_key="unprocessed-key",
@@ -389,7 +414,7 @@ class TestWebhookEventAdmin:
             side_effect=Exception("Processing error"),
         )
 
-        request = setup_admin_request(rf)
+        request = setup_admin_request(rf, data={"confirm": "yes"})
 
         event = WebhookEvent.objects.create(
             idempotency_key="error-key",

@@ -1,6 +1,5 @@
 import json
 import logging
-from typing import Any
 
 from django import forms
 from django.contrib import admin, messages
@@ -13,23 +12,12 @@ from django.urls import path, reverse
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 
-from django_athm.models import Payment, PaymentLineItem, Refund, WebhookEvent
+from django_athm.models import Client, Payment, Refund, WebhookEvent
 from django_athm.services.payment_service import PaymentService
 from django_athm.services.webhook_processor import WebhookProcessor
 from django_athm.utils import get_webhook_url, validate_webhook_url
 
 logger = logging.getLogger(__name__)
-
-
-class PaymentLineItemInline(admin.TabularInline):
-    model = PaymentLineItem
-    fields = ("name", "description", "quantity", "price", "tax", "metadata")
-    readonly_fields = fields
-    extra = 0
-    can_delete = False
-
-    def has_add_permission(self, request: HttpRequest, obj: Any = None) -> bool:
-        return False
 
 
 @admin.register(Payment)
@@ -44,10 +32,13 @@ class PaymentAdmin(admin.ModelAdmin):
         "customer_name",
         "created",
     )
+    list_display_links = ("reference_number",)
     list_filter = ("status", "created", "transaction_date")
     search_fields = (
         "reference_number",
         "ecommerce_id",
+        "business_name",
+        "daily_transaction_id",
         "customer_name",
         "customer_phone",
         "customer_email",
@@ -56,7 +47,6 @@ class PaymentAdmin(admin.ModelAdmin):
     )
     date_hierarchy = "created"
     ordering = ["-created"]
-    inlines = [PaymentLineItemInline]
 
     fieldsets = (
         (
@@ -85,28 +75,34 @@ class PaymentAdmin(admin.ModelAdmin):
                     "total_refunded_amount",
                     "display_is_refundable",
                     "display_refundable_amount",
-                )
+                ),
+                "classes": ("wide",),
             },
         ),
         (
-            _("Customer Information"),
+            _("Customer & Business Information"),
             {
                 "fields": (
+                    "client_link",
                     "customer_name",
                     "customer_phone",
                     "customer_email",
+                    "business_name",
                 )
             },
-        ),
-        (
-            _("Business Information"),
-            {"fields": ("business_name",)},
         ),
         (
             _("Metadata & Notes"),
             {
                 "classes": ("collapse",),
                 "fields": ("metadata_1", "metadata_2", "message"),
+            },
+        ),
+        (
+            _("Related Webhooks"),
+            {
+                "classes": ("collapse",),
+                "fields": ("webhooks_timeline",),
             },
         ),
     )
@@ -125,6 +121,7 @@ class PaymentAdmin(admin.ModelAdmin):
         "fee",
         "net_amount",
         "total_refunded_amount",
+        "client_link",
         "customer_name",
         "customer_phone",
         "customer_email",
@@ -134,6 +131,7 @@ class PaymentAdmin(admin.ModelAdmin):
         "message",
         "display_is_refundable",
         "display_refundable_amount",
+        "webhooks_timeline",
     )
 
     actions = ["refund_selected_payments"]
@@ -175,6 +173,40 @@ class PaymentAdmin(admin.ModelAdmin):
     def display_refundable_amount(self, obj: Payment) -> str:
         return f"${obj.refundable_amount:.2f}"
 
+    @admin.display(description=_("Webhook Events"))
+    def webhooks_timeline(self, obj: Payment) -> str:
+        if not obj.pk:
+            return "-"
+
+        webhooks = WebhookEvent.objects.filter(transaction=obj).order_by("created")
+
+        if not webhooks.exists():
+            return _("No webhook events")
+
+        items = []
+        for webhook in webhooks:
+            # Link to webhook detail
+            url = reverse("admin:django_athm_webhookevent_change", args=[webhook.pk])
+
+            # Processed status
+            status = _("Processed") if webhook.processed else _("Pending")
+
+            items.append(
+                f"<li>"
+                f'<a href="{url}">{webhook.get_event_type_display()}</a> '
+                f"({status}) - {webhook.created.strftime('%Y-%m-%d %H:%M')}"
+                f"</li>"
+            )
+
+        return format_html("<ul>{}</ul>", format_html("".join(items)))
+
+    @admin.display(description=_("Client"))
+    def client_link(self, obj: Payment) -> str:
+        if obj.client:
+            url = reverse("admin:django_athm_client_change", args=[obj.client.pk])
+            return format_html('<a href="{}">{}</a>', url, obj.client)
+        return "-"
+
     @admin.action(description=_("Refund selected payments (full refund)"))
     def refund_selected_payments(
         self, request: HttpRequest, queryset: QuerySet[Payment]
@@ -214,48 +246,6 @@ class PaymentAdmin(admin.ModelAdmin):
         )
 
 
-@admin.register(PaymentLineItem)
-class PaymentLineItemAdmin(admin.ModelAdmin):
-    list_display = ("transaction_link", "name", "quantity", "price", "tax")
-    search_fields = ("transaction__reference_number", "name", "description")
-    date_hierarchy = "transaction__created"
-    ordering = ["-transaction__created"]
-
-    fields = (
-        "id",
-        "transaction",
-        "name",
-        "description",
-        "quantity",
-        "price",
-        "tax",
-        "metadata",
-    )
-    readonly_fields = fields
-
-    def has_add_permission(self, request: HttpRequest) -> bool:
-        return False
-
-    def has_change_permission(
-        self, request: HttpRequest, obj: PaymentLineItem | None = None
-    ) -> bool:
-        return False
-
-    def has_delete_permission(
-        self, request: HttpRequest, obj: PaymentLineItem | None = None
-    ) -> bool:
-        return False
-
-    @admin.display(description=_("Transaction"))
-    def transaction_link(self, obj: PaymentLineItem) -> str:
-        if obj.transaction:
-            url = reverse(
-                "admin:django_athm_payment_change", args=[obj.transaction.ecommerce_id]
-            )
-            return format_html('<a href="{}">{}</a>', url, obj.transaction)
-        return "-"
-
-
 @admin.register(Refund)
 class RefundAdmin(admin.ModelAdmin):
     list_display = (
@@ -267,6 +257,7 @@ class RefundAdmin(admin.ModelAdmin):
         "customer_name",
         "created_at",
     )
+    list_display_links = ("reference_number",)
     list_filter = ("status", "transaction_date", "created_at")
     search_fields = (
         "reference_number",
@@ -301,6 +292,7 @@ class RefundAdmin(admin.ModelAdmin):
             _("Customer Information"),
             {
                 "fields": (
+                    "client_link",
                     "customer_name",
                     "customer_phone",
                     "customer_email",
@@ -321,6 +313,7 @@ class RefundAdmin(admin.ModelAdmin):
         "amount",
         "status",
         "message",
+        "client_link",
         "customer_name",
         "customer_phone",
         "customer_email",
@@ -350,23 +343,41 @@ class RefundAdmin(admin.ModelAdmin):
             return format_html('<a href="{}">{}</a>', url, obj.payment)
         return "-"
 
+    @admin.display(description=_("Client"))
+    def client_link(self, obj: Refund) -> str:
+        if obj.client:
+            url = reverse("admin:django_athm_client_change", args=[obj.client.pk])
+            return format_html('<a href="{}">{}</a>', url, obj.client)
+        return "-"
+
     @admin.display(description=_("Amount"))
     def display_amount_with_currency(self, obj: Refund) -> str:
         return f"${obj.amount:.2f}"
+
+    def get_queryset(self, request: HttpRequest) -> QuerySet[Refund]:
+        qs = super().get_queryset(request)
+        return qs.select_related("payment", "client")
 
 
 @admin.register(WebhookEvent)
 class WebhookEventAdmin(admin.ModelAdmin):
     list_display = (
-        "display_id_short",
+        "id",
         "event_type",
         "display_processed_icon",
         "transaction_link",
         "remote_ip",
         "created",
     )
+    list_display_links = ("id", "transaction_link")
     list_filter = ("event_type", "processed", "created")
-    search_fields = ("id", "remote_ip", "idempotency_key")
+    search_fields = (
+        "id",
+        "transaction__reference_number",
+        "transaction__ecommerce_id",
+        "remote_ip",
+        "idempotency_key",
+    )
     date_hierarchy = "created"
     ordering = ["-created"]
     change_list_template = "admin/django_athm/webhookevent/change_list.html"
@@ -425,9 +436,6 @@ class WebhookEventAdmin(admin.ModelAdmin):
         self, request: HttpRequest, obj: WebhookEvent | None = None
     ) -> bool:
         return False
-
-    @admin.display(description=_("ID"))
-    def display_id_short(self, obj: WebhookEvent) -> str:
         return str(obj.id)[:8]
 
     @admin.display(description=_("Processed"), boolean=True)
@@ -454,11 +462,35 @@ class WebhookEventAdmin(admin.ModelAdmin):
     @admin.action(description=_("Reprocess selected webhook events"))
     def reprocess_events(
         self, request: HttpRequest, queryset: QuerySet[WebhookEvent]
-    ) -> None:
+    ) -> TemplateResponse | None:
+        unprocessed = queryset.filter(processed=False)
+
+        if not unprocessed.exists():
+            self.message_user(
+                request, _("No unprocessed events selected."), messages.INFO
+            )
+            return None
+
+        # Show confirmation page first
+        if not request.POST.get("confirm"):
+            return TemplateResponse(
+                request,
+                "admin/django_athm/webhookevent/reprocess_confirmation.html",
+                {
+                    **self.admin_site.each_context(request),
+                    "title": _("Confirm reprocessing"),
+                    "webhooks": unprocessed,
+                    "queryset": queryset,
+                    "opts": self.model._meta,
+                    "action_checkbox_name": helpers.ACTION_CHECKBOX_NAME,
+                },
+            )
+
+        # Execute reprocessing
         processed_count = 0
         error_count = 0
 
-        for event in queryset.filter(processed=False):
+        for event in unprocessed:
             try:
                 WebhookProcessor.process(event)
                 processed_count += 1
@@ -470,24 +502,30 @@ class WebhookEventAdmin(admin.ModelAdmin):
                 error_count += 1
 
         # Display appropriate message
-        if processed_count == 0 and error_count == 0:
-            self.message_user(request, _("No unprocessed events selected."), "info")
-        elif error_count == 0:
+        if error_count == 0:
             self.message_user(
                 request,
                 _(f"Successfully reprocessed {processed_count} events."),
-                "success",
+                messages.SUCCESS,
             )
         elif processed_count == 0:
             self.message_user(
-                request, _(f"Failed to reprocess: {error_count} errors."), "error"
+                request,
+                _(f"Failed to reprocess: {error_count} errors."),
+                messages.ERROR,
             )
         else:
             self.message_user(
                 request,
                 _(f"Reprocessed {processed_count} events with {error_count} errors."),
-                "warning",
+                messages.WARNING,
             )
+
+        return None
+
+    def get_queryset(self, request: HttpRequest) -> QuerySet[WebhookEvent]:
+        qs = super().get_queryset(request)
+        return qs.select_related("transaction")
 
     def get_urls(self):
         urls = super().get_urls()
@@ -513,7 +551,13 @@ class WebhookEventAdmin(admin.ModelAdmin):
         class WebhookURLForm(forms.Form):
             url = forms.URLField(
                 label=_("Webhook URL"),
-                help_text=_("Auto-detected from current request"),
+                help_text=_("Auto-detected from current request. Must use HTTPS."),
+                widget=forms.URLInput(
+                    attrs={
+                        "class": "vURLField",
+                        "size": "80",
+                    }
+                ),
             )
 
             def clean_url(self):
@@ -545,3 +589,80 @@ class WebhookEventAdmin(admin.ModelAdmin):
                 "form": form,
             },
         )
+
+
+@admin.register(Client)
+class ClientAdmin(admin.ModelAdmin):
+    list_display = (
+        "phone_number",
+        "name",
+        "email",
+        "payment_count",
+        "refund_count",
+        "created",
+    )
+    list_display_links = ("phone_number",)
+    list_filter = ("created", "modified")
+    search_fields = ("phone_number", "name", "email")
+    date_hierarchy = "created"
+    ordering = ["-created"]
+
+    fieldsets = (
+        (
+            _("Client Information"),
+            {
+                "fields": (
+                    "id",
+                    "phone_number",
+                    "name",
+                    "email",
+                    "created",
+                    "modified",
+                )
+            },
+        ),
+        (
+            _("Activity Summary"),
+            {"fields": ("payment_count", "refund_count")},
+        ),
+    )
+
+    readonly_fields = (
+        "id",
+        "phone_number",
+        "name",
+        "email",
+        "created",
+        "modified",
+        "payment_count",
+        "refund_count",
+    )
+
+    def has_add_permission(self, request: HttpRequest) -> bool:
+        return False
+
+    def has_change_permission(
+        self, request: HttpRequest, obj: Client | None = None
+    ) -> bool:
+        return False
+
+    def has_delete_permission(
+        self, request: HttpRequest, obj: Client | None = None
+    ) -> bool:
+        return False
+
+    @admin.display(description=_("Payments"))
+    def payment_count(self, obj: Client) -> int:
+        if not obj.pk:
+            return 0
+        return obj.payments.count()
+
+    @admin.display(description=_("Refunds"))
+    def refund_count(self, obj: Client) -> int:
+        if not obj.pk:
+            return 0
+        return obj.refunds.count()
+
+    def get_queryset(self, request: HttpRequest) -> QuerySet[Client]:
+        qs = super().get_queryset(request)
+        return qs.prefetch_related("payments", "refunds")

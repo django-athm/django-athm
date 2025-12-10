@@ -11,31 +11,30 @@
     <a href="{% url 'admin:index' %}">{% translate 'Home' %}</a>
     &rsaquo; <a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ opts.app_config.verbose_name }}</a>
     &rsaquo; <a href="{% url opts|admin_urlname:'changelist' %}">{{ opts.verbose_name_plural|capfirst }}</a>
-    &rsaquo; {% translate "Confirm refund" %}
+    &rsaquo; {% translate "Confirm reprocessing" %}
 </div>
 {% endblock %}
 
 {% block content %}
-{% if payments %}
 <div class="module">
-    <h2>{% translate "Confirm Refund Operation" %}</h2>
+    <h2>{% translate "Confirm Webhook Reprocessing" %}</h2>
 
-    <p>{% blocktrans count count=payments|length %}Are you sure you want to refund the following payment?{% plural %}Are you sure you want to refund the following {{ count }} payments?{% endblocktrans %}</p>
+    <p>{% blocktrans count count=webhooks|length %}Are you sure you want to reprocess the following webhook event?{% plural %}Are you sure you want to reprocess the following {{ count }} webhook events?{% endblocktrans %}</p>
 
     <table class="aligned">
         <thead>
             <tr>
-                <th>{% translate "Reference Number" %}</th>
-                <th>{% translate "Refundable Amount" %}</th>
-                <th>{% translate "Status" %}</th>
+                <th>{% translate "ID" %}</th>
+                <th>{% translate "Event Type" %}</th>
+                <th>{% translate "Created" %}</th>
             </tr>
         </thead>
         <tbody>
-        {% for payment in payments %}
+        {% for webhook in webhooks %}
             <tr>
-                <td><strong>{{ payment.reference_number|default:payment.ecommerce_id }}</strong></td>
-                <td>${{ payment.refundable_amount }}</td>
-                <td>{{ payment.get_status_display }}</td>
+                <td><code>{{ webhook.id|slice:":8" }}</code></td>
+                <td>{{ webhook.get_event_type_display }}</td>
+                <td>{{ webhook.created|date:"Y-m-d H:i" }}</td>
             </tr>
         {% endfor %}
         </tbody>
@@ -46,19 +45,13 @@
         {% for obj in queryset %}
             <input type="hidden" name="{{ action_checkbox_name }}" value="{{ obj.pk }}">
         {% endfor %}
-        <input type="hidden" name="action" value="refund_selected_payments">
+        <input type="hidden" name="action" value="reprocess_events">
         <input type="hidden" name="confirm" value="yes">
 
         <div class="submit-row">
-            <input type="submit" value="{% translate 'Yes, refund these payments' %}" class="default">
+            <input type="submit" value="{% translate 'Yes, reprocess these webhooks' %}" class="default">
             <a href="{% url opts|admin_urlname:'changelist' %}" class="button cancel-link deletelink">{% translate 'No, cancel' %}</a>
         </div>
     </form>
 </div>
-{% else %}
-<div class="module">
-    <p>{% translate "No refundable payments selected." %}</p>
-    <p><a href="{% url opts|admin_urlname:'changelist' %}" class="button">{% translate "Go back" %}</a></p>
-</div>
-{% endif %}
 {% endblock %}
