@@ -65,3 +65,26 @@ class TestValidatePhoneNumber:
             utils.validate_phone_number("12345678901")  # too long
         with pytest.raises(ValidationError, match="Invalid phone number"):
             utils.validate_phone_number("787555abcd")  # non-digit
+
+
+class TestNormalizePhoneNumber:
+    def test_returns_digits_only(self):
+        assert utils.normalize_phone_number("7875551234") == "7875551234"
+
+    def test_strips_formatting_characters(self):
+        assert utils.normalize_phone_number("(787) 555-1234") == "7875551234"
+        assert utils.normalize_phone_number("787-555-1234") == "7875551234"
+        assert utils.normalize_phone_number("787 555 1234") == "7875551234"
+        assert utils.normalize_phone_number("+1-787-555-1234") == "17875551234"
+
+    def test_handles_numeric_input(self):
+        assert utils.normalize_phone_number(7875551234) == "7875551234"
+
+    def test_returns_empty_string_for_none(self):
+        assert utils.normalize_phone_number(None) == ""
+
+    def test_returns_empty_string_for_empty_string(self):
+        assert utils.normalize_phone_number("") == ""
+
+    def test_returns_empty_string_for_whitespace_only(self):
+        assert utils.normalize_phone_number("   ") == ""

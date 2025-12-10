@@ -95,6 +95,16 @@ class Payment(models.Model):
         help_text=_("Customer email address from ATH Móvil at the time of payment"),
     )
 
+    # Link to canonical client record
+    client = models.ForeignKey(
+        "Client",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="payments",
+        help_text=_("Associated client record"),
+    )
+
     # Metadata
     metadata_1 = models.CharField(max_length=64, blank=True, null=True)
     metadata_2 = models.CharField(max_length=64, blank=True, null=True)
@@ -135,43 +145,6 @@ class Payment(models.Model):
         return self.total - self.total_refunded_amount
 
 
-class PaymentLineItem(models.Model):
-    """Line item associated with an ATH Móvil transaction."""
-
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-
-    transaction = models.ForeignKey(
-        Payment,
-        on_delete=models.CASCADE,
-        related_name="items",
-        related_query_name="item",
-    )
-
-    name = models.CharField(max_length=128, help_text=_("Item name"))
-    description = models.TextField(blank=True, help_text=_("Item description"))
-    quantity = models.PositiveSmallIntegerField(default=1)
-
-    # Using DecimalField for precision
-    price = models.DecimalField(
-        max_digits=10, decimal_places=2, help_text=_("Item price")
-    )
-    tax = models.DecimalField(
-        max_digits=10,
-        decimal_places=2,
-        default=Decimal("0.00"),
-        help_text=_("Item tax"),
-    )
-    metadata = models.CharField(max_length=64, blank=True)
-
-    class Meta:
-        db_table = "athm_payment_item"
-        verbose_name = _("ATH Móvil Payment Line Item")
-        verbose_name_plural = _("ATH Móvil Payment Line Items")
-
-    def __str__(self):
-        return self.name
-
-
 class Refund(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4)
 
@@ -195,6 +168,16 @@ class Refund(models.Model):
     customer_name = models.CharField(max_length=255, blank=True)
     customer_phone = models.CharField(max_length=20, blank=True)
     customer_email = models.EmailField(blank=True)
+
+    # Link to canonical client record
+    client = models.ForeignKey(
+        "Client",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="refunds",
+        help_text=_("Associated client record"),
+    )
 
     transaction_date = models.DateTimeField()
     created_at = models.DateTimeField(auto_now_add=True)
@@ -275,3 +258,49 @@ class WebhookEvent(models.Model):
     def __str__(self):
         status = "processed" if self.processed else "pending"
         return f"{self.event_type} ({status})"
+
+
+class Client(models.Model):
+    """
+    ATH Movil customer record linked by phone number.
+
+    Represents a unique customer identified by their normalized phone number.
+    Name and email are updated with latest information from webhook events.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4)
+
+    phone_number = models.CharField(
+        max_length=20,
+        unique=True,
+        db_index=True,
+        help_text=_("Phone number (normalized to digits only)"),
+    )
+
+    name = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text=_("Customer name (updated from latest transaction)"),
+    )
+
+    email = models.EmailField(
+        blank=True,
+        help_text=_("Customer email (updated from latest transaction)"),
+    )
+
+    created = models.DateTimeField(auto_now_add=True)
+    modified = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "athm_client"
+        verbose_name = _("ATH Movil Client")
+        verbose_name_plural = _("ATH Movil Clients")
+        ordering = ["-created"]
+        indexes = [
+            models.Index(fields=["-created"], name="athm_client_created_idx"),
+        ]
+
+    def __str__(self):
+        if self.name:
+            return f"{self.name} ({self.phone_number})"
+        return self.phone_number

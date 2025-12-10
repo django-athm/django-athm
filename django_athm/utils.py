@@ -62,6 +62,24 @@ def validate_phone_number(value: Any) -> str:
     return phone
 
 
+def normalize_phone_number(phone: str | None) -> str:
+    """
+    Normalize phone number to digits only.
+
+    Used for Client model phone_number field to enable consistent
+    matching across different webhook payloads.
+
+    Args:
+        phone: Raw phone number (may include spaces, dashes, parentheses)
+
+    Returns:
+        Phone number with only digits, or empty string if None/empty
+    """
+    if not phone:
+        return ""
+    return "".join(c for c in str(phone) if c.isdigit())
+
+
 def get_webhook_url(request=None):
     """
     Resolve webhook URL.
