@@ -7,7 +7,7 @@ from athm.models import PaymentItem as ATHMovilPaymentItem
 from django.db import transaction
 
 from django_athm.conf import settings as app_settings
-from django_athm.models import Payment, PaymentLineItem, Refund
+from django_athm.models import Payment, Refund
 
 logger = logging.getLogger(__name__)
 
@@ -84,19 +84,6 @@ class PaymentService:
             metadata_1=metadata_1,
             metadata_2=metadata_2,
         )
-
-        # Store items locally
-        if items:
-            for item in items:
-                PaymentLineItem.objects.create(
-                    transaction=payment,
-                    name=item["name"],
-                    description=item.get("description", ""),
-                    quantity=item.get("quantity", 1),
-                    price=Decimal(str(item["price"])),
-                    tax=Decimal(str(item.get("tax", 0))),
-                    metadata=item.get("metadata", ""),
-                )
 
         logger.info(f"[django-athm] Created local payment record {ecommerce_id}")
 

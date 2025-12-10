@@ -47,7 +47,8 @@ class TestInitiate:
 
         mock_client.create_payment.assert_called_once()
 
-    def test_creates_line_items(self, mock_client):
+    def test_passes_items_to_api_but_does_not_store(self, mock_client):
+        """Items are passed to ATH Movil API but not stored locally."""
         ecommerce_id = str(uuid.uuid4())
 
         mock_client.create_payment.return_value = Mock(
@@ -65,10 +66,13 @@ class TestInitiate:
             items=items,
         )
 
-        assert payment.items.count() == 2
-        item1 = payment.items.get(name="Item 1")
-        assert item1.price == Decimal("50.00")
-        assert item1.quantity == 2
+        # Verify API was called with items
+        call_args = mock_client.create_payment.call_args
+        assert len(call_args.kwargs["items"]) == 2
+        assert call_args.kwargs["items"][0].name == "Item 1"
+
+        # Verify items are NOT stored locally
+        assert not hasattr(payment, "items") or not payment.items.exists()
 
 
 class TestFindStatus:
