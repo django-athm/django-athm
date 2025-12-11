@@ -38,6 +38,12 @@ jobs:
       run: |
         uv pip install --system tox tox-gh-actions
 
+    - name: Compile translations
+      run: |
+        sudo apt-get install -y gettext
+        uv pip install --system django
+        DJANGO_SETTINGS_MODULE=tests.settings python -m django compilemessages --ignore=.tox --ignore=.venv
+
     - name: Run Tox
       run: tox
 

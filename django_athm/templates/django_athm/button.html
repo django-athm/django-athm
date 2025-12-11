@@ -36,24 +36,24 @@
 
             /* Dark theme (for btn-dark) */
             .athm-theme-btn-dark {
-                --athm-bg-base: #1f2937;
-                --athm-bg-elevated: #374151;
-                --athm-bg-muted: #111827;
-                --athm-bg-hover: #4b5563;
-                --athm-border: #4b5563;
-                --athm-border-subtle: #374151;
-                --athm-text-primary: #f9fafb;
-                --athm-text-secondary: #d1d5db;
-                --athm-text-muted: #9ca3af;
+                --athm-bg-base: #0f1419;
+                --athm-bg-elevated: #1a1f26;
+                --athm-bg-muted: #0a0d10;
+                --athm-bg-hover: #2a3038;
+                --athm-border: #2f3842;
+                --athm-border-subtle: #1f262e;
+                --athm-text-primary: #ffffff;
+                --athm-text-secondary: #b0b8c1;
+                --athm-text-muted: #6b7685;
                 --athm-accent: #f57c00;
-                --athm-accent-hover: #e06b00;
-                --athm-success-bg: #064e3b;
-                --athm-success-text: #6ee7b7;
-                --athm-error-bg: #7f1d1d;
-                --athm-error-text: #fca5a5;
-                --athm-shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
-                --athm-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
-                --athm-shadow-lg: 0 20px 40px -12px rgba(0, 0, 0, 0.8);
+                --athm-accent-hover: #ff8f1f;
+                --athm-success-bg: #0d2818;
+                --athm-success-text: #4ade80;
+                --athm-error-bg: #2a1215;
+                --athm-error-text: #f87171;
+                --athm-shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.5);
+                --athm-shadow-md: 0 4px 12px -2px rgba(0, 0, 0, 0.6);
+                --athm-shadow-lg: 0 24px 48px -12px rgba(0, 0, 0, 0.9);
             }
 
             /* Container */
@@ -166,8 +166,13 @@
                 color: #111827;
             }
             .athm-theme-btn-dark .athm-modal {
-                background: #374151;
-                color: #f9fafb;
+                background: #1a1f26;
+                color: #ffffff;
+                border: 1px solid #2f3842;
+            }
+            .athm-theme-btn-dark .athm-modal-header {
+                background: #0f1419;
+                border-bottom-color: #2f3842;
             }
 
             @media (prefers-reduced-motion: reduce) {
