@@ -9,7 +9,7 @@ from django.db.models import QuerySet
 from django.http import HttpRequest, HttpResponseRedirect
 from django.template.response import TemplateResponse
 from django.urls import path, reverse
-from django.utils.html import format_html
+from django.utils.html import format_html, format_html_join
 from django.utils.translation import gettext_lazy as _
 
 from django_athm.models import Client, Payment, Refund, WebhookEvent
@@ -192,13 +192,20 @@ class PaymentAdmin(admin.ModelAdmin):
             status = _("Processed") if webhook.processed else _("Pending")
 
             items.append(
-                f"<li>"
-                f'<a href="{url}">{webhook.get_event_type_display()}</a> '
-                f"({status}) - {webhook.created_at.strftime('%Y-%m-%d %H:%M')}"
-                f"</li>"
+                (
+                    url,
+                    webhook.get_event_type_display(),
+                    status,
+                    webhook.created_at.strftime("%Y-%m-%d %H:%M"),
+                )
             )
 
-        return format_html("<ul>{}</ul>", format_html("".join(items)))
+        list_items = format_html_join(
+            "",
+            '<li><a href="{}">{}</a> ({}) - {}</li>',
+            items,
+        )
+        return format_html("<ul>{}</ul>", list_items)
 
     @admin.display(description=_("Client"))
     def client_link(self, obj: Payment) -> str:
