@@ -184,7 +184,7 @@ class PaymentService:
                     Payment.Status.CANCEL,
                 ):
                     payment.status = Payment.Status.CANCEL
-                    payment.save(update_fields=["status", "modified"])
+                    payment.save(update_fields=["status", "updated_at"])
             except Payment.DoesNotExist:
                 pass
 
@@ -250,7 +250,7 @@ class PaymentService:
             )
 
             payment.total_refunded_amount += refund_amount
-            payment.save(update_fields=["total_refunded_amount", "modified"])
+            payment.save(update_fields=["total_refunded_amount", "updated_at"])
 
         return refund
 
@@ -295,7 +295,7 @@ class PaymentService:
             return payment.status
 
         payment.status = new_status
-        payment.save(update_fields=["status", "modified"])
+        payment.save(update_fields=["status", "updated_at"])
         logger.info(
             "[django-athm] Payment %s status updated to %s",
             payment.ecommerce_id,

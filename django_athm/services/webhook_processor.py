@@ -165,7 +165,7 @@ class WebhookProcessor:
         event.processed = True
         event.payment = payment
         event.refund = refund
-        event.save(update_fields=["processed", "payment", "refund", "modified"])
+        event.save(update_fields=["processed", "payment", "refund", "updated_at"])
 
     @classmethod
     def mark_processed(cls, event: WebhookEvent) -> None:
@@ -268,7 +268,7 @@ class WebhookProcessor:
                 updated = True
 
             if updated:
-                client.save(update_fields=["name", "email", "modified"])
+                client.save(update_fields=["name", "email", "updated_at"])
                 logger.debug("[django-athm] Updated client id=%s", client.pk)
         else:
             logger.info("[django-athm] Created new client id=%s", client.pk)
