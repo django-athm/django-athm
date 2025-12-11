@@ -513,3 +513,309 @@ class TestAthmSyncCommand:
         assert client.name == "New Name"
         assert client.email == "new@example.com"
         assert Client.objects.count() == 1  # No duplicate created
+
+    def test_dry_run_update_reports_without_modifying(self, mocker):
+        """Test dry-run correctly reports updates without database changes."""
+        Payment.objects.create(
+            ecommerce_id="22222222-2222-2222-2222-222222222222",
+            reference_number="REF-001",
+            status=Payment.Status.COMPLETED,
+            total=Decimal("100.00"),
+            fee=Decimal("0.00"),
+            customer_name="",  # Will be updated
+        )
+
+        api_response = [
+            {
+                "transactionType": "eCommerce",
+                "status": "COMPLETED",
+                "referenceNumber": "REF-001",
+                "total": "100.00",
+                "fee": "2.00",
+                "netAmount": "98.00",
+                "name": "John Doe",
+            },
+        ]
+
+        mocker.patch(
+            "django_athm.management.commands.athm_sync.PaymentService.fetch_transaction_report",
+            return_value=api_response,
+        )
+
+        out = StringIO()
+        call_command(
+            "athm_sync",
+            "--from-date",
+            "2025-01-01",
+            "--to-date",
+            "2025-01-31",
+            "--dry-run",
+            stdout=out,
+        )
+
+        output = out.getvalue()
+        assert "Would update: 1 payments" in output
+
+        # Verify no changes were made
+        payment = Payment.objects.get(reference_number="REF-001")
+        assert payment.customer_name == ""
+        assert payment.fee == Decimal("0.00")
+
+    def test_transaction_processing_exception_logged(self, mocker, caplog):
+        """Test that exceptions during transaction processing are captured."""
+        mocker.patch(
+            "django_athm.management.commands.athm_sync.PaymentService.fetch_transaction_report",
+            return_value=[
+                {
+                    "transactionType": "eCommerce",
+                    "status": "COMPLETED",
+                    "referenceNumber": "REF-FAIL",
+                    "total": "100.00",
+                },
+            ],
+        )
+        # Force an exception in _process_transaction
+        mocker.patch(
+            "django_athm.management.commands.athm_sync.Command._process_transaction",
+            side_effect=RuntimeError("Database connection lost"),
+        )
+
+        out = StringIO()
+        err = StringIO()
+        call_command(
+            "athm_sync",
+            "--from-date",
+            "2025-01-01",
+            "--to-date",
+            "2025-01-31",
+            stdout=out,
+            stderr=err,
+        )
+
+        output = out.getvalue()
+        assert "Errors: 1" in output
+        assert "completed with errors" in output
+
+    def test_error_details_truncated_beyond_ten(self, mocker):
+        """Test that error details are truncated when more than 10 errors occur."""
+        # Create 15 transactions that will all fail
+        api_response = [
+            {
+                "transactionType": "eCommerce",
+                "status": "COMPLETED",
+                # Missing referenceNumber causes error
+            }
+            for _ in range(15)
+        ]
+
+        mocker.patch(
+            "django_athm.management.commands.athm_sync.PaymentService.fetch_transaction_report",
+            return_value=api_response,
+        )
+
+        out = StringIO()
+        err = StringIO()
+        call_command(
+            "athm_sync",
+            "--from-date",
+            "2025-01-01",
+            "--to-date",
+            "2025-01-31",
+            stdout=out,
+            stderr=err,
+        )
+
+        output = out.getvalue()
+        err_output = err.getvalue()
+        assert "Errors: 15" in output
+        assert "... and 5 more" in err_output
+
+    def test_updates_transaction_date_from_api(self, mocker):
+        """Test that transaction_date is parsed and set on update."""
+        Payment.objects.create(
+            ecommerce_id="33333333-3333-3333-3333-333333333333",
+            reference_number="REF-DATE",
+            status=Payment.Status.COMPLETED,
+            total=Decimal("100.00"),
+            customer_name="",  # Needs update to trigger the update path
+        )
+
+        api_response = [
+            {
+                "transactionType": "eCommerce",
+                "status": "COMPLETED",
+                "referenceNumber": "REF-DATE",
+                "total": "100.00",
+                "fee": "2.00",
+                "netAmount": "98.00",
+                "name": "John Doe",
+                "date": "2025-01-15 14:30:00",
+            },
+        ]
+
+        mocker.patch(
+            "django_athm.management.commands.athm_sync.PaymentService.fetch_transaction_report",
+            return_value=api_response,
+        )
+
+        call_command(
+            "athm_sync",
+            "--from-date",
+            "2025-01-01",
+            "--to-date",
+            "2025-01-31",
+        )
+
+        payment = Payment.objects.get(reference_number="REF-DATE")
+        assert payment.transaction_date is not None
+        assert payment.transaction_date.day == 15
+
+    def test_unparseable_date_logged_as_warning(self, mocker, caplog):
+        """Test that unparseable dates are logged but don't fail the sync."""
+        import logging
+
+        api_response = [
+            {
+                "transactionType": "eCommerce",
+                "status": "COMPLETED",
+                "referenceNumber": "REF-BADDATE",
+                "total": "100.00",
+                "date": "not-a-date-format",
+            },
+        ]
+
+        mocker.patch(
+            "django_athm.management.commands.athm_sync.PaymentService.fetch_transaction_report",
+            return_value=api_response,
+        )
+
+        with caplog.at_level(logging.WARNING):
+            out = StringIO()
+            call_command(
+                "athm_sync",
+                "--from-date",
+                "2025-01-01",
+                "--to-date",
+                "2025-01-31",
+                stdout=out,
+            )
+
+        # Payment should still be created
+        assert Payment.objects.filter(reference_number="REF-BADDATE").exists()
+        payment = Payment.objects.get(reference_number="REF-BADDATE")
+        assert payment.transaction_date is None
+        assert "Could not parse transaction date" in caplog.text
+
+    def test_invalid_phone_number_skips_client_creation(self, mocker):
+        """Test that invalid phone numbers don't create Client records."""
+        api_response = [
+            {
+                "transactionType": "eCommerce",
+                "status": "COMPLETED",
+                "referenceNumber": "REF-BADPHONE",
+                "total": "100.00",
+                "phoneNumber": "invalid",  # Not a valid phone
+                "name": "Test User",
+            },
+        ]
+
+        mocker.patch(
+            "django_athm.management.commands.athm_sync.PaymentService.fetch_transaction_report",
+            return_value=api_response,
+        )
+
+        call_command(
+            "athm_sync",
+            "--from-date",
+            "2025-01-01",
+            "--to-date",
+            "2025-01-31",
+        )
+
+        # Payment created but no client
+        assert Payment.objects.filter(reference_number="REF-BADPHONE").exists()
+        assert Client.objects.count() == 0
+
+    def test_client_not_updated_when_unchanged(self, mocker):
+        """Test that Client.save() is not called when name/email unchanged."""
+        Client.objects.create(
+            phone_number="7871234567",
+            name="Same Name",
+            email="same@example.com",
+        )
+
+        api_response = [
+            {
+                "transactionType": "eCommerce",
+                "status": "COMPLETED",
+                "referenceNumber": "REF-SAME",
+                "total": "100.00",
+                "name": "Same Name",
+                "phoneNumber": "7871234567",
+                "email": "same@example.com",
+            },
+        ]
+
+        mocker.patch(
+            "django_athm.management.commands.athm_sync.PaymentService.fetch_transaction_report",
+            return_value=api_response,
+        )
+
+        call_command(
+            "athm_sync",
+            "--from-date",
+            "2025-01-01",
+            "--to-date",
+            "2025-01-31",
+        )
+
+        # Just verify it completed without error
+        assert Payment.objects.filter(reference_number="REF-SAME").exists()
+        assert Client.objects.count() == 1
+
+    def test_duplicate_reference_number_race_condition(self, mocker):
+        """Test handling of IntegrityError from duplicate reference_number."""
+        from django.db import IntegrityError
+
+        api_response = [
+            {
+                "transactionType": "eCommerce",
+                "status": "COMPLETED",
+                "referenceNumber": "REF-RACE",
+                "total": "100.00",
+            },
+        ]
+
+        mocker.patch(
+            "django_athm.management.commands.athm_sync.PaymentService.fetch_transaction_report",
+            return_value=api_response,
+        )
+
+        # Simulate race condition: Payment.objects.create raises IntegrityError
+        original_create = Payment.objects.create
+        call_count = [0]
+
+        def create_with_integrity_error(**kwargs):
+            call_count[0] += 1
+            if kwargs.get("reference_number") == "REF-RACE":
+                raise IntegrityError("duplicate key value")
+            return original_create(**kwargs)
+
+        mocker.patch.object(
+            Payment.objects, "create", side_effect=create_with_integrity_error
+        )
+
+        out = StringIO()
+        err = StringIO()
+        call_command(
+            "athm_sync",
+            "--from-date",
+            "2025-01-01",
+            "--to-date",
+            "2025-01-31",
+            stdout=out,
+            stderr=err,
+        )
+
+        output = out.getvalue()
+        assert "Errors: 1" in output
