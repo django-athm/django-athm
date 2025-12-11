@@ -446,7 +446,6 @@ class WebhookEventAdmin(admin.ModelAdmin):
         self, request: HttpRequest, obj: WebhookEvent | None = None
     ) -> bool:
         return False
-        return str(obj.id)[:8]
 
     @admin.display(description=_("Processed"), boolean=True)
     def display_processed_icon(self, obj: WebhookEvent) -> bool:

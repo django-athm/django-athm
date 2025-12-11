@@ -49,16 +49,16 @@ wheels = [
 
 [[package]]
 name = "athm"
-version = "0.4.0"
+version = "0.4.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "httpx" },
     { name = "pydantic" },
     { name = "typing-extensions", marker = "python_full_version < '3.11'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/54/2c/e0fae769cbce1b8a10d981428f2b2e9fc4eb18adb55254b493f2e51b7d3b/athm-0.4.0.tar.gz", hash = "sha256:9fa918e67392d72b2aa901c2dcccb55f54c2d7587d89c98bd87afa94a994dfc7", size = 28922, upload-time = "2025-12-01T14:51:11.493Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/6e/6d/e87e8f0072bb072f49f20a385e03ee34608cbc86d97c0792be4d44e0a452/athm-0.4.1.tar.gz", hash = "sha256:81ee7273c3cf279e04e4b70ff0eb172dd83bf9cb25d25e7645914fb1f68c3160", size = 31644, upload-time = "2025-12-10T22:13:58.372Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/b8/57/ffca8fbcf3dbff4e211439cb1d3df9f100e1986aff30d6683fe876661263/athm-0.4.0-py3-none-any.whl", hash = "sha256:71c5934302761629004d969f18f592a68dbd2af78b3c27455ad7f1d2a5df803c", size = 17279, upload-time = "2025-12-01T14:51:10.096Z" },
+    { url = "https://files.pythonhosted.org/packages/25/5d/78595e98ae77ed111b1fc1e2de40946642e249e3b59485c216d25f30e38c/athm-0.4.1-py3-none-any.whl", hash = "sha256:f338cef2efb737270ad5bb2be8a1a4d2d7542cf2e1514c848f961ed7b3b94e5f", size = 18596, upload-time = "2025-12-10T22:13:56.932Z" },
 ]
 
 [[package]]
@@ -403,7 +403,7 @@ dev = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "athm", specifier = "~=0.4.0" }]
+requires-dist = [{ name = "athm", specifier = "~=0.4.1" }]
 
 [package.metadata.requires-dev]
 dev = [
