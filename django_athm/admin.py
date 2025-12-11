@@ -178,7 +178,7 @@ class PaymentAdmin(admin.ModelAdmin):
         if not obj.pk:
             return "-"
 
-        webhooks = WebhookEvent.objects.filter(transaction=obj).order_by("created")
+        webhooks = WebhookEvent.objects.filter(payment=obj).order_by("created")
 
         if not webhooks.exists():
             return _("No webhook events")
@@ -365,16 +365,18 @@ class WebhookEventAdmin(admin.ModelAdmin):
         "id",
         "event_type",
         "display_processed_icon",
-        "transaction_link",
+        "payment_link",
+        "refund_link",
         "remote_ip",
         "created",
     )
-    list_display_links = ("id", "transaction_link")
+    list_display_links = ("id",)
     list_filter = ("event_type", "processed", "created")
     search_fields = (
         "id",
-        "transaction__reference_number",
-        "transaction__ecommerce_id",
+        "payment__reference_number",
+        "payment__ecommerce_id",
+        "refund__reference_number",
         "remote_ip",
         "idempotency_key",
     )
@@ -405,8 +407,8 @@ class WebhookEventAdmin(admin.ModelAdmin):
             {"fields": ("payload_display",)},
         ),
         (
-            _("Processing"),
-            {"fields": ("transaction",)},
+            _("Associations"),
+            {"fields": ("payment", "refund")},
         ),
     )
 
@@ -417,7 +419,8 @@ class WebhookEventAdmin(admin.ModelAdmin):
         "remote_ip",
         "payload_display",
         "processed",
-        "transaction",
+        "payment",
+        "refund",
         "created",
         "modified",
     )
@@ -442,13 +445,20 @@ class WebhookEventAdmin(admin.ModelAdmin):
     def display_processed_icon(self, obj: WebhookEvent) -> bool:
         return obj.processed
 
-    @admin.display(description=_("Transaction"))
-    def transaction_link(self, obj: WebhookEvent) -> str:
-        if obj.transaction:
+    @admin.display(description=_("Payment"))
+    def payment_link(self, obj: WebhookEvent) -> str:
+        if obj.payment:
             url = reverse(
-                "admin:django_athm_payment_change", args=[obj.transaction.ecommerce_id]
+                "admin:django_athm_payment_change", args=[obj.payment.ecommerce_id]
             )
-            return format_html('<a href="{}">{}</a>', url, obj.transaction)
+            return format_html('<a href="{}">{}</a>', url, obj.payment)
+        return "-"
+
+    @admin.display(description=_("Refund"))
+    def refund_link(self, obj: WebhookEvent) -> str:
+        if obj.refund:
+            url = reverse("admin:django_athm_refund_change", args=[obj.refund.pk])
+            return format_html('<a href="{}">{}</a>', url, obj.refund.reference_number)
         return "-"
 
     @admin.display(description=_("Payload (JSON)"))
@@ -525,7 +535,7 @@ class WebhookEventAdmin(admin.ModelAdmin):
 
     def get_queryset(self, request: HttpRequest) -> QuerySet[WebhookEvent]:
         qs = super().get_queryset(request)
-        return qs.select_related("transaction")
+        return qs.select_related("payment", "refund")
 
     def get_urls(self):
         urls = super().get_urls()

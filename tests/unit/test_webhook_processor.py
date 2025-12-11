@@ -259,6 +259,44 @@ class TestProcessEvent:
         event.refresh_from_db()
         assert event.processed is True
 
+    @pytest.mark.django_db(transaction=True)
+    def test_simulated_webhook_does_not_create_records_or_fire_signals(self, mocker):
+        """Simulated webhooks should not create any records or fire signals."""
+        handler = mocker.Mock()
+        signals.payment_completed.connect(handler)
+
+        try:
+            payload = {
+                "transactionType": "SIMULATED",
+                "ecommerceId": str(uuid.uuid4()),
+                "status": "COMPLETED",
+                "referenceNumber": "sim-ref-123",
+                "total": 100.00,
+                "date": "2024-01-15 10:30:00",
+            }
+            event = WebhookEvent.objects.create(
+                idempotency_key="simulated-key",
+                event_type=WebhookEvent.Type.SIMULATED,
+                payload=payload,
+                remote_ip="127.0.0.1",
+                processed=False,
+            )
+
+            WebhookProcessor.process(event, parse_webhook(event.payload))
+
+            # Event should be marked as processed
+            event.refresh_from_db()
+            assert event.processed is True
+
+            # No records should be created
+            assert Payment.objects.count() == 0
+            assert Client.objects.count() == 0
+
+            # No signals should be fired
+            handler.assert_not_called()
+        finally:
+            signals.payment_completed.disconnect(handler)
+
 
 class TestHandleEcommerceCompleted:
     def test_creates_payment_from_webhook(self):
@@ -280,6 +318,11 @@ class TestHandleEcommerceCompleted:
         assert payment.net_amount == Decimal("97.50")
         assert payment.customer_name == "Test Customer"
         assert payment.customer_email == "test@example.com"
+
+        # Verify event is linked to payment
+        event.refresh_from_db()
+        assert event.payment == payment
+        assert event.refund is None
 
     def test_updates_existing_payment_to_completed(self):
         ecommerce_id = str(uuid.uuid4())
@@ -542,6 +585,11 @@ class TestHandleRefund:
         refund = Refund.objects.get(reference_number="ref-for-refund")
         assert refund.payment == payment
         assert refund.amount == Decimal("25.00")
+
+        # Verify event is linked to both payment and refund
+        event.refresh_from_db()
+        assert event.payment == payment
+        assert event.refund == refund
 
     def test_skips_duplicate_refund(self):
         from django.utils import timezone

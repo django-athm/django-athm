@@ -95,7 +95,6 @@ class Payment(models.Model):
         help_text=_("Customer email address from ATH Móvil at the time of payment"),
     )
 
-    # Link to canonical client record
     client = models.ForeignKey(
         "Client",
         on_delete=models.SET_NULL,
@@ -169,7 +168,6 @@ class Refund(models.Model):
     customer_phone = models.CharField(max_length=20, blank=True)
     customer_email = models.EmailField(blank=True)
 
-    # Link to canonical client record
     client = models.ForeignKey(
         "Client",
         on_delete=models.SET_NULL,
@@ -230,13 +228,21 @@ class WebhookEvent(models.Model):
     )
 
     # Relationships
-    transaction = models.ForeignKey(
+    payment = models.ForeignKey(
         Payment,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
         related_name="webhook_events",
-        help_text=_("Associated transaction if found/created"),
+        help_text=_("Associated payment if found/created"),
+    )
+    refund = models.ForeignKey(
+        Refund,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="webhook_events",
+        help_text=_("Associated refund for refund webhooks"),
     )
 
     # Timestamps

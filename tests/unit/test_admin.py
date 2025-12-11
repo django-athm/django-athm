@@ -339,7 +339,7 @@ class TestWebhookEventAdmin:
         assert event_admin.display_processed_icon(processed_event) is True
         assert event_admin.display_processed_icon(unprocessed_event) is False
 
-    def test_transaction_link_with_transaction(self):
+    def test_payment_link_with_payment(self):
         payment = Payment.objects.create(
             ecommerce_id=uuid.uuid4(),
             reference_number="test-ref",
@@ -351,26 +351,71 @@ class TestWebhookEventAdmin:
             event_type=WebhookEvent.Type.ECOMMERCE_COMPLETED,
             remote_ip="127.0.0.1",
             payload={},
-            transaction=payment,
+            payment=payment,
         )
 
         event_admin = WebhookEventAdmin(model=WebhookEvent, admin_site=admin.site)
-        result = event_admin.transaction_link(event)
+        result = event_admin.payment_link(event)
 
         assert "test-ref" in result
         assert f"/admin/django_athm/payment/{payment.ecommerce_id}/" in result
 
-    def test_transaction_link_without_transaction(self):
+    def test_payment_link_without_payment(self):
         event = WebhookEvent(
             idempotency_key="key",
             event_type=WebhookEvent.Type.ECOMMERCE_COMPLETED,
             remote_ip="127.0.0.1",
             payload={},
-            transaction=None,
+            payment=None,
         )
 
         event_admin = WebhookEventAdmin(model=WebhookEvent, admin_site=admin.site)
-        result = event_admin.transaction_link(event)
+        result = event_admin.payment_link(event)
+
+        assert result == "-"
+
+    def test_refund_link_with_refund(self):
+        from django.utils import timezone
+
+        payment = Payment.objects.create(
+            ecommerce_id=uuid.uuid4(),
+            reference_number="payment-ref",
+            status=Payment.Status.COMPLETED,
+            total=Decimal("100.00"),
+        )
+        refund = Refund.objects.create(
+            payment=payment,
+            reference_number="refund-ref",
+            amount=Decimal("25.00"),
+            status="COMPLETED",
+            transaction_date=timezone.now(),
+        )
+        event = WebhookEvent.objects.create(
+            idempotency_key="refund-key",
+            event_type=WebhookEvent.Type.REFUND_SENT,
+            remote_ip="127.0.0.1",
+            payload={},
+            payment=payment,
+            refund=refund,
+        )
+
+        event_admin = WebhookEventAdmin(model=WebhookEvent, admin_site=admin.site)
+        result = event_admin.refund_link(event)
+
+        assert "refund-ref" in result
+        assert f"/admin/django_athm/refund/{refund.pk}/" in result
+
+    def test_refund_link_without_refund(self):
+        event = WebhookEvent(
+            idempotency_key="key",
+            event_type=WebhookEvent.Type.ECOMMERCE_COMPLETED,
+            remote_ip="127.0.0.1",
+            payload={},
+            refund=None,
+        )
+
+        event_admin = WebhookEventAdmin(model=WebhookEvent, admin_site=admin.site)
+        result = event_admin.refund_link(event)
 
         assert result == "-"
 

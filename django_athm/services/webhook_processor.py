@@ -159,11 +159,13 @@ class WebhookProcessor:
         cls,
         event: WebhookEvent,
         payment: Payment | None = None,
+        refund: Refund | None = None,
     ) -> None:
-        """Mark event as processed and optionally link to payment."""
+        """Mark event as processed and optionally link to payment/refund."""
         event.processed = True
-        event.transaction = payment
-        event.save(update_fields=["processed", "transaction", "modified"])
+        event.payment = payment
+        event.refund = refund
+        event.save(update_fields=["processed", "payment", "refund", "modified"])
 
     @classmethod
     def mark_processed(cls, event: WebhookEvent) -> None:
@@ -461,7 +463,7 @@ class WebhookProcessor:
                 )
 
                 transaction_date = normalized.transaction_date or normalized.date
-                Refund.objects.create(
+                created_refund = Refund.objects.create(
                     payment=linked_payment,
                     reference_number=reference_number,
                     daily_transaction_id=normalized.daily_transaction_id or "",
@@ -483,22 +485,22 @@ class WebhookProcessor:
                     reference_number,
                     linked_payment.reference_number,
                 )
+
+                cls._mark_processed(
+                    event, payment=linked_payment, refund=created_refund
+                )
+
+                transaction.on_commit(
+                    lambda: refund_sent.send(
+                        sender=Refund, refund=created_refund, payment=linked_payment
+                    )
+                )
             else:
                 logger.info(
                     "[django-athm] Skipped storing Refund %s because no linked Payment was found.",
                     reference_number,
                 )
-
-            cls._mark_processed(event, linked_payment)
-
-            # Send signal only if refund was created
-            if linked_payment:
-                refund = Refund.objects.get(reference_number=reference_number)
-                transaction.on_commit(
-                    lambda: refund_sent.send(
-                        sender=Refund, refund=refund, payment=linked_payment
-                    )
-                )
+                cls._mark_processed(event)
 
     @classmethod
     def _handle_payment_received(
@@ -521,6 +523,11 @@ class WebhookProcessor:
 
     @classmethod
     def _handle_simulated(cls, event: WebhookEvent, normalized: WebhookPayload) -> None:
-        """Handle simulated/test webhook."""
-        logger.info("[django-athm] Processing simulated event %s", event.id)
-        cls._handle_ecommerce_completed(event, normalized)
+        """
+        Handle simulated/test webhook.
+
+        Simulated webhooks are marked as processed without creating any records
+        or firing any signals to avoid polluting production data.
+        """
+        logger.info("[django-athm] Ignoring simulated webhook %s", event.id)
+        cls._mark_processed(event)
