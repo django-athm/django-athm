@@ -121,7 +121,7 @@ class Command(BaseCommand):
             except Exception as e:
                 stats[SyncResult.ERROR] += 1
                 error_details.append(f"{reference_number}: {e}")
-                logger.exception(f"[django-athm] Error processing {reference_number}")
+                logger.exception("[django-athm] Error processing %s", reference_number)
 
         # Print summary
         self.stdout.write("")
@@ -206,7 +206,7 @@ class Command(BaseCommand):
 
             payment.save()
 
-        logger.info(f"[django-athm] Synced payment {payment.reference_number}")
+        logger.info("[django-athm] Synced payment %s", payment.reference_number)
         return SyncResult.UPDATED
 
     def _create_payment(self, txn: dict, dry_run: bool) -> SyncResult:
@@ -256,7 +256,7 @@ class Command(BaseCommand):
                     f"Duplicate reference_number: {reference_number}"
                 ) from e
 
-        logger.info(f"[django-athm] Created payment from sync: {reference_number}")
+        logger.info("[django-athm] Created payment from sync: %s", reference_number)
         return SyncResult.CREATED
 
     def _compute_changes(self, payment: Payment, txn: dict) -> dict:
@@ -354,5 +354,5 @@ class Command(BaseCommand):
             except ValueError:
                 continue
 
-        logger.warning(f"[django-athm] Could not parse transaction date: {date_str}")
+        logger.warning("[django-athm] Could not parse transaction date: %s", date_str)
         return None

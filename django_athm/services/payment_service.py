@@ -105,7 +105,7 @@ class PaymentService:
         ecommerce_id = UUID(response.data.ecommerce_id)
         auth_token = response.data.auth_token
 
-        logger.info(f"[django-athm] Initiated payment {ecommerce_id} with ATH Móvil")
+        logger.info("[django-athm] Initiated payment %s with ATH Movil", ecommerce_id)
 
         # Create local record
         payment = Payment.objects.create(
@@ -118,7 +118,7 @@ class PaymentService:
             metadata_2=metadata_2,
         )
 
-        logger.info(f"[django-athm] Created local payment record {ecommerce_id}")
+        logger.info("[django-athm] Created local payment record %s", ecommerce_id)
 
         return payment, auth_token
 
@@ -136,17 +136,19 @@ class PaymentService:
             auth_token=auth_token,
         )
 
-        logger.info(f"[django-athm] Updated phone number for payment {ecommerce_id}")
+        logger.info("[django-athm] Updated phone number for payment %s", ecommerce_id)
 
     @classmethod
     def find_status(cls, ecommerce_id: UUID) -> str:
         client = cls.get_client()
         transaction_response = client.find_payment(ecommerce_id=str(ecommerce_id))
-        return (
+        status = (
             transaction_response.data.ecommerce_status
             if transaction_response.data is not None
             else Payment.Status.OPEN
         )
+        logger.debug("[django-athm] find_status %s -> %s", ecommerce_id, status)
+        return status
 
     @classmethod
     def authorize(cls, ecommerce_id: UUID, auth_token: str) -> str:
@@ -154,8 +156,15 @@ class PaymentService:
         result = client.authorize_payment(
             ecommerce_id=str(ecommerce_id), auth_token=auth_token
         )
-
-        return result.data.reference_number or "" if result.data is not None else ""
+        reference_number = (
+            result.data.reference_number or "" if result.data is not None else ""
+        )
+        logger.info(
+            "[django-athm] Authorized payment %s -> ref=%s",
+            ecommerce_id,
+            reference_number,
+        )
+        return reference_number
 
     @classmethod
     def cancel(cls, ecommerce_id: UUID) -> None:
@@ -179,7 +188,7 @@ class PaymentService:
             except Payment.DoesNotExist:
                 pass
 
-        logger.info(f"[django-athm] Cancelled payment {ecommerce_id}")
+        logger.info("[django-athm] Cancelled payment %s", ecommerce_id)
 
     @classmethod
     def refund(
@@ -218,7 +227,9 @@ class PaymentService:
         )
 
         logger.info(
-            f"[django-athm] Refunded ${refund_amount} for payment {payment.ecommerce_id}"
+            "[django-athm] Refunded $%s for payment %s",
+            refund_amount,
+            payment.ecommerce_id,
         )
 
         # Create local refund record
@@ -266,7 +277,7 @@ class PaymentService:
         try:
             remote_status = cls.find_status(payment.ecommerce_id)
         except Exception as e:
-            logger.warning(f"[django-athm] Failed to check remote status: {e}")
+            logger.warning("[django-athm] Failed to check remote status: %s", e)
             return payment.status
 
         if remote_status == payment.status:
@@ -286,7 +297,9 @@ class PaymentService:
         payment.status = new_status
         payment.save(update_fields=["status", "modified"])
         logger.info(
-            f"[django-athm] Payment {payment.ecommerce_id} status updated to {new_status}"
+            "[django-athm] Payment %s status updated to %s",
+            payment.ecommerce_id,
+            new_status,
         )
 
         return payment.status

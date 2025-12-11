@@ -220,7 +220,7 @@ class PaymentAdmin(admin.ModelAdmin):
                     PaymentService.refund(payment)
                     success += 1
                 except Exception as e:
-                    logger.exception(f"[django-athm] Refund failed: {e}")
+                    logger.exception("[django-athm] Refund failed: %s", e)
                     errors += 1
             if success:
                 self.message_user(
@@ -504,10 +504,12 @@ class WebhookEventAdmin(admin.ModelAdmin):
             try:
                 WebhookProcessor.process(event)
                 processed_count += 1
-                logger.info(f"[django-athm] Admin reprocessed webhook event {event.id}")
+                logger.info(
+                    "[django-athm] Admin reprocessed webhook event %s", event.id
+                )
             except Exception as e:
                 logger.exception(
-                    f"[django-athm] Reprocess failed for event {event.id}: {e}"
+                    "[django-athm] Reprocess failed for event %s: %s", event.id, e
                 )
                 error_count += 1
 
@@ -585,7 +587,7 @@ class WebhookEventAdmin(admin.ModelAdmin):
                         reverse("admin:django_athm_webhookevent_changelist")
                     )
                 except Exception as e:
-                    logger.exception(f"[django-athm] Webhook install failed: {e}")
+                    logger.exception("[django-athm] Webhook install failed: %s", e)
                     self.message_user(request, f"Failed: {e}", messages.ERROR)
         else:
             form = WebhookURLForm(initial={"url": initial_url})

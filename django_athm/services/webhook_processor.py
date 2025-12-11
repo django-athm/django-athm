@@ -269,12 +269,9 @@ class WebhookProcessor:
 
             if updated:
                 client.save(update_fields=["name", "email", "modified"])
-                logger.debug(
-                    "[django-athm] Updated client %s with latest info",
-                    client.phone_number,
-                )
+                logger.debug("[django-athm] Updated client id=%s", client.pk)
         else:
-            logger.info("[django-athm] Created new client %s", client.phone_number)
+            logger.info("[django-athm] Created new client id=%s", client.pk)
 
         return client
 

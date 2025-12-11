@@ -72,7 +72,7 @@ def process_webhook_request(request):
     )
 
     if not created:
-        logger.debug(f"[django-athm] Duplicate webhook: {event.idempotency_key}")
+        logger.debug("[django-athm] Duplicate webhook: %s", event.idempotency_key)
         return HttpResponse(status=200)
 
     # Parse and validate payload
@@ -92,7 +92,7 @@ def process_webhook_request(request):
     try:
         WebhookProcessor.process(event, normalized)
     except Exception:
-        logger.exception(f"[django-athm] Webhook processing failed: {event.id}")
+        logger.exception("[django-athm] Webhook processing failed: %s", event.id)
 
     return HttpResponse(status=200)
 
@@ -140,8 +140,6 @@ def initiate(request):
     # Store auth_token in session for later authorization
     request.session[f"athm_auth_{payment.ecommerce_id!s}"] = auth_token
 
-    logger.info(f"[django-athm] Payment {payment.ecommerce_id} initiated via API")
-
     return JsonResponse(
         {
             "ecommerce_id": str(payment.ecommerce_id),
@@ -185,7 +183,7 @@ def authorize(request):
     auth_token = request.session.get(f"athm_auth_{ecommerce_uuid!s}")
     if not auth_token:
         logger.warning(
-            f"[django-athm] No auth token in session for payment {ecommerce_uuid}"
+            "[django-athm] No auth token in session for payment %s", ecommerce_uuid
         )
         return JsonResponse({"error": "Session expired"}, status=400)
 
@@ -211,7 +209,7 @@ def authorize(request):
     try:
         reference_number = PaymentService.authorize(ecommerce_uuid, auth_token)
     except Exception as e:
-        logger.exception(f"[django-athm] Failed to authorize payment {ecommerce_uuid}")
+        logger.exception("[django-athm] Failed to authorize payment %s", ecommerce_uuid)
         return JsonResponse({"error": str(e)}, status=500)
 
     # Update local status optimistically
@@ -245,7 +243,9 @@ def cancel(request):
     try:
         PaymentService.cancel(ecommerce_uuid)
     except Exception as e:
-        logger.warning(f"[django-athm] Failed to cancel payment {ecommerce_uuid}: {e}")
+        logger.warning(
+            "[django-athm] Failed to cancel payment %s: %s", ecommerce_uuid, e
+        )
         # Still return success - payment may have already completed
 
     # Clean up session
