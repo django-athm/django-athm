@@ -1,7 +1,7 @@
 import logging
 import uuid
 from datetime import datetime
-from decimal import Decimal
+from enum import Enum
 
 from django.core.management.base import BaseCommand, CommandError
 from django.db import IntegrityError, transaction
@@ -11,7 +11,18 @@ from django_athm.models import Client, Payment
 from django_athm.services.payment_service import PaymentService
 from django_athm.utils import normalize_phone_number, safe_decimal
 
+__all__ = ["Command", "SyncResult"]
+
 logger = logging.getLogger(__name__)
+
+
+class SyncResult(str, Enum):
+    """Result of syncing a single transaction."""
+
+    CREATED = "created"
+    UPDATED = "updated"
+    SKIPPED = "skipped"
+    ERROR = "errors"
 
 
 class Command(BaseCommand):
@@ -94,18 +105,13 @@ class Command(BaseCommand):
         )
 
         # Track stats
-        stats = {
-            "created": 0,
-            "updated": 0,
-            "skipped": 0,
-            "errors": 0,
-        }
+        stats = dict.fromkeys(SyncResult, 0)
         error_details = []
 
         for txn in ecommerce_completed:
             reference_number = txn.get("referenceNumber")
             if not reference_number:
-                stats["errors"] += 1
+                stats[SyncResult.ERROR] += 1
                 error_details.append("Transaction missing referenceNumber")
                 continue
 
@@ -113,21 +119,21 @@ class Command(BaseCommand):
                 result = self._process_transaction(txn, dry_run)
                 stats[result] += 1
             except Exception as e:
-                stats["errors"] += 1
+                stats[SyncResult.ERROR] += 1
                 error_details.append(f"{reference_number}: {e}")
                 logger.exception(f"[django-athm] Error processing {reference_number}")
 
         # Print summary
         self.stdout.write("")
         if dry_run:
-            self.stdout.write(f"Would create: {stats['created']} payments")
-            self.stdout.write(f"Would update: {stats['updated']} payments")
+            self.stdout.write(f"Would create: {stats[SyncResult.CREATED]} payments")
+            self.stdout.write(f"Would update: {stats[SyncResult.UPDATED]} payments")
         else:
-            self.stdout.write(f"Created: {stats['created']}")
-            self.stdout.write(f"Updated: {stats['updated']}")
+            self.stdout.write(f"Created: {stats[SyncResult.CREATED]}")
+            self.stdout.write(f"Updated: {stats[SyncResult.UPDATED]}")
 
-        self.stdout.write(f"Skipped: {stats['skipped']}")
-        self.stdout.write(f"Errors: {stats['errors']}")
+        self.stdout.write(f"Skipped: {stats[SyncResult.SKIPPED]}")
+        self.stdout.write(f"Errors: {stats[SyncResult.ERROR]}")
 
         if error_details:
             self.stdout.write("")
@@ -137,19 +143,19 @@ class Command(BaseCommand):
             if len(error_details) > 10:
                 self.stderr.write(f"  ... and {len(error_details) - 10} more")
 
-        if stats["errors"] > 0:
+        if stats[SyncResult.ERROR] > 0:
             self.stdout.write("")
             self.stdout.write(self.style.WARNING("Sync completed with errors."))
         else:
             self.stdout.write("")
             self.stdout.write(self.style.SUCCESS("Sync completed successfully."))
 
-    def _process_transaction(self, txn: dict, dry_run: bool) -> str:
+    def _process_transaction(self, txn: dict, dry_run: bool) -> SyncResult:
         """
         Process a single transaction from the report.
 
         Returns:
-            "created", "updated", or "skipped"
+            SyncResult indicating what happened
         """
         reference_number = txn["referenceNumber"]
 
@@ -161,15 +167,15 @@ class Command(BaseCommand):
         else:
             return self._create_payment(txn, dry_run)
 
-    def _update_payment(self, payment: Payment, txn: dict, dry_run: bool) -> str:
+    def _update_payment(self, payment: Payment, txn: dict, dry_run: bool) -> SyncResult:
         """Update existing payment with remote data if different."""
         changes = self._compute_changes(payment, txn)
 
         if not changes:
-            return "skipped"
+            return SyncResult.SKIPPED
 
         if dry_run:
-            return "updated"
+            return SyncResult.UPDATED
 
         with transaction.atomic():
             payment = Payment.objects.select_for_update().get(pk=payment.pk)
@@ -182,11 +188,9 @@ class Command(BaseCommand):
             )
 
             # Apply changes
-            payment.fee = safe_decimal(txn.get("fee"), Decimal("0.00"))
-            payment.net_amount = safe_decimal(txn.get("netAmount"), Decimal("0.00"))
-            payment.total_refunded_amount = safe_decimal(
-                txn.get("totalRefundAmount"), Decimal("0.00")
-            )
+            payment.fee = safe_decimal(txn.get("fee"))
+            payment.net_amount = safe_decimal(txn.get("netAmount"))
+            payment.total_refunded_amount = safe_decimal(txn.get("totalRefundAmount"))
             payment.daily_transaction_id = txn.get("dailyTransactionID", "")
             payment.customer_name = txn.get("name", "")
             payment.customer_phone = txn.get("phoneNumber", "")
@@ -203,12 +207,12 @@ class Command(BaseCommand):
             payment.save()
 
         logger.info(f"[django-athm] Synced payment {payment.reference_number}")
-        return "updated"
+        return SyncResult.UPDATED
 
-    def _create_payment(self, txn: dict, dry_run: bool) -> str:
+    def _create_payment(self, txn: dict, dry_run: bool) -> SyncResult:
         """Create new payment from remote transaction data."""
         if dry_run:
-            return "created"
+            return SyncResult.CREATED
 
         reference_number = txn["referenceNumber"]
 
@@ -232,14 +236,12 @@ class Command(BaseCommand):
                     reference_number=reference_number,
                     daily_transaction_id=txn.get("dailyTransactionID", ""),
                     status=Payment.Status.COMPLETED,
-                    total=safe_decimal(txn.get("total"), Decimal("0.00")),
-                    subtotal=safe_decimal(txn.get("subtotal"), Decimal("0.00")),
-                    tax=safe_decimal(txn.get("tax"), Decimal("0.00")),
-                    fee=safe_decimal(txn.get("fee"), Decimal("0.00")),
-                    net_amount=safe_decimal(txn.get("netAmount"), Decimal("0.00")),
-                    total_refunded_amount=safe_decimal(
-                        txn.get("totalRefundAmount"), Decimal("0.00")
-                    ),
+                    total=safe_decimal(txn.get("total")),
+                    subtotal=safe_decimal(txn.get("subtotal")),
+                    tax=safe_decimal(txn.get("tax")),
+                    fee=safe_decimal(txn.get("fee")),
+                    net_amount=safe_decimal(txn.get("netAmount")),
+                    total_refunded_amount=safe_decimal(txn.get("totalRefundAmount")),
                     customer_name=txn.get("name", ""),
                     customer_phone=txn.get("phoneNumber", ""),
                     customer_email=txn.get("email", ""),
@@ -255,7 +257,7 @@ class Command(BaseCommand):
                 ) from e
 
         logger.info(f"[django-athm] Created payment from sync: {reference_number}")
-        return "created"
+        return SyncResult.CREATED
 
     def _compute_changes(self, payment: Payment, txn: dict) -> dict:
         """
@@ -266,15 +268,15 @@ class Command(BaseCommand):
         changes = {}
 
         # Compare financial fields
-        remote_fee = safe_decimal(txn.get("fee"), Decimal("0.00"))
+        remote_fee = safe_decimal(txn.get("fee"))
         if payment.fee != remote_fee:
             changes["fee"] = (payment.fee, remote_fee)
 
-        remote_net = safe_decimal(txn.get("netAmount"), Decimal("0.00"))
+        remote_net = safe_decimal(txn.get("netAmount"))
         if payment.net_amount != remote_net:
             changes["net_amount"] = (payment.net_amount, remote_net)
 
-        remote_refunded = safe_decimal(txn.get("totalRefundAmount"), Decimal("0.00"))
+        remote_refunded = safe_decimal(txn.get("totalRefundAmount"))
         if payment.total_refunded_amount != remote_refunded:
             changes["total_refunded_amount"] = (
                 payment.total_refunded_amount,

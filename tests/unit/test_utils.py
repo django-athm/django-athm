@@ -14,13 +14,13 @@ def test_safe_decimal_with_valid_values():
 
 
 def test_safe_decimal_with_none():
-    assert utils.safe_decimal(None) is None
-    assert utils.safe_decimal(None, Decimal("0")) == Decimal("0")
+    assert utils.safe_decimal(None) == Decimal("0")
+    assert utils.safe_decimal(None, Decimal("99")) == Decimal("99")
 
 
 def test_safe_decimal_with_invalid_values():
-    assert utils.safe_decimal("invalid") is None
-    assert utils.safe_decimal("invalid", Decimal("0")) == Decimal("0")
+    assert utils.safe_decimal("invalid") == Decimal("0")
+    assert utils.safe_decimal("invalid", Decimal("99")) == Decimal("99")
 
 
 class TestValidateTotal:

@@ -190,6 +190,58 @@ python manage.py install_webhook https://yourdomain.com/athm/webhook/
 
 The URL must use HTTPS. This is the same functionality available in the Django Admin under Webhook Events > Install Webhooks.
 
+### athm_sync
+
+Reconcile local Payment records with ATH Movil's Transaction Report API. This is useful for:
+- Recovering missed webhooks
+- Backfilling historical transaction data
+- Auditing local records against ATH Movil
+
+**Usage:**
+
+```bash
+# Required: specify date range
+python manage.py athm_sync --from-date 2025-01-01 --to-date 2025-01-31
+
+# Preview changes without modifying database
+python manage.py athm_sync --from-date 2025-01-01 --to-date 2025-01-31 --dry-run
+```
+
+**Arguments:**
+
+| Argument | Required | Description |
+|----------|----------|-------------|
+| `--from-date` | Yes | Start date (YYYY-MM-DD) |
+| `--to-date` | Yes | End date (YYYY-MM-DD) |
+| `--dry-run` | No | Preview changes without modifying database |
+
+**What it does:**
+
+1. Fetches all transactions from ATH Movil for the date range
+2. Filters to eCommerce COMPLETED transactions only
+3. For each transaction:
+   - If payment exists locally: updates missing fields (fee, net_amount, customer info)
+   - If payment doesn't exist: creates new Payment record
+4. Creates/updates Client records based on phone numbers
+
+**Example output:**
+
+```
+ATH Movil Sync
+========================================
+Date range: 2025-01-01 to 2025-01-31
+Fetched 47 transactions
+
+Processing 42 eCommerce COMPLETED transactions
+
+Created: 3
+Updated: 5
+Skipped: 34
+Errors: 0
+
+Sync completed successfully.
+```
+
 ## Internationalization
 
 django-athm includes translations for Spanish (es) and English (en). To enable translations:

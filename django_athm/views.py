@@ -117,9 +117,11 @@ def initiate(request):
     except ValidationError as e:
         return JsonResponse({"error": str(e.message)}, status=400)
 
-    # Optional fields
-    subtotal = safe_decimal(data.get("subtotal"))
-    tax = safe_decimal(data.get("tax"))
+    # Optional fields (None if not provided)
+    raw_subtotal = data.get("subtotal")
+    raw_tax = data.get("tax")
+    subtotal = safe_decimal(raw_subtotal) if raw_subtotal is not None else None
+    tax = safe_decimal(raw_tax) if raw_tax is not None else None
 
     try:
         payment, auth_token = PaymentService.initiate(
