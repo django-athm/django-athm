@@ -263,3 +263,50 @@ class TestAthmButtonI18n:
         # English button text
         assert "Continue" in html_en
         assert "Cancel" in html_en
+
+
+class TestAthmButtonTheme:
+    """Tests for theme support in the payment button template."""
+
+    @pytest.fixture
+    def render_button(self):
+        """Helper to render the athm_button template with a given config."""
+
+        def _render(config):
+            template = Template("{% load django_athm %}{% athm_button config %}")
+            context = Context({"config": config, "csrf_token": "test-token"})
+            return template.render(context)
+
+        return _render
+
+    def test_default_theme_applies_btn_theme_class(self, render_button):
+        """Default theme should apply athm-theme-btn class to container."""
+        html = render_button({"total": "100.00"})
+
+        assert 'class="athm-container athm-theme-btn"' in html
+        assert 'class="athm-button athm-btn"' in html
+
+    def test_btn_dark_theme_applies_dark_theme_class(self, render_button):
+        """btn-dark theme should apply athm-theme-btn-dark class to container."""
+        html = render_button({"total": "100.00", "theme": "btn-dark"})
+
+        assert 'class="athm-container athm-theme-btn-dark"' in html
+        assert 'class="athm-button athm-btn-dark"' in html
+
+    def test_btn_light_theme_applies_light_theme_class(self, render_button):
+        """btn-light theme should apply athm-theme-btn-light class to container."""
+        html = render_button({"total": "100.00", "theme": "btn-light"})
+
+        assert 'class="athm-container athm-theme-btn-light"' in html
+        assert 'class="athm-button athm-btn-light"' in html
+
+    def test_modal_buttons_inherit_theme(self, render_button):
+        """Modal submit and retry buttons should use the same theme class."""
+        html = render_button({"total": "100.00", "theme": "btn-dark"})
+
+        # Submit button in phone step
+        assert "data-athm-submit" in html
+        assert "athm-btn-dark" in html
+
+        # Retry button in error step
+        assert "data-athm-retry" in html

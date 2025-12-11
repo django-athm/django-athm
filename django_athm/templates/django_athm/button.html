@@ -6,12 +6,14 @@
 
         const style = document.createElement("style");
         style.textContent = `
-            /* CSS Custom Properties - Theme-aware colors */
+            /* CSS Custom Properties - Theme-scoped colors */
             :root {
-                color-scheme: light dark;
-                accent-color: #E86D00;
+                accent-color: #f57c00;
+            }
 
-                /* Light theme colors */
+            /* Light theme (for btn and btn-light) */
+            .athm-theme-btn,
+            .athm-theme-btn-light {
                 --athm-bg-base: #ffffff;
                 --athm-bg-elevated: #ffffff;
                 --athm-bg-muted: #f9fafb;
@@ -21,8 +23,8 @@
                 --athm-text-primary: #111827;
                 --athm-text-secondary: #6b7280;
                 --athm-text-muted: #9ca3af;
-                --athm-accent: #E86D00;
-                --athm-accent-hover: #d06300;
+                --athm-accent: #f57c00;
+                --athm-accent-hover: #e06b00;
                 --athm-success-bg: #dcfce7;
                 --athm-success-text: #16a34a;
                 --athm-error-bg: #fee2e2;
@@ -32,26 +34,26 @@
                 --athm-shadow-lg: 0 20px 40px -12px rgba(0, 0, 0, 0.15);
             }
 
-            @media (prefers-color-scheme: dark) {
-                :root {
-                    /* Dark theme colors */
-                    --athm-bg-base: #1f2937;
-                    --athm-bg-elevated: #374151;
-                    --athm-bg-muted: #111827;
-                    --athm-bg-hover: #4b5563;
-                    --athm-border: #4b5563;
-                    --athm-border-subtle: #374151;
-                    --athm-text-primary: #f9fafb;
-                    --athm-text-secondary: #d1d5db;
-                    --athm-text-muted: #9ca3af;
-                    --athm-success-bg: #064e3b;
-                    --athm-success-text: #6ee7b7;
-                    --athm-error-bg: #7f1d1d;
-                    --athm-error-text: #fca5a5;
-                    --athm-shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
-                    --athm-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
-                    --athm-shadow-lg: 0 20px 40px -12px rgba(0, 0, 0, 0.8);
-                }
+            /* Dark theme (for btn-dark) */
+            .athm-theme-btn-dark {
+                --athm-bg-base: #1f2937;
+                --athm-bg-elevated: #374151;
+                --athm-bg-muted: #111827;
+                --athm-bg-hover: #4b5563;
+                --athm-border: #4b5563;
+                --athm-border-subtle: #374151;
+                --athm-text-primary: #f9fafb;
+                --athm-text-secondary: #d1d5db;
+                --athm-text-muted: #9ca3af;
+                --athm-accent: #f57c00;
+                --athm-accent-hover: #e06b00;
+                --athm-success-bg: #064e3b;
+                --athm-success-text: #6ee7b7;
+                --athm-error-bg: #7f1d1d;
+                --athm-error-text: #fca5a5;
+                --athm-shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+                --athm-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
+                --athm-shadow-lg: 0 20px 40px -12px rgba(0, 0, 0, 0.8);
             }
 
             /* Container */
@@ -92,20 +94,26 @@
                 width: auto;
             }
             .athm-btn {
-                background: var(--athm-accent);
+                background: #f57c00;
                 color: white;
             }
             .athm-btn:hover:not(:disabled) {
-                background: var(--athm-accent-hover);
+                background: #e06b00;
             }
             .athm-btn-dark {
-                background: var(--athm-text-primary);
-                color: var(--athm-bg-base);
+                background: #424242;
+                color: white;
+            }
+            .athm-btn-dark:hover:not(:disabled) {
+                background: #333333;
             }
             .athm-btn-light {
-                background: var(--athm-bg-base);
-                color: var(--athm-text-primary);
-                box-shadow: inset 0 0 0 1px var(--athm-border);
+                background: whitesmoke;
+                color: #111827;
+                box-shadow: inset 0 0 0 1px #e5e7eb;
+            }
+            .athm-btn-light:hover:not(:disabled) {
+                background: #e8e8e8;
             }
 
             /* Dialog backdrop */
@@ -869,7 +877,7 @@
     data-athm-error-status="{% trans 'Failed to check status' %}"
     data-athm-error-authorize="{% trans 'Failed to authorize payment' %}"
     data-athm-confirm-cancel="{% trans 'Cancel this payment?' %}"
-    class="athm-container"
+    class="athm-container athm-theme-{{ theme }}"
 >
     <!-- Payment Button -->
    <button
