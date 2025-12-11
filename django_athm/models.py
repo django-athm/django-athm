@@ -38,8 +38,8 @@ class Payment(models.Model):
         default=Status.OPEN,
         db_index=True,
     )
-    created = models.DateTimeField(auto_now_add=True)
-    modified = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
     transaction_date = models.DateTimeField(
         blank=True, null=True, help_text=_("Transaction completion date from ATH Móvil")
     )
@@ -117,10 +117,12 @@ class Payment(models.Model):
         db_table = "athm_payment"
         verbose_name = _("ATH Móvil Transaction")
         verbose_name_plural = _("ATH Móvil Transactions")
-        ordering = ["-created"]
+        ordering = ["-created_at"]
         indexes = [
-            models.Index(fields=["-created"], name="athm_payment_created_idx"),
-            models.Index(fields=["status", "-created"], name="athm_payment_status_idx"),
+            models.Index(fields=["-created_at"], name="athm_payment_created_idx"),
+            models.Index(
+                fields=["status", "-created_at"], name="athm_payment_status_idx"
+            ),
             models.Index(fields=["reference_number"], name="athm_payment_ref_idx"),
         ]
 
@@ -165,7 +167,7 @@ class Refund(models.Model):
 
     # Customer info at time of refund
     customer_name = models.CharField(max_length=255, blank=True)
-    customer_phone = models.CharField(max_length=20, blank=True)
+    customer_phone = models.CharField(max_length=32, blank=True)
     customer_email = models.EmailField(blank=True)
 
     client = models.ForeignKey(
@@ -246,16 +248,16 @@ class WebhookEvent(models.Model):
     )
 
     # Timestamps
-    created = models.DateTimeField(auto_now_add=True)
-    modified = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         db_table = "athm_webhook_event"
         verbose_name = _("ATH Móvil Webhook Event")
         verbose_name_plural = _("ATH Móvil Webhook Events")
-        ordering = ["-created"]
+        ordering = ["-created_at"]
         indexes = [
-            models.Index(fields=["-created"], name="athm_webhook_created_idx"),
+            models.Index(fields=["-created_at"], name="athm_webhook_created_idx"),
             models.Index(
                 fields=["event_type", "processed"], name="athm_webhook_type_idx"
             ),
@@ -294,16 +296,16 @@ class Client(models.Model):
         help_text=_("Customer email (updated from latest transaction)"),
     )
 
-    created = models.DateTimeField(auto_now_add=True)
-    modified = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         db_table = "athm_client"
         verbose_name = _("ATH Movil Client")
         verbose_name_plural = _("ATH Movil Clients")
-        ordering = ["-created"]
+        ordering = ["-created_at"]
         indexes = [
-            models.Index(fields=["-created"], name="athm_client_created_idx"),
+            models.Index(fields=["-created_at"], name="athm_client_created_idx"),
         ]
 
     def __str__(self):
