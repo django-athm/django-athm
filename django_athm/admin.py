@@ -562,6 +562,7 @@ class WebhookEventAdmin(admin.ModelAdmin):
             url = forms.URLField(
                 label=_("Webhook URL"),
                 help_text=_("Auto-detected from current request. Must use HTTPS."),
+                assume_scheme="https",
                 widget=forms.URLInput(
                     attrs={
                         "class": "vURLField",
