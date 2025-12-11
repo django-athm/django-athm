@@ -85,6 +85,8 @@ def my_custom_webhook(request):
     return response
 ```
 
+**Note:** `process_webhook_request()` always returns HTTP 200, even on errors. This prevents webhook retries for non-recoverable errors (malformed JSON, validation failures, processing exceptions). Errors are logged but not exposed to the caller.
+
 Register your custom webhook in `urls.py`:
 ```python
 urlpatterns = [
@@ -102,18 +104,18 @@ The `athm_button` template tag renders the ATH Móvil checkout button with an in
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `total` | float | Total amount to charge. Must be between $1.00 and $1,500.00 |
+| `total` | Decimal | Total amount to charge. Must be between $1.00 and $1,500.00 |
 
 ### Optional Fields
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `subtotal` | float | - | Subtotal before tax (for display) |
-| `tax` | float | - | Tax amount |
+| `subtotal` | Decimal | - | Subtotal before tax (for display) |
+| `tax` | Decimal | - | Tax amount |
 | `metadata_1` | string | "" | Custom metadata field (max 40 chars, auto-truncated) |
 | `metadata_2` | string | "" | Custom metadata field (max 40 chars, auto-truncated) |
 | `items` | list | [] | List of item dictionaries (see Items section below) |
-| `theme` | string | "btn" | Button theme |
+| `theme` | string | "btn" | Button theme ("btn", "btn-dark", "btn-light") |
 | `lang` | string | "es" | Language code ("es" or "en") |
 | `success_url` | string | "" | Redirect URL on success (query params appended) |
 | `failure_url` | string | "" | Redirect URL on failure |
@@ -127,8 +129,8 @@ Each item in the `items` list should be a dictionary with:
 | `name` | string | Yes | Item name |
 | `description` | string | No | Item description |
 | `quantity` | int | No | Quantity (default: 1) |
-| `price` | float | Yes | Price per item |
-| `tax` | float | No | Tax for this item |
+| `price` | Decimal | Yes | Price per item |
+| `tax` | Decimal | No | Tax for this item |
 | `metadata` | string | No | Item metadata |
 
 ### Success URL Query Parameters
@@ -165,6 +167,15 @@ context = {
     }
 }
 ```
+
+### Internal Behavior
+
+The payment modal uses fixed polling parameters:
+
+- Poll interval: 5 seconds
+- Maximum attempts: 60 (5 minutes total)
+
+These values are not configurable via the template tag.
 
 ## URL Endpoints
 

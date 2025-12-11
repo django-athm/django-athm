@@ -14,8 +14,8 @@ Represents a payment transaction from ATH Móvil.
 | `reference_number` | CharField | Unique ATH Móvil reference number (populated on completion) |
 | `daily_transaction_id` | CharField | ATH Móvil daily transaction ID |
 | `status` | CharField | Payment status (see Status choices below) |
-| `created` | DateTimeField | Record creation timestamp |
-| `modified` | DateTimeField | Last modification timestamp |
+| `created_at` | DateTimeField | Record creation timestamp |
+| `updated_at` | DateTimeField | Last modification timestamp |
 | `transaction_date` | DateTimeField | Transaction completion date from ATH Móvil |
 | `total` | DecimalField | Total transaction amount |
 | `subtotal` | DecimalField | Subtotal before tax |
@@ -27,8 +27,8 @@ Represents a payment transaction from ATH Móvil.
 | `customer_phone` | CharField | Customer phone from ATH Móvil |
 | `customer_email` | EmailField | Customer email from ATH Móvil |
 | `client` | ForeignKey | Associated Client record (linked by phone number) |
-| `metadata_1` | CharField | Custom metadata field (max 64 chars) |
-| `metadata_2` | CharField | Custom metadata field (max 64 chars) |
+| `metadata_1` | CharField | Custom metadata field (max 40 chars via API) |
+| `metadata_2` | CharField | Custom metadata field (max 40 chars via API) |
 | `message` | TextField | Optional message |
 | `business_name` | CharField | Business name from ATH Móvil |
 
@@ -74,8 +74,8 @@ payment = Payment.objects.prefetch_related("refunds").get(ecommerce_id=uuid)
 # Filter by date range
 from datetime import datetime
 recent = Payment.objects.filter(
-    created__gte=datetime(2025, 1, 1),
-    created__lte=datetime(2025, 1, 31)
+    created_at__gte=datetime(2025, 1, 1),
+    created_at__lte=datetime(2025, 1, 31)
 )
 ```
 
@@ -95,7 +95,7 @@ Represents a refund for a payment.
 | `daily_transaction_id` | CharField | ATH Móvil daily transaction ID |
 | `amount` | DecimalField | Refund amount |
 | `message` | CharField | Refund message (max 50 chars) |
-| `status` | CharField | Refund status |
+| `status` | CharField | Refund status (always "COMPLETED") |
 | `customer_name` | CharField | Customer name at time of refund |
 | `customer_phone` | CharField | Customer phone at time of refund |
 | `customer_email` | EmailField | Customer email at time of refund |
@@ -134,8 +134,8 @@ Tracks webhook events received from ATH Móvil.
 | `processed` | BooleanField | Whether event was successfully processed |
 | `payment` | ForeignKey | Associated Payment (if any) |
 | `refund` | ForeignKey | Associated Refund (for refund webhooks) |
-| `created` | DateTimeField | Record creation timestamp |
-| `modified` | DateTimeField | Last modification timestamp |
+| `created_at` | DateTimeField | Record creation timestamp |
+| `updated_at` | DateTimeField | Last modification timestamp |
 
 #### Event Types
 
@@ -165,8 +165,8 @@ Represents a unique ATH Móvil customer identified by their phone number. Client
 | `phone_number` | CharField | Unique phone number (normalized to digits only) |
 | `name` | CharField | Customer name (updated from latest transaction) |
 | `email` | EmailField | Customer email (updated from latest transaction) |
-| `created` | DateTimeField | Record creation timestamp |
-| `modified` | DateTimeField | Last modification timestamp |
+| `created_at` | DateTimeField | Record creation timestamp |
+| `updated_at` | DateTimeField | Last modification timestamp |
 
 #### Example Usage
 
@@ -256,6 +256,20 @@ from django_athm.services import PaymentService
 PaymentService.cancel(ecommerce_id)
 ```
 
+##### update_phone_number()
+
+Update the phone number for a pending payment.
+
+```python
+from django_athm.services import PaymentService
+
+PaymentService.update_phone_number(
+    ecommerce_id=uuid,
+    phone_number="7871234567",
+    auth_token=auth_token,
+)
+```
+
 ##### refund()
 
 Refund a completed payment. Defaults to full refund if amount not specified.
@@ -278,7 +292,12 @@ refund = PaymentService.refund(
 )
 ```
 
-Raises `ValueError` if the payment is not refundable or amount exceeds refundable amount.
+Raises `ValueError` if:
+
+- Payment is not refundable (not COMPLETED or fully refunded)
+- Payment has no reference_number
+- Refund amount is not positive
+- Refund amount exceeds refundable amount
 
 ##### sync_status()
 
