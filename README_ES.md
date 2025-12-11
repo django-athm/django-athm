@@ -29,8 +29,8 @@ _Ver este README en inglés: [README.md](/README.md)_
 
 ## Requisitos
 
-- Python 3.10+
-- Django 5.1+
+- Python 3.10 - 3.14
+- Django 5.1 - 6.0
 
 ## Instalación
 

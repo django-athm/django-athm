@@ -174,13 +174,13 @@ Config dict keys:
 - Uses `pytest-django` with fixtures in `tests/`
 - Uses `respx` for mocking HTTPX requests to ATH Móvil API
 - Test settings in `tests/settings.py`
-- Tests run against Django 5.1/5.2 and Python 3.10-3.13 via tox
+- Tests run against Django 5.1/5.2/6.0 and Python 3.10-3.14 via tox
 
 ## Dependencies
 
 - **athm-python ~0.4.0**: ATH Móvil API client
-- **Django 5.1+**: Minimum Django version
-- **Python 3.10+**: Minimum Python version
+- **Django 5.1 - 6.0**: Supported Django versions
+- **Python 3.10 - 3.14**: Supported Python versions
 
 ## Database Tables
 
