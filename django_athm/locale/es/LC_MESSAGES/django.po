@@ -209,11 +209,7 @@ msgstr "Transaccion ATH Móvil"
 msgid "ATH Móvil Transactions"
 msgstr "Transacciones ATH Móvil"
 
-#: models.py:104
-msgid "Associated client record"
-msgstr "Registro de cliente asociado"
-
-#: models.py:177
+#: models.py:104 models.py:177
 msgid "Associated client record"
 msgstr "Registro de cliente asociado"
 
@@ -357,7 +353,35 @@ msgstr "Intentar de nuevo"
 
 #: templatetags/django_athm.py:70
 msgid "ATH Móvil Payment"
-msgstr "Pago ATH Móvil"
+msgstr "Transacción ATH Móvil"
+
+#: templates/django_athm/button.html
+msgid "Payment timed out. Please try again."
+msgstr "El pago expiró. Por favor intenta de nuevo."
+
+#: templates/django_athm/button.html
+msgid "Payment was cancelled."
+msgstr "El pago fue cancelado."
+
+#: templates/django_athm/button.html
+msgid "Payment expired. Please try again."
+msgstr "El pago expiró. Por favor intenta de nuevo."
+
+#: templates/django_athm/button.html
+msgid "Failed to initiate payment"
+msgstr "Error al iniciar el pago"
+
+#: templates/django_athm/button.html
+msgid "Failed to check status"
+msgstr "Error al verificar el estado"
+
+#: templates/django_athm/button.html
+msgid "Failed to authorize payment"
+msgstr "Error al autorizar el pago"
+
+#: templates/django_athm/button.html
+msgid "Cancel this payment?"
+msgstr "¿Cancelar este pago?"
 
 #: apps.py:8
 msgid "Django ATH Móvil"

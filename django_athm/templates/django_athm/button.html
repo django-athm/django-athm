@@ -1,4 +1,5 @@
 {% load i18n %}
+{% language language %}
 <script>
     if (typeof window.athmAssetsLoaded === "undefined") {
         window.athmAssetsLoaded = true;
@@ -122,6 +123,7 @@
                 border: none;
                 border-radius: 12px;
                 padding: 0;
+                margin: auto;
                 width: min(360px, calc(100vw - 32px));
                 box-shadow: var(--athm-shadow-lg);
                 background: var(--athm-bg-elevated);
@@ -548,7 +550,7 @@
 
             async closeModal() {
                 if (this.#state.step === "waiting" || this.#state.step === "authorizing") {
-                    if (!confirm("Cancel this payment?")) {
+                    if (!confirm(this.#config.translations.confirmCancel)) {
                         // Reopen dialog since native close already triggered
                         this.#elements.modal.showModal();
                         return;
@@ -615,7 +617,7 @@
                     const data = await response.json();
 
                     if (!response.ok) {
-                        throw new Error(data.error || "Failed to initiate payment");
+                        throw new Error(data.error || this.#config.translations.errorInitiate);
                     }
 
                     this.#setState({
@@ -648,7 +650,7 @@
 
                 if (pollCount > this.#config.maxPollAttempts) {
                     this.#setState({
-                        error: "Payment timed out. Please try again.",
+                        error: this.#config.translations.errorTimeout,
                         step: "error",
                     });
                     return;
@@ -666,7 +668,7 @@
                     const data = await response.json();
 
                     if (!response.ok) {
-                        throw new Error(data.error || "Failed to check status");
+                        throw new Error(data.error || this.#config.translations.errorStatus);
                     }
 
                     switch (data.status) {
@@ -684,14 +686,14 @@
 
                         case "CANCEL":
                             this.#setState({
-                                error: "Payment was cancelled.",
+                                error: this.#config.translations.errorCancelled,
                                 step: "error",
                             });
                             break;
 
                         case "EXPIRED":
                             this.#setState({
-                                error: "Payment expired. Please try again.",
+                                error: this.#config.translations.errorExpired,
                                 step: "error",
                             });
                             break;
@@ -726,7 +728,7 @@
                     const data = await response.json();
 
                     if (!response.ok) {
-                        throw new Error(data.error || "Failed to authorize payment");
+                        throw new Error(data.error || this.#config.translations.errorAuthorize);
                     }
 
                     this.#setState({
@@ -823,6 +825,15 @@
                     cancelUrl: container.dataset.athmCancelUrl,
                     csrfToken: container.dataset.athmCsrfToken,
                     language: container.dataset.athmLanguage || "es",
+                    translations: {
+                        errorTimeout: container.dataset.athmErrorTimeout,
+                        errorCancelled: container.dataset.athmErrorCancelled,
+                        errorExpired: container.dataset.athmErrorExpired,
+                        errorInitiate: container.dataset.athmErrorInitiate,
+                        errorStatus: container.dataset.athmErrorStatus,
+                        errorAuthorize: container.dataset.athmErrorAuthorize,
+                        confirmCancel: container.dataset.athmConfirmCancel,
+                    },
                 };
 
                 const instance = new ATHMPayment(container, config);
@@ -851,6 +862,13 @@
     data-athm-cancel-url="{{ cancel_url }}"
     data-athm-csrf-token="{{ csrf_token }}"
     data-athm-language="{{ language }}"
+    data-athm-error-timeout="{% trans 'Payment timed out. Please try again.' %}"
+    data-athm-error-cancelled="{% trans 'Payment was cancelled.' %}"
+    data-athm-error-expired="{% trans 'Payment expired. Please try again.' %}"
+    data-athm-error-initiate="{% trans 'Failed to initiate payment' %}"
+    data-athm-error-status="{% trans 'Failed to check status' %}"
+    data-athm-error-authorize="{% trans 'Failed to authorize payment' %}"
+    data-athm-confirm-cancel="{% trans 'Cancel this payment?' %}"
     class="athm-container"
 >
     <!-- Payment Button -->
@@ -869,7 +887,7 @@
     <!-- Modal Dialog -->
     <dialog data-athm-modal class="athm-dialog">
         <div class="athm-modal-header">
-            <h3>{{ modal_title }}</h3>
+            <h3>{% trans "ATH Móvil Payment" %}</h3>
             <button type="button" data-athm-close class="athm-modal-close" aria-label="{% trans 'Close' %}">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
             </button>
@@ -932,3 +950,4 @@
 </div>
 
 <script>initializeATHMButtons();</script>
+{% endlanguage %}

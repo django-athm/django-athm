@@ -1,7 +1,7 @@
 import json
 
 import pytest
-from django.template import Context
+from django.template import Context, Template
 
 from django_athm.templatetags.django_athm import athm_button
 
@@ -190,3 +190,76 @@ class TestAthmButton:
 
         assert result["poll_interval"] == 5
         assert result["max_poll_attempts"] == 60
+
+
+class TestAthmButtonI18n:
+    """Tests for multi-lingual support in the payment button template."""
+
+    @pytest.fixture
+    def render_button(self):
+        """Helper to render the athm_button template with a given config."""
+
+        def _render(config):
+            template = Template("{% load django_athm %}{% athm_button config %}")
+            context = Context({"config": config, "csrf_token": "test-token"})
+            return template.render(context)
+
+        return _render
+
+    def test_translation_data_attributes_present(self, render_button):
+        """All 7 translation data attributes should be present in rendered HTML."""
+        html = render_button({"total": "100.00"})
+
+        assert 'data-athm-error-timeout="' in html
+        assert 'data-athm-error-cancelled="' in html
+        assert 'data-athm-error-expired="' in html
+        assert 'data-athm-error-initiate="' in html
+        assert 'data-athm-error-status="' in html
+        assert 'data-athm-error-authorize="' in html
+        assert 'data-athm-confirm-cancel="' in html
+
+    def test_spanish_translations_rendered(self, render_button):
+        """Spanish language should render Spanish error messages."""
+        html = render_button({"total": "100.00", "lang": "es"})
+
+        # Check Spanish translations are present
+        assert "El pago expiró. Por favor intenta de nuevo." in html
+        assert "El pago fue cancelado." in html
+        assert "Error al iniciar el pago" in html
+        assert "Error al verificar el estado" in html
+        assert "Error al autorizar el pago" in html
+        assert "¿Cancelar este pago?" in html
+
+    def test_english_translations_rendered(self, render_button):
+        """English language should render English error messages."""
+        html = render_button({"total": "100.00", "lang": "en"})
+
+        # Check English translations are present (original msgid values)
+        assert "Payment timed out. Please try again." in html
+        assert "Payment was cancelled." in html
+        assert "Payment expired. Please try again." in html
+        assert "Failed to initiate payment" in html
+        assert "Failed to check status" in html
+        assert "Failed to authorize payment" in html
+        assert "Cancel this payment?" in html
+
+    def test_default_language_is_spanish(self, render_button):
+        """Default language should be Spanish."""
+        html = render_button({"total": "100.00"})
+
+        # Default (no lang specified) should be Spanish
+        assert "El pago fue cancelado." in html
+        assert 'data-athm-language="es"' in html
+
+    def test_language_parameter_controls_modal_text(self, render_button):
+        """The lang parameter should control the language of modal text."""
+        html_es = render_button({"total": "100.00", "lang": "es"})
+        html_en = render_button({"total": "100.00", "lang": "en"})
+
+        # Spanish button text
+        assert "Continuar" in html_es
+        assert "Cancelar" in html_es
+
+        # English button text
+        assert "Continue" in html_en
+        assert "Cancel" in html_en
