@@ -216,7 +216,7 @@ def authorize(request):
     # Webhook will confirm with full details (fee, net_amount, etc.)
     payment.status = Payment.Status.COMPLETED
     payment.reference_number = reference_number
-    payment.save(update_fields=["status", "reference_number", "modified"])
+    payment.save(update_fields=["status", "reference_number", "updated_at"])
 
     # Clean up session
     request.session.pop(f"athm_auth_{ecommerce_uuid!s}", None)
