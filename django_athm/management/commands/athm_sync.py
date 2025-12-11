@@ -327,7 +327,7 @@ class Command(BaseCommand):
                 updated = True
 
             if updated:
-                client.save(update_fields=["name", "email", "modified"])
+                client.save(update_fields=["name", "email", "updated_at"])
 
         return client
 
