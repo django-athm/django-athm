@@ -30,10 +30,10 @@ class PaymentAdmin(admin.ModelAdmin):
         "total_refunded_amount",
         "transaction_date",
         "customer_name",
-        "created",
+        "created_at",
     )
     list_display_links = ("reference_number",)
-    list_filter = ("status", "created", "transaction_date")
+    list_filter = ("status", "created_at", "transaction_date")
     search_fields = (
         "reference_number",
         "ecommerce_id",
@@ -45,8 +45,8 @@ class PaymentAdmin(admin.ModelAdmin):
         "metadata_1",
         "metadata_2",
     )
-    date_hierarchy = "created"
-    ordering = ["-created"]
+    date_hierarchy = "created_at"
+    ordering = ["-created_at"]
 
     fieldsets = (
         (
@@ -58,8 +58,8 @@ class PaymentAdmin(admin.ModelAdmin):
                     "daily_transaction_id",
                     "status",
                     "transaction_date",
-                    "created",
-                    "modified",
+                    "created_at",
+                    "updated_at",
                 )
             },
         ),
@@ -113,8 +113,8 @@ class PaymentAdmin(admin.ModelAdmin):
         "daily_transaction_id",
         "status",
         "transaction_date",
-        "created",
-        "modified",
+        "created_at",
+        "updated_at",
         "total",
         "subtotal",
         "tax",
@@ -178,7 +178,7 @@ class PaymentAdmin(admin.ModelAdmin):
         if not obj.pk:
             return "-"
 
-        webhooks = WebhookEvent.objects.filter(payment=obj).order_by("created")
+        webhooks = WebhookEvent.objects.filter(payment=obj).order_by("created_at")
 
         if not webhooks.exists():
             return _("No webhook events")
@@ -194,7 +194,7 @@ class PaymentAdmin(admin.ModelAdmin):
             items.append(
                 f"<li>"
                 f'<a href="{url}">{webhook.get_event_type_display()}</a> '
-                f"({status}) - {webhook.created.strftime('%Y-%m-%d %H:%M')}"
+                f"({status}) - {webhook.created_at.strftime('%Y-%m-%d %H:%M')}"
                 f"</li>"
             )
 
@@ -368,10 +368,10 @@ class WebhookEventAdmin(admin.ModelAdmin):
         "payment_link",
         "refund_link",
         "remote_ip",
-        "created",
+        "created_at",
     )
     list_display_links = ("id",)
-    list_filter = ("event_type", "processed", "created")
+    list_filter = ("event_type", "processed", "created_at")
     search_fields = (
         "id",
         "payment__reference_number",
@@ -380,8 +380,8 @@ class WebhookEventAdmin(admin.ModelAdmin):
         "remote_ip",
         "idempotency_key",
     )
-    date_hierarchy = "created"
-    ordering = ["-created"]
+    date_hierarchy = "created_at"
+    ordering = ["-created_at"]
     change_list_template = "admin/django_athm/webhookevent/change_list.html"
 
     fieldsets = (
@@ -393,8 +393,8 @@ class WebhookEventAdmin(admin.ModelAdmin):
                     "idempotency_key",
                     "event_type",
                     "processed",
-                    "created",
-                    "modified",
+                    "created_at",
+                    "updated_at",
                 )
             },
         ),
@@ -421,8 +421,8 @@ class WebhookEventAdmin(admin.ModelAdmin):
         "processed",
         "payment",
         "refund",
-        "created",
-        "modified",
+        "created_at",
+        "updated_at",
     )
 
     actions = ["reprocess_events"]
@@ -612,13 +612,13 @@ class ClientAdmin(admin.ModelAdmin):
         "email",
         "payment_count",
         "refund_count",
-        "created",
+        "created_at",
     )
     list_display_links = ("phone_number",)
-    list_filter = ("created", "modified")
+    list_filter = ("created_at", "updated_at")
     search_fields = ("phone_number", "name", "email")
-    date_hierarchy = "created"
-    ordering = ["-created"]
+    date_hierarchy = "created_at"
+    ordering = ["-created_at"]
 
     fieldsets = (
         (
@@ -629,8 +629,8 @@ class ClientAdmin(admin.ModelAdmin):
                     "phone_number",
                     "name",
                     "email",
-                    "created",
-                    "modified",
+                    "created_at",
+                    "updated_at",
                 )
             },
         ),
@@ -645,8 +645,8 @@ class ClientAdmin(admin.ModelAdmin):
         "phone_number",
         "name",
         "email",
-        "created",
-        "modified",
+        "created_at",
+        "updated_at",
         "payment_count",
         "refund_count",
     )
