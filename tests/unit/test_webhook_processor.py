@@ -8,7 +8,7 @@ from athm import parse_webhook
 from django.db import connection
 
 from django_athm import signals
-from django_athm.models import Payment, PaymentLineItem, Refund, WebhookEvent
+from django_athm.models import Client, Payment, Refund, WebhookEvent
 from django_athm.services.webhook_processor import WebhookProcessor
 
 pytestmark = pytest.mark.django_db
@@ -259,6 +259,44 @@ class TestProcessEvent:
         event.refresh_from_db()
         assert event.processed is True
 
+    @pytest.mark.django_db(transaction=True)
+    def test_simulated_webhook_does_not_create_records_or_fire_signals(self, mocker):
+        """Simulated webhooks should not create any records or fire signals."""
+        handler = mocker.Mock()
+        signals.payment_completed.connect(handler)
+
+        try:
+            payload = {
+                "transactionType": "SIMULATED",
+                "ecommerceId": str(uuid.uuid4()),
+                "status": "COMPLETED",
+                "referenceNumber": "sim-ref-123",
+                "total": 100.00,
+                "date": "2024-01-15 10:30:00",
+            }
+            event = WebhookEvent.objects.create(
+                idempotency_key="simulated-key",
+                event_type=WebhookEvent.Type.SIMULATED,
+                payload=payload,
+                remote_ip="127.0.0.1",
+                processed=False,
+            )
+
+            WebhookProcessor.process(event, parse_webhook(event.payload))
+
+            # Event should be marked as processed
+            event.refresh_from_db()
+            assert event.processed is True
+
+            # No records should be created
+            assert Payment.objects.count() == 0
+            assert Client.objects.count() == 0
+
+            # No signals should be fired
+            handler.assert_not_called()
+        finally:
+            signals.payment_completed.disconnect(handler)
+
 
 class TestHandleEcommerceCompleted:
     def test_creates_payment_from_webhook(self):
@@ -281,6 +319,11 @@ class TestHandleEcommerceCompleted:
         assert payment.customer_name == "Test Customer"
         assert payment.customer_email == "test@example.com"
 
+        # Verify event is linked to payment
+        event.refresh_from_db()
+        assert event.payment == payment
+        assert event.refund is None
+
     def test_updates_existing_payment_to_completed(self):
         ecommerce_id = str(uuid.uuid4())
         Payment.objects.create(
@@ -301,7 +344,8 @@ class TestHandleEcommerceCompleted:
         payment = Payment.objects.get(ecommerce_id=ecommerce_id)
         assert payment.status == Payment.Status.COMPLETED
 
-    def test_skips_already_completed_payment(self):
+    def test_enriches_already_completed_payment(self):
+        """Webhook data enriches already-completed payment (e.g., from authorize endpoint)."""
         ecommerce_id = str(uuid.uuid4())
         original_ref = "original-ref-number"
         Payment.objects.create(
@@ -312,6 +356,8 @@ class TestHandleEcommerceCompleted:
         )
         payload = make_completed_payload(ecommerce_id)
         payload["referenceNumber"] = "new-ref-number"
+        payload["fee"] = "1.50"
+        payload["netAmount"] = "98.50"
         event = WebhookEvent.objects.create(
             idempotency_key="test",
             event_type=WebhookEvent.Type.ECOMMERCE_COMPLETED,
@@ -322,7 +368,10 @@ class TestHandleEcommerceCompleted:
         WebhookProcessor.process(event, parse_webhook(event.payload))
 
         payment = Payment.objects.get(ecommerce_id=ecommerce_id)
-        assert payment.reference_number == original_ref  # Unchanged
+        # Webhook data enriches the payment
+        assert payment.reference_number == "new-ref-number"
+        assert payment.fee == Decimal("1.50")
+        assert payment.net_amount == Decimal("98.50")
 
     @pytest.mark.django_db(transaction=True)
     def test_sends_payment_completed_signal(self, mocker):
@@ -346,6 +395,36 @@ class TestHandleEcommerceCompleted:
             call_kwargs = handler.call_args[1]
             assert call_kwargs["sender"] == Payment
             assert call_kwargs["payment"].status == Payment.Status.COMPLETED
+        finally:
+            signals.payment_completed.disconnect(handler)
+
+    @pytest.mark.django_db(transaction=True)
+    def test_no_signal_when_enriching_already_completed(self, mocker):
+        """Signal should not fire when enriching an already-completed payment."""
+        from django_athm import signals
+
+        handler = mocker.Mock()
+        signals.payment_completed.connect(handler)
+
+        try:
+            ecommerce_id = str(uuid.uuid4())
+            Payment.objects.create(
+                ecommerce_id=ecommerce_id,
+                status=Payment.Status.COMPLETED,
+                reference_number="original-ref",
+                total=Decimal("100.00"),
+            )
+            payload = make_completed_payload(ecommerce_id)
+            event = WebhookEvent.objects.create(
+                idempotency_key="enrich-test",
+                event_type=WebhookEvent.Type.ECOMMERCE_COMPLETED,
+                payload=payload,
+                remote_ip="127.0.0.1",
+            )
+
+            WebhookProcessor.process(event, parse_webhook(event.payload))
+
+            handler.assert_not_called()
         finally:
             signals.payment_completed.disconnect(handler)
 
@@ -507,6 +586,11 @@ class TestHandleRefund:
         assert refund.payment == payment
         assert refund.amount == Decimal("25.00")
 
+        # Verify event is linked to both payment and refund
+        event.refresh_from_db()
+        assert event.payment == payment
+        assert event.refund == refund
+
     def test_skips_duplicate_refund(self):
         from django.utils import timezone
 
@@ -570,28 +654,12 @@ class TestHandleRefund:
         assert event.processed is True
 
 
-class TestSyncItems:
-    def test_creates_line_items_from_payload(self):
+class TestClientLinking:
+    def test_creates_client_from_completed_payment(self):
         ecommerce_id = str(uuid.uuid4())
         payload = make_completed_payload(ecommerce_id)
-        payload["items"] = [
-            {
-                "name": "Item 1",
-                "description": "First item",
-                "price": 50.00,
-                "quantity": 2,
-                "tax": 5.00,
-            },
-            {
-                "name": "Item 2",
-                "description": "Second item",
-                "price": 45.00,
-                "quantity": 1,
-                "tax": 0.00,
-            },
-        ]
         event = WebhookEvent.objects.create(
-            idempotency_key="items-test",
+            idempotency_key="client-test",
             event_type=WebhookEvent.Type.ECOMMERCE_COMPLETED,
             payload=payload,
             remote_ip="127.0.0.1",
@@ -600,30 +668,23 @@ class TestSyncItems:
         WebhookProcessor.process(event, parse_webhook(event.payload))
 
         payment = Payment.objects.get(ecommerce_id=ecommerce_id)
-        assert payment.items.count() == 2
-        item1 = payment.items.get(name="Item 1")
-        assert item1.price == Decimal("50.00")
-        assert item1.quantity == 2
+        assert payment.client is not None
+        assert payment.client.phone_number == "7871234567"
+        assert payment.client.name == "Test Customer"
+        assert payment.client.email == "test@example.com"
 
-    def test_skips_sync_if_items_already_exist(self):
+    def test_reuses_existing_client_by_phone(self):
+        # Create existing client
+        existing_client = Client.objects.create(
+            phone_number="7871234567",
+            name="Old Name",
+            email="old@example.com",
+        )
+
         ecommerce_id = str(uuid.uuid4())
-        payment = Payment.objects.create(
-            ecommerce_id=ecommerce_id,
-            status=Payment.Status.CONFIRM,
-            total=Decimal("100.00"),
-        )
-        PaymentLineItem.objects.create(
-            transaction=payment,
-            name="Existing Item",
-            description="Existing",
-            price=Decimal("100.00"),
-        )
         payload = make_completed_payload(ecommerce_id)
-        payload["items"] = [
-            {"name": "New Item", "description": "New", "price": 50.00, "quantity": 1}
-        ]
         event = WebhookEvent.objects.create(
-            idempotency_key="skip-items",
+            idempotency_key="reuse-client",
             event_type=WebhookEvent.Type.ECOMMERCE_COMPLETED,
             payload=payload,
             remote_ip="127.0.0.1",
@@ -631,39 +692,52 @@ class TestSyncItems:
 
         WebhookProcessor.process(event, parse_webhook(event.payload))
 
-        payment.refresh_from_db()
-        assert payment.items.count() == 1
-        assert payment.items.first().name == "Existing Item"
+        payment = Payment.objects.get(ecommerce_id=ecommerce_id)
+        assert payment.client == existing_client
+        assert Client.objects.count() == 1
 
+        # Check that client was updated with latest info
+        existing_client.refresh_from_db()
+        assert existing_client.name == "Test Customer"
+        assert existing_client.email == "test@example.com"
 
-class TestTerminalStateChecks:
-    def test_completed_payment_is_already_completed(self):
-        payment = Payment(status=Payment.Status.COMPLETED)
-        assert WebhookProcessor._is_already_completed(payment)
+    def test_creates_client_from_refund(self):
+        Payment.objects.create(
+            ecommerce_id=uuid.uuid4(),
+            reference_number="ref-for-refund",
+            status=Payment.Status.COMPLETED,
+            total=Decimal("100.00"),
+        )
+        payload = make_refund_payload("ref-for-refund")
+        event = WebhookEvent.objects.create(
+            idempotency_key="refund-client",
+            event_type=WebhookEvent.Type.REFUND_SENT,
+            payload=payload,
+            remote_ip="127.0.0.1",
+        )
 
-    def test_open_payment_is_not_already_completed(self):
-        payment = Payment(status=Payment.Status.OPEN)
-        assert not WebhookProcessor._is_already_completed(payment)
+        WebhookProcessor.process(event, parse_webhook(event.payload))
 
-    def test_completed_payment_is_terminal(self):
-        payment = Payment(status=Payment.Status.COMPLETED)
-        assert WebhookProcessor._is_terminal(payment)
+        refund = Refund.objects.get(reference_number="ref-for-refund")
+        assert refund.client is not None
+        assert refund.client.phone_number == "7871234567"
 
-    def test_cancelled_payment_is_terminal(self):
-        payment = Payment(status=Payment.Status.CANCEL)
-        assert WebhookProcessor._is_terminal(payment)
+    def test_no_client_created_without_phone(self):
+        ecommerce_id = str(uuid.uuid4())
+        payload = make_completed_payload(ecommerce_id)
+        payload["phoneNumber"] = ""  # No phone number
+        event = WebhookEvent.objects.create(
+            idempotency_key="no-phone",
+            event_type=WebhookEvent.Type.ECOMMERCE_COMPLETED,
+            payload=payload,
+            remote_ip="127.0.0.1",
+        )
 
-    def test_expired_payment_is_terminal(self):
-        payment = Payment(status=Payment.Status.EXPIRED)
-        assert WebhookProcessor._is_terminal(payment)
+        WebhookProcessor.process(event, parse_webhook(event.payload))
 
-    def test_open_payment_is_not_terminal(self):
-        payment = Payment(status=Payment.Status.OPEN)
-        assert not WebhookProcessor._is_terminal(payment)
-
-    def test_confirm_payment_is_not_terminal(self):
-        payment = Payment(status=Payment.Status.CONFIRM)
-        assert not WebhookProcessor._is_terminal(payment)
+        payment = Payment.objects.get(ecommerce_id=ecommerce_id)
+        assert payment.client is None
+        assert Client.objects.count() == 0
 
 
 class TestIdempotencyGuarantees:
@@ -750,7 +824,7 @@ class TestIdempotencyGuarantees:
         WebhookProcessor.process(event1, parse_webhook(event1.payload))
 
         payment = Payment.objects.get(ecommerce_id=ecommerce_id)
-        original_modified = payment.modified
+        original_updated = payment.updated_at
 
         # Duplicate delivery (already processed, same event)
         event2, created = WebhookProcessor.store_event(payload, remote_ip="127.0.0.1")
@@ -759,7 +833,7 @@ class TestIdempotencyGuarantees:
 
         payment.refresh_from_db()
         # Payment should not be modified on duplicate
-        assert payment.modified == original_modified
+        assert payment.updated_at == original_updated
 
 
 class TestRealWebhookIntegration:
@@ -797,13 +871,10 @@ class TestRealWebhookIntegration:
         assert payment.metadata_1 == "Django ATHM Demo"
         assert payment.metadata_2 == "Project Support Tip"
 
-        assert payment.items.count() == 1
-        item = payment.items.first()
-        assert item.name == "Tip"
-        assert item.description == "Support Django ATHM Development"
-        assert item.price == Decimal("3.00")
-        assert item.quantity == 1
-        assert item.tax == Decimal("0.00")
+        # Verify client was created
+        assert payment.client is not None
+        assert payment.client.phone_number == "7875551234"
+        assert payment.client.name == "Test Customer"
 
     def test_processes_real_refund_webhook(self, refund_webhook_payload):
         # Create the original payment first

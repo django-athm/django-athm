@@ -14,8 +14,8 @@ Represents a payment transaction from ATH Móvil.
 | `reference_number` | CharField | Unique ATH Móvil reference number (populated on completion) |
 | `daily_transaction_id` | CharField | ATH Móvil daily transaction ID |
 | `status` | CharField | Payment status (see Status choices below) |
-| `created` | DateTimeField | Record creation timestamp |
-| `modified` | DateTimeField | Last modification timestamp |
+| `created_at` | DateTimeField | Record creation timestamp |
+| `updated_at` | DateTimeField | Last modification timestamp |
 | `transaction_date` | DateTimeField | Transaction completion date from ATH Móvil |
 | `total` | DecimalField | Total transaction amount |
 | `subtotal` | DecimalField | Subtotal before tax |
@@ -26,8 +26,9 @@ Represents a payment transaction from ATH Móvil.
 | `customer_name` | CharField | Customer name from ATH Móvil |
 | `customer_phone` | CharField | Customer phone from ATH Móvil |
 | `customer_email` | EmailField | Customer email from ATH Móvil |
-| `metadata_1` | CharField | Custom metadata field (max 64 chars) |
-| `metadata_2` | CharField | Custom metadata field (max 64 chars) |
+| `client` | ForeignKey | Associated Client record (linked by phone number) |
+| `metadata_1` | CharField | Custom metadata field (max 40 chars via API) |
+| `metadata_2` | CharField | Custom metadata field (max 40 chars via API) |
 | `message` | TextField | Optional message |
 | `business_name` | CharField | Business name from ATH Móvil |
 
@@ -67,47 +68,15 @@ refundable = Payment.objects.filter(
     total__gt=models.F("total_refunded_amount")
 )
 
-# Get payment with line items
-payment = Payment.objects.prefetch_related("items").get(ecommerce_id=uuid)
+# Get payment with refunds
+payment = Payment.objects.prefetch_related("refunds").get(ecommerce_id=uuid)
 
 # Filter by date range
 from datetime import datetime
 recent = Payment.objects.filter(
-    created__gte=datetime(2025, 1, 1),
-    created__lte=datetime(2025, 1, 31)
+    created_at__gte=datetime(2025, 1, 1),
+    created_at__lte=datetime(2025, 1, 31)
 )
-```
-
----
-
-### PaymentLineItem
-
-Represents a line item in a payment transaction.
-
-#### Fields
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `id` | UUIDField | Primary key |
-| `transaction` | ForeignKey | Related Payment |
-| `name` | CharField | Item name (max 128 chars) |
-| `description` | TextField | Item description |
-| `quantity` | PositiveSmallIntegerField | Quantity |
-| `price` | DecimalField | Price per item |
-| `tax` | DecimalField | Tax for this item |
-| `metadata` | CharField | Item metadata (max 64 chars) |
-
-#### Example Usage
-
-```python
-from django_athm.models import Payment, PaymentLineItem
-
-# Get all items for a payment
-payment = Payment.objects.get(ecommerce_id=uuid)
-items = payment.items.all()
-
-# Query items directly
-expensive_items = PaymentLineItem.objects.filter(price__gte=100)
 ```
 
 ---
@@ -126,10 +95,11 @@ Represents a refund for a payment.
 | `daily_transaction_id` | CharField | ATH Móvil daily transaction ID |
 | `amount` | DecimalField | Refund amount |
 | `message` | CharField | Refund message (max 50 chars) |
-| `status` | CharField | Refund status |
+| `status` | CharField | Refund status (always "COMPLETED") |
 | `customer_name` | CharField | Customer name at time of refund |
 | `customer_phone` | CharField | Customer phone at time of refund |
 | `customer_email` | EmailField | Customer email at time of refund |
+| `client` | ForeignKey | Associated Client record (linked by phone number) |
 | `transaction_date` | DateTimeField | Refund transaction date |
 | `created_at` | DateTimeField | Record creation timestamp |
 
@@ -162,9 +132,10 @@ Tracks webhook events received from ATH Móvil.
 | `remote_ip` | GenericIPAddressField | IP address of webhook request |
 | `payload` | JSONField | Raw JSON payload |
 | `processed` | BooleanField | Whether event was successfully processed |
-| `transaction` | ForeignKey | Associated Payment (if any) |
-| `created` | DateTimeField | Record creation timestamp |
-| `modified` | DateTimeField | Last modification timestamp |
+| `payment` | ForeignKey | Associated Payment (if any) |
+| `refund` | ForeignKey | Associated Refund (for refund webhooks) |
+| `created_at` | DateTimeField | Record creation timestamp |
+| `updated_at` | DateTimeField | Last modification timestamp |
 
 #### Event Types
 
@@ -178,6 +149,44 @@ class Type(models.TextChoices):
     ECOMMERCE_CANCELLED = "ecommerce_cancelled"
     ECOMMERCE_EXPIRED = "ecommerce_expired"
     UNKNOWN = "unknown"
+```
+
+---
+
+### Client
+
+Represents a unique ATH Móvil customer identified by their phone number. Client records are automatically created and updated when processing webhooks or syncing transactions.
+
+#### Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | UUIDField | Primary key |
+| `phone_number` | CharField | Unique phone number (normalized to digits only) |
+| `name` | CharField | Customer name (updated from latest transaction) |
+| `email` | EmailField | Customer email (updated from latest transaction) |
+| `created_at` | DateTimeField | Record creation timestamp |
+| `updated_at` | DateTimeField | Last modification timestamp |
+
+#### Example Usage
+
+```python
+from django_athm.models import Client, Payment
+
+# Get a client by phone number
+client = Client.objects.get(phone_number="7871234567")
+
+# Get all payments for a client
+payments = client.payments.all()
+
+# Get all refunds for a client
+refunds = client.refunds.all()
+
+# Find clients with multiple payments
+from django.db.models import Count
+repeat_customers = Client.objects.annotate(
+    payment_count=Count("payments")
+).filter(payment_count__gt=1)
 ```
 
 ---
@@ -247,6 +256,20 @@ from django_athm.services import PaymentService
 PaymentService.cancel(ecommerce_id)
 ```
 
+##### update_phone_number()
+
+Update the phone number for a pending payment.
+
+```python
+from django_athm.services import PaymentService
+
+PaymentService.update_phone_number(
+    ecommerce_id=uuid,
+    phone_number="7871234567",
+    auth_token=auth_token,
+)
+```
+
 ##### refund()
 
 Refund a completed payment. Defaults to full refund if amount not specified.
@@ -269,7 +292,12 @@ refund = PaymentService.refund(
 )
 ```
 
-Raises `ValueError` if the payment is not refundable or amount exceeds refundable amount.
+Raises `ValueError` if:
+
+- Payment is not refundable (not COMPLETED or fully refunded)
+- Payment has no reference_number
+- Refund amount is not positive
+- Refund amount exceeds refundable amount
 
 ##### sync_status()
 
@@ -282,6 +310,27 @@ from django_athm.models import Payment
 payment = Payment.objects.get(ecommerce_id=uuid)
 current_status = PaymentService.sync_status(payment)
 ```
+
+##### fetch_transaction_report()
+
+Fetch transaction report from ATH Movil API for a date range.
+
+```python
+from django_athm.services import PaymentService
+
+# Date format: "YYYY-MM-DD HH:MM:SS"
+transactions = PaymentService.fetch_transaction_report(
+    from_date="2025-01-01 00:00:00",
+    to_date="2025-01-31 23:59:59",
+)
+
+# Returns list of transaction dicts with fields like:
+# referenceNumber, status, total, fee, netAmount, name, phoneNumber, email, etc.
+for txn in transactions:
+    print(f"{txn['referenceNumber']}: ${txn['total']}")
+```
+
+This method is used internally by the `athm_sync` management command. You can also use it directly for custom reporting or reconciliation logic.
 
 ---
 

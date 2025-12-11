@@ -35,11 +35,15 @@ jobs:
         python-version: ${{ matrix.python-version }}
 
     - name: Install dependencies
+      run: uv sync --all-extras --dev
+
+    - name: Compile translations
       run: |
-        uv pip install --system tox tox-gh-actions
+        sudo apt-get install -y gettext
+        DJANGO_SETTINGS_MODULE=tests.settings uv run django-admin compilemessages --ignore=.tox --ignore=.venv
 
     - name: Run Tox
-      run: tox
+      run: uv run tox
 
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v5

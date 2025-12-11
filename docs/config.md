@@ -85,6 +85,8 @@ def my_custom_webhook(request):
     return response
 ```
 
+**Note:** `process_webhook_request()` always returns HTTP 200, even on errors. This prevents webhook retries for non-recoverable errors (malformed JSON, validation failures, processing exceptions). Errors are logged but not exposed to the caller.
+
 Register your custom webhook in `urls.py`:
 ```python
 urlpatterns = [
@@ -102,18 +104,18 @@ The `athm_button` template tag renders the ATH Móvil checkout button with an in
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `total` | float | Total amount to charge. Must be between $1.00 and $1,500.00 |
+| `total` | Decimal | Total amount to charge. Must be between $1.00 and $1,500.00 |
 
 ### Optional Fields
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `subtotal` | float | - | Subtotal before tax (for display) |
-| `tax` | float | - | Tax amount |
+| `subtotal` | Decimal | - | Subtotal before tax (for display) |
+| `tax` | Decimal | - | Tax amount |
 | `metadata_1` | string | "" | Custom metadata field (max 40 chars, auto-truncated) |
 | `metadata_2` | string | "" | Custom metadata field (max 40 chars, auto-truncated) |
 | `items` | list | [] | List of item dictionaries (see Items section below) |
-| `theme` | string | "btn" | Button theme |
+| `theme` | string | "btn" | Button theme ("btn", "btn-dark", "btn-light") |
 | `lang` | string | "es" | Language code ("es" or "en") |
 | `success_url` | string | "" | Redirect URL on success (query params appended) |
 | `failure_url` | string | "" | Redirect URL on failure |
@@ -127,8 +129,8 @@ Each item in the `items` list should be a dictionary with:
 | `name` | string | Yes | Item name |
 | `description` | string | No | Item description |
 | `quantity` | int | No | Quantity (default: 1) |
-| `price` | float | Yes | Price per item |
-| `tax` | float | No | Tax for this item |
+| `price` | Decimal | Yes | Price per item |
+| `tax` | Decimal | No | Tax for this item |
 | `metadata` | string | No | Item metadata |
 
 ### Success URL Query Parameters
@@ -166,6 +168,15 @@ context = {
 }
 ```
 
+### Internal Behavior
+
+The payment modal uses fixed polling parameters:
+
+- Poll interval: 5 seconds
+- Maximum attempts: 60 (5 minutes total)
+
+These values are not configurable via the template tag.
+
 ## URL Endpoints
 
 All endpoints are namespaced under `django_athm:`:
@@ -189,6 +200,58 @@ python manage.py install_webhook https://yourdomain.com/athm/webhook/
 ```
 
 The URL must use HTTPS. This is the same functionality available in the Django Admin under Webhook Events > Install Webhooks.
+
+### athm_sync
+
+Reconcile local Payment records with ATH Movil's Transaction Report API. This is useful for:
+- Recovering missed webhooks
+- Backfilling historical transaction data
+- Auditing local records against ATH Movil
+
+**Usage:**
+
+```bash
+# Required: specify date range
+python manage.py athm_sync --from-date 2025-01-01 --to-date 2025-01-31
+
+# Preview changes without modifying database
+python manage.py athm_sync --from-date 2025-01-01 --to-date 2025-01-31 --dry-run
+```
+
+**Arguments:**
+
+| Argument | Required | Description |
+|----------|----------|-------------|
+| `--from-date` | Yes | Start date (YYYY-MM-DD) |
+| `--to-date` | Yes | End date (YYYY-MM-DD) |
+| `--dry-run` | No | Preview changes without modifying database |
+
+**What it does:**
+
+1. Fetches all transactions from ATH Movil for the date range
+2. Filters to eCommerce COMPLETED transactions only
+3. For each transaction:
+   - If payment exists locally: updates missing fields (fee, net_amount, customer info)
+   - If payment doesn't exist: creates new Payment record
+4. Creates/updates Client records based on phone numbers
+
+**Example output:**
+
+```
+ATH Movil Sync
+========================================
+Date range: 2025-01-01 to 2025-01-31
+Fetched 47 transactions
+
+Processing 42 eCommerce COMPLETED transactions
+
+Created: 3
+Updated: 5
+Skipped: 34
+Errors: 0
+
+Sync completed successfully.
+```
 
 ## Internationalization
 

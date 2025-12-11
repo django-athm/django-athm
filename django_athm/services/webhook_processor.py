@@ -6,13 +6,14 @@ from athm.models import WebhookPayload
 from django.db import IntegrityError, transaction
 from django.utils import timezone as django_timezone
 
-from django_athm.models import Payment, PaymentLineItem, Refund, WebhookEvent
+from django_athm.models import Client, Payment, Refund, WebhookEvent
 from django_athm.signals import (
     payment_cancelled,
     payment_completed,
     payment_expired,
     refund_sent,
 )
+from django_athm.utils import normalize_phone_number
 
 logger = logging.getLogger(__name__)
 
@@ -158,11 +159,13 @@ class WebhookProcessor:
         cls,
         event: WebhookEvent,
         payment: Payment | None = None,
+        refund: Refund | None = None,
     ) -> None:
-        """Mark event as processed and optionally link to payment."""
+        """Mark event as processed and optionally link to payment/refund."""
         event.processed = True
-        event.transaction = payment
-        event.save(update_fields=["processed", "transaction", "modified"])
+        event.payment = payment
+        event.refund = refund
+        event.save(update_fields=["processed", "payment", "refund", "updated_at"])
 
     @classmethod
     def mark_processed(cls, event: WebhookEvent) -> None:
@@ -226,16 +229,57 @@ class WebhookProcessor:
 
         return payment, created
 
+    @classmethod
+    def _get_or_update_client(
+        cls, phone_number: str | None, name: str = "", email: str = ""
+    ) -> Client | None:
+        """
+        Get or create Client record by normalized phone number.
+
+        Updates name/email with latest information (latest wins).
+
+        Args:
+            phone_number: Raw phone number from webhook
+            name: Customer name from webhook
+            email: Customer email from webhook
+
+        Returns:
+            Client instance or None if no valid phone number
+        """
+        if not phone_number:
+            return None
+
+        normalized_phone = normalize_phone_number(phone_number)
+        if not normalized_phone:
+            return None
+
+        client, created = Client.objects.get_or_create(
+            phone_number=normalized_phone,
+            defaults={"name": name or "", "email": email or ""},
+        )
+
+        if not created:
+            updated = False
+            if name and client.name != name:
+                client.name = name
+                updated = True
+            if email and client.email != email:
+                client.email = email
+                updated = True
+
+            if updated:
+                client.save(update_fields=["name", "email", "updated_at"])
+                logger.debug("[django-athm] Updated client id=%s", client.pk)
+        else:
+            logger.info("[django-athm] Created new client id=%s", client.pk)
+
+        return client
+
     TERMINAL_STATUSES = (
         Payment.Status.COMPLETED,
         Payment.Status.CANCEL,
         Payment.Status.EXPIRED,
     )
-
-    @staticmethod
-    def _is_already_completed(payment: Payment) -> bool:
-        """Check if payment is already completed (for idempotent completion)."""
-        return payment.status == Payment.Status.COMPLETED
 
     @classmethod
     def _is_terminal(cls, payment: Payment) -> bool:
@@ -252,15 +296,17 @@ class WebhookProcessor:
             if not payment:
                 return
 
-            # Idempotency: if already COMPLETED, skip.
-            if cls._is_already_completed(payment):
-                logger.debug(
-                    "[django-athm] Payment %s already completed", payment.ecommerce_id
-                )
-                cls._mark_processed(event, payment)
-                return
+            # Track if transitioning to COMPLETED (for signal)
+            was_already_completed = payment.status == Payment.Status.COMPLETED
 
-            # Apply Updates (using normalized snake_case fields)
+            # Get or create client
+            client = cls._get_or_update_client(
+                phone_number=normalized.phone_number,
+                name=normalized.name or "",
+                email=normalized.email or "",
+            )
+
+            # Apply webhook data (enriches payment with authoritative data)
             payment.reference_number = normalized.reference_number or ""
             payment.daily_transaction_id = normalized.daily_transaction_id or ""
             payment.fee = normalized.fee or Decimal("0")
@@ -280,22 +326,27 @@ class WebhookProcessor:
                 else normalized.transaction_date
             )
 
+            # Link client
+            payment.client = client
             payment.status = Payment.Status.COMPLETED
             payment.save()
 
-            # Sync Items
-            cls._sync_items(payment, normalized.items)
-
             cls._mark_processed(event, payment)
 
-            # Send Signals
-            transaction.on_commit(
-                lambda: payment_completed.send(sender=Payment, payment=payment)
-            )
-
-            logger.info(
-                "[django-athm] Processed COMPLETED payment: %s", payment.ecommerce_id
-            )
+            # Send signal only on first completion
+            if not was_already_completed:
+                transaction.on_commit(
+                    lambda: payment_completed.send(sender=Payment, payment=payment)
+                )
+                logger.info(
+                    "[django-athm] Processed COMPLETED payment: %s",
+                    payment.ecommerce_id,
+                )
+            else:
+                logger.info(
+                    "[django-athm] Enriched already-completed payment: %s",
+                    payment.ecommerce_id,
+                )
 
     @classmethod
     def _handle_ecommerce_cancelled(
@@ -401,8 +452,15 @@ class WebhookProcessor:
             # So if we can't link it, we log and skip.
 
             if linked_payment:
+                # Get or create client
+                client = cls._get_or_update_client(
+                    phone_number=normalized.phone_number,
+                    name=normalized.name or "",
+                    email=normalized.email or "",
+                )
+
                 transaction_date = normalized.transaction_date or normalized.date
-                Refund.objects.create(
+                created_refund = Refund.objects.create(
                     payment=linked_payment,
                     reference_number=reference_number,
                     daily_transaction_id=normalized.daily_transaction_id or "",
@@ -412,6 +470,7 @@ class WebhookProcessor:
                     customer_name=normalized.name or "",
                     customer_phone=normalized.phone_number or "",
                     customer_email=normalized.email or "",
+                    client=client,
                     transaction_date=(
                         django_timezone.make_aware(transaction_date)
                         if transaction_date and transaction_date.tzinfo is None
@@ -423,22 +482,22 @@ class WebhookProcessor:
                     reference_number,
                     linked_payment.reference_number,
                 )
+
+                cls._mark_processed(
+                    event, payment=linked_payment, refund=created_refund
+                )
+
+                transaction.on_commit(
+                    lambda: refund_sent.send(
+                        sender=Refund, refund=created_refund, payment=linked_payment
+                    )
+                )
             else:
                 logger.info(
                     "[django-athm] Skipped storing Refund %s because no linked Payment was found.",
                     reference_number,
                 )
-
-            cls._mark_processed(event, linked_payment)
-
-            # Send signal only if refund was created
-            if linked_payment:
-                refund = Refund.objects.get(reference_number=reference_number)
-                transaction.on_commit(
-                    lambda: refund_sent.send(
-                        sender=Refund, refund=refund, payment=linked_payment
-                    )
-                )
+                cls._mark_processed(event)
 
     @classmethod
     def _handle_payment_received(
@@ -461,38 +520,11 @@ class WebhookProcessor:
 
     @classmethod
     def _handle_simulated(cls, event: WebhookEvent, normalized: WebhookPayload) -> None:
-        """Handle simulated/test webhook."""
-        logger.info("[django-athm] Processing simulated event %s", event.id)
-        cls._handle_ecommerce_completed(event, normalized)
-
-    @classmethod
-    def _sync_items(cls, payment: Payment, items: list) -> None:
-        """Sync line items from webhook payload.
-
-        Args:
-            payment: The payment to sync items to
-            items: List of WebhookItem objects from normalized payload
         """
-        if not items:
-            return
+        Handle simulated/test webhook.
 
-        # Only sync if we don't have items yet (ours take precedence)
-        if payment.items.exists():
-            return
-
-        for item in items:
-            PaymentLineItem.objects.create(
-                transaction=payment,
-                name=item.name,
-                description=item.description,
-                quantity=item.quantity,
-                price=item.price,
-                tax=item.tax or Decimal("0"),
-                metadata=item.metadata or "",
-            )
-
-        logger.debug(
-            "[django-athm] Synced %d items for payment %s",
-            len(items),
-            payment.ecommerce_id,
-        )
+        Simulated webhooks are marked as processed without creating any records
+        or firing any signals to avoid polluting production data.
+        """
+        logger.info("[django-athm] Ignoring simulated webhook %s", event.id)
+        cls._mark_processed(event)

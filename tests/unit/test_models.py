@@ -133,48 +133,60 @@ class TestPayment:
         assert models.Payment.Status.EXPIRED == "EXPIRED"
 
 
-class TestPaymentLineItem:
-    def test_can_create_line_item(self):
-        payment = models.Payment.objects.create(
+class TestClient:
+    def test_can_create_client(self):
+        client = models.Client.objects.create(
+            phone_number="7875551234",
+            name="Test Customer",
+            email="test@example.com",
+        )
+
+        assert client.phone_number == "7875551234"
+        assert client.name == "Test Customer"
+        assert client.email == "test@example.com"
+
+    def test_str_representation_with_name(self):
+        client = models.Client(
+            phone_number="7875551234",
+            name="Test Customer",
+            email="test@example.com",
+        )
+        assert str(client) == "Test Customer (7875551234)"
+
+    def test_str_representation_without_name(self):
+        client = models.Client(
+            phone_number="7875551234",
+            name="",
+        )
+        assert str(client) == "7875551234"
+
+    def test_client_phone_uniqueness(self):
+        from django.db import IntegrityError
+
+        models.Client.objects.create(phone_number="7875551234")
+
+        with pytest.raises(IntegrityError):
+            models.Client.objects.create(phone_number="7875551234")
+
+    def test_client_payment_relationship(self):
+        client = models.Client.objects.create(phone_number="7875551234")
+
+        models.Payment.objects.create(
             ecommerce_id=uuid.uuid4(),
-            reference_number="test",
+            reference_number="ref-1",
             status=models.Payment.Status.COMPLETED,
             total=Decimal("50.00"),
+            client=client,
         )
-
-        item = models.PaymentLineItem.objects.create(
-            transaction=payment,
-            name="Test Item",
-            description="A test item",
-            quantity=2,
-            price=Decimal("25.00"),
-            tax=Decimal("2.50"),
-        )
-
-        assert item.name == "Test Item"
-        assert item.transaction == payment
-        assert str(item) == "Test Item"
-
-    def test_line_item_relationship(self):
-        payment = models.Payment.objects.create(
+        models.Payment.objects.create(
             ecommerce_id=uuid.uuid4(),
-            reference_number="test",
+            reference_number="ref-2",
             status=models.Payment.Status.COMPLETED,
-            total=Decimal("50.00"),
+            total=Decimal("100.00"),
+            client=client,
         )
 
-        models.PaymentLineItem.objects.create(
-            transaction=payment,
-            name="Item 1",
-            price=Decimal("25.00"),
-        )
-        models.PaymentLineItem.objects.create(
-            transaction=payment,
-            name="Item 2",
-            price=Decimal("25.00"),
-        )
-
-        assert payment.items.count() == 2
+        assert client.payments.count() == 2
 
 
 class TestRefund:

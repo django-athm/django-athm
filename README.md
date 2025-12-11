@@ -1,6 +1,7 @@
 # django-athm
 
 ![Build Status](https://github.com/django-athm/django-athm/actions/workflows/test.yaml/badge.svg)
+![readthedocs](https://app.readthedocs.org/projects/django-athm/badge/?version=latest)
 [![codecov](https://codecov.io/github/django-athm/django-athm/graph/badge.svg?token=n1uO3iKBPG)](https://codecov.io/github/django-athm/django-athm)
 ![PyPI - Python Version](https://img.shields.io/pypi/pyversions/django-athm)
 ![PyPI - Django Version](https://img.shields.io/pypi/djversions/django-athm)
@@ -20,15 +21,16 @@ _See this README in spanish: [README_ES.md](/README_ES.md)_
 ## Features
 
 - **Webhook handling** with idempotency
-- **Transaction persistence** with line items and refunds for complete audit trails
+- **Transaction persistence** with refunds and client records for complete audit trails
 - **Read-only Django Admin** with refund actions and webhook management
-- **Django signals** for payment lifecycle events (created, completed, failed, expired, refunded)
+- **Django signals** for payment lifecycle events (completed, cancelled, expired, refunded)
+- **Transaction reconciliation** via the `athm_sync` management command
 - **Optional payment button template tag** with zero-dependency JavaScript for quick integration
 
 ## Requirements
 
-- Python 3.10+
-- Django 5.1+
+- Python 3.10 - 3.14
+- Django 5.1 - 6.0
 
 ## Installation
 
@@ -163,6 +165,18 @@ python manage.py install_webhook
 python manage.py install_webhook https://yourdomain.com/athm/webhook/
 ```
 
+### Transaction Reconciliation
+
+Reconcile local records with ATH Movil's Transaction Report API to recover missed webhooks or backfill historical data:
+
+```bash
+# Sync transactions for a date range
+python manage.py athm_sync --from-date 2025-01-01 --to-date 2025-01-31
+
+# Preview changes without modifying database
+python manage.py athm_sync --from-date 2025-01-01 --to-date 2025-01-31 --dry-run
+```
+
 ### Webhook Idempotency
 
 All webhooks are processed idempotently using deterministic keys based on the event payload. Duplicate events are automatically detected and ignored.
@@ -194,8 +208,8 @@ def my_custom_webhook(request):
 The package provides a read-only admin interface:
 
 - **Payments**: View all transactions, filter by status/date, bulk refund action
-- **Line Items**: View items associated with payments
 - **Refunds**: View refund records
+- **Clients**: View customer records linked by phone number
 - **Webhook Events**: View webhook history, reprocess failed events, install webhooks
 
 All models are read-only to preserve data integrity - payments can only be refunded, not edited.
@@ -214,7 +228,7 @@ athm_config = {
     "tax": 1.64,                 # Tax amount
     "metadata_1": "order-123",   # Custom field (max 40 chars)
     "metadata_2": "customer-456",# Custom field (max 40 chars)
-    "items": [...],              # List of line items
+    "items": [...],              # List of item objects
     "theme": "btn",              # Button theme: btn, btn-dark, btn-light
     "lang": "es",                # Language: es, en
     "success_url": "/thanks/",   # Redirect on success (adds ?reference_number=...&ecommerce_id=...)

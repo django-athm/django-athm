@@ -1,10 +1,17 @@
 import json
+import logging
 
 from django import template
 from django.urls import reverse
-from django.utils.translation import gettext_lazy as _
 
-from django_athm.constants import BUTTON_COLOR_DEFAULT, BUTTON_LANGUAGE_SPANISH
+from django_athm.constants import (
+    BUTTON_COLOR_DEFAULT,
+    BUTTON_LANGUAGE_DEFAULT,
+    BUTTON_VALID_LANGUAGES,
+    BUTTON_VALID_THEMES,
+)
+
+logger = logging.getLogger(__name__)
 
 register = template.Library()
 
@@ -44,8 +51,22 @@ def athm_button(context, config):
     items = config.get("items")
     success_url = config.get("success_url", "")
     failure_url = config.get("failure_url", "")
+
     theme = config.get("theme") or BUTTON_COLOR_DEFAULT
-    language = config.get("lang") or config.get("language") or BUTTON_LANGUAGE_SPANISH
+    if theme not in BUTTON_VALID_THEMES:
+        logger.warning(
+            "Invalid theme '%s', using default '%s'", theme, BUTTON_COLOR_DEFAULT
+        )
+        theme = BUTTON_COLOR_DEFAULT
+
+    language = config.get("lang") or BUTTON_LANGUAGE_DEFAULT
+    if language not in BUTTON_VALID_LANGUAGES:
+        logger.warning(
+            "Invalid language '%s', using default '%s'",
+            language,
+            BUTTON_LANGUAGE_DEFAULT,
+        )
+        language = BUTTON_LANGUAGE_DEFAULT
 
     csrf_token = context.get("csrf_token", "")
 
@@ -67,5 +88,4 @@ def athm_button(context, config):
         "authorize_url": reverse("django_athm:authorize"),
         "cancel_url": reverse("django_athm:cancel"),
         "csrf_token": csrf_token,
-        "modal_title": _("ATH Móvil Payment"),
     }

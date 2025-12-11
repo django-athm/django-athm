@@ -2,12 +2,13 @@ import logging
 from decimal import Decimal
 from uuid import UUID
 
+import httpx
 from athm.client import ATHMovilClient
 from athm.models import PaymentItem as ATHMovilPaymentItem
 from django.db import transaction
 
 from django_athm.conf import settings as app_settings
-from django_athm.models import Payment, PaymentLineItem, Refund
+from django_athm.models import Payment, Refund
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +28,38 @@ class PaymentService:
             public_token=str(app_settings.PUBLIC_TOKEN),
             private_token=app_settings.PRIVATE_TOKEN,
         )
+
+    @classmethod
+    def fetch_transaction_report(
+        cls,
+        from_date: str,
+        to_date: str,
+    ) -> list[dict]:
+        """
+        Fetch transaction report from ATH Movil API.
+
+        Args:
+            from_date: Start date in "YYYY-MM-DD HH:MM:SS" format
+            to_date: End date in "YYYY-MM-DD HH:MM:SS" format
+
+        Returns:
+            List of transaction dicts from API
+
+        Raises:
+            httpx.HTTPStatusError: On API error response
+            httpx.RequestError: On network/connection failure
+        """
+        url = "https://www.athmovil.com/transactions/v4/transactionReport"
+        payload = {
+            "publicToken": str(app_settings.PUBLIC_TOKEN),
+            "privateToken": app_settings.PRIVATE_TOKEN,
+            "fromDate": from_date,
+            "toDate": to_date,
+        }
+
+        response = httpx.get(url, json=payload, timeout=30)
+        response.raise_for_status()
+        return response.json()
 
     @classmethod
     def initiate(
@@ -72,7 +105,7 @@ class PaymentService:
         ecommerce_id = UUID(response.data.ecommerce_id)
         auth_token = response.data.auth_token
 
-        logger.info(f"[django-athm] Initiated payment {ecommerce_id} with ATH Móvil")
+        logger.info("[django-athm] Initiated payment %s with ATH Movil", ecommerce_id)
 
         # Create local record
         payment = Payment.objects.create(
@@ -85,20 +118,7 @@ class PaymentService:
             metadata_2=metadata_2,
         )
 
-        # Store items locally
-        if items:
-            for item in items:
-                PaymentLineItem.objects.create(
-                    transaction=payment,
-                    name=item["name"],
-                    description=item.get("description", ""),
-                    quantity=item.get("quantity", 1),
-                    price=Decimal(str(item["price"])),
-                    tax=Decimal(str(item.get("tax", 0))),
-                    metadata=item.get("metadata", ""),
-                )
-
-        logger.info(f"[django-athm] Created local payment record {ecommerce_id}")
+        logger.info("[django-athm] Created local payment record %s", ecommerce_id)
 
         return payment, auth_token
 
@@ -116,17 +136,19 @@ class PaymentService:
             auth_token=auth_token,
         )
 
-        logger.info(f"[django-athm] Updated phone number for payment {ecommerce_id}")
+        logger.info("[django-athm] Updated phone number for payment %s", ecommerce_id)
 
     @classmethod
     def find_status(cls, ecommerce_id: UUID) -> str:
         client = cls.get_client()
         transaction_response = client.find_payment(ecommerce_id=str(ecommerce_id))
-        return (
+        status = (
             transaction_response.data.ecommerce_status
             if transaction_response.data is not None
             else Payment.Status.OPEN
         )
+        logger.debug("[django-athm] find_status %s -> %s", ecommerce_id, status)
+        return status
 
     @classmethod
     def authorize(cls, ecommerce_id: UUID, auth_token: str) -> str:
@@ -134,10 +156,15 @@ class PaymentService:
         result = client.authorize_payment(
             ecommerce_id=str(ecommerce_id), auth_token=auth_token
         )
-
-        logger.info("[django-athm] Authorized payment via auth token")
-
-        return result.data.reference_number or "" if result.data is not None else ""
+        reference_number = (
+            result.data.reference_number or "" if result.data is not None else ""
+        )
+        logger.info(
+            "[django-athm] Authorized payment %s -> ref=%s",
+            ecommerce_id,
+            reference_number,
+        )
+        return reference_number
 
     @classmethod
     def cancel(cls, ecommerce_id: UUID) -> None:
@@ -157,11 +184,11 @@ class PaymentService:
                     Payment.Status.CANCEL,
                 ):
                     payment.status = Payment.Status.CANCEL
-                    payment.save(update_fields=["status", "modified"])
+                    payment.save(update_fields=["status", "updated_at"])
             except Payment.DoesNotExist:
                 pass
 
-        logger.info(f"[django-athm] Cancelled payment {ecommerce_id}")
+        logger.info("[django-athm] Cancelled payment %s", ecommerce_id)
 
     @classmethod
     def refund(
@@ -200,7 +227,9 @@ class PaymentService:
         )
 
         logger.info(
-            f"[django-athm] Refunded ${refund_amount} for payment {payment.ecommerce_id}"
+            "[django-athm] Refunded $%s for payment %s",
+            refund_amount,
+            payment.ecommerce_id,
         )
 
         # Create local refund record
@@ -221,7 +250,7 @@ class PaymentService:
             )
 
             payment.total_refunded_amount += refund_amount
-            payment.save(update_fields=["total_refunded_amount", "modified"])
+            payment.save(update_fields=["total_refunded_amount", "updated_at"])
 
         return refund
 
@@ -248,7 +277,7 @@ class PaymentService:
         try:
             remote_status = cls.find_status(payment.ecommerce_id)
         except Exception as e:
-            logger.warning(f"[django-athm] Failed to check remote status: {e}")
+            logger.warning("[django-athm] Failed to check remote status: %s", e)
             return payment.status
 
         if remote_status == payment.status:
@@ -266,9 +295,11 @@ class PaymentService:
             return payment.status
 
         payment.status = new_status
-        payment.save(update_fields=["status", "modified"])
+        payment.save(update_fields=["status", "updated_at"])
         logger.info(
-            f"[django-athm] Payment {payment.ecommerce_id} status updated to {new_status}"
+            "[django-athm] Payment %s status updated to %s",
+            payment.ecommerce_id,
+            new_status,
         )
 
         return payment.status

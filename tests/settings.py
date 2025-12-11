@@ -23,6 +23,10 @@ USE_I18N = True
 
 LANGUAGE_CODE = "en-us"
 
+LOCALE_PATHS = [
+    os.path.join(BASE_DIR, "django_athm", "locale"),
+]
+
 ROOT_URLCONF = "tests.urls"
 
 INSTALLED_APPS = [

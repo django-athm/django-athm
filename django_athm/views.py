@@ -72,7 +72,7 @@ def process_webhook_request(request):
     )
 
     if not created:
-        logger.debug(f"[django-athm] Duplicate webhook: {event.idempotency_key}")
+        logger.debug("[django-athm] Duplicate webhook: %s", event.idempotency_key)
         return HttpResponse(status=200)
 
     # Parse and validate payload
@@ -92,7 +92,7 @@ def process_webhook_request(request):
     try:
         WebhookProcessor.process(event, normalized)
     except Exception:
-        logger.exception(f"[django-athm] Webhook processing failed: {event.id}")
+        logger.exception("[django-athm] Webhook processing failed: %s", event.id)
 
     return HttpResponse(status=200)
 
@@ -117,9 +117,11 @@ def initiate(request):
     except ValidationError as e:
         return JsonResponse({"error": str(e.message)}, status=400)
 
-    # Optional fields
-    subtotal = safe_decimal(data.get("subtotal"))
-    tax = safe_decimal(data.get("tax"))
+    # Optional fields (None if not provided)
+    raw_subtotal = data.get("subtotal")
+    raw_tax = data.get("tax")
+    subtotal = safe_decimal(raw_subtotal) if raw_subtotal is not None else None
+    tax = safe_decimal(raw_tax) if raw_tax is not None else None
 
     try:
         payment, auth_token = PaymentService.initiate(
@@ -137,8 +139,6 @@ def initiate(request):
 
     # Store auth_token in session for later authorization
     request.session[f"athm_auth_{payment.ecommerce_id!s}"] = auth_token
-
-    logger.info(f"[django-athm] Payment {payment.ecommerce_id} initiated via API")
 
     return JsonResponse(
         {
@@ -183,7 +183,7 @@ def authorize(request):
     auth_token = request.session.get(f"athm_auth_{ecommerce_uuid!s}")
     if not auth_token:
         logger.warning(
-            f"[django-athm] No auth token in session for payment {ecommerce_uuid}"
+            "[django-athm] No auth token in session for payment %s", ecommerce_uuid
         )
         return JsonResponse({"error": "Session expired"}, status=400)
 
@@ -209,18 +209,14 @@ def authorize(request):
     try:
         reference_number = PaymentService.authorize(ecommerce_uuid, auth_token)
     except Exception as e:
-        logger.exception(f"[django-athm] Failed to authorize payment {ecommerce_uuid}")
+        logger.exception("[django-athm] Failed to authorize payment %s", ecommerce_uuid)
         return JsonResponse({"error": str(e)}, status=500)
 
     # Update local status optimistically
     # Webhook will confirm with full details (fee, net_amount, etc.)
     payment.status = Payment.Status.COMPLETED
     payment.reference_number = reference_number
-    payment.save(update_fields=["status", "reference_number", "modified"])
-
-    logger.info(
-        f"[django-athm] Authorized payment {ecommerce_uuid} -> {reference_number}"
-    )
+    payment.save(update_fields=["status", "reference_number", "updated_at"])
 
     # Clean up session
     request.session.pop(f"athm_auth_{ecommerce_uuid!s}", None)
@@ -246,9 +242,10 @@ def cancel(request):
 
     try:
         PaymentService.cancel(ecommerce_uuid)
-        logger.info(f"[django-athm] Payment {ecommerce_uuid} cancelled via API")
     except Exception as e:
-        logger.warning(f"[django-athm] Failed to cancel payment {ecommerce_uuid}: {e}")
+        logger.warning(
+            "[django-athm] Failed to cancel payment %s: %s", ecommerce_uuid, e
+        )
         # Still return success - payment may have already completed
 
     # Clean up session
