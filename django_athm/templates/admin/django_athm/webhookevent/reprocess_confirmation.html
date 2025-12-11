@@ -34,7 +34,7 @@
             <tr>
                 <td><code>{{ webhook.id|slice:":8" }}</code></td>
                 <td>{{ webhook.get_event_type_display }}</td>
-                <td>{{ webhook.created|date:"Y-m-d H:i" }}</td>
+                <td>{{ webhook.created_at|date:"Y-m-d H:i" }}</td>
             </tr>
         {% endfor %}
         </tbody>

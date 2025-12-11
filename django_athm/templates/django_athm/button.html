@@ -116,28 +116,36 @@
                 background: #e8e8e8;
             }
 
-            /* Dialog backdrop */
-            .athm-dialog::backdrop {
+            /* Modal overlay */
+            .athm-overlay {
+                position: fixed;
+                inset: 0;
+                z-index: 9999;
+                display: grid;
+                place-items: center;
+                padding: 16px;
                 background: rgba(0, 0, 0, 0.65);
                 backdrop-filter: blur(4px);
                 animation: athm-backdrop-appear 0.3s ease-out;
+            }
+            .athm-overlay.hidden {
+                display: none;
             }
             @keyframes athm-backdrop-appear {
                 from { opacity: 0; }
                 to { opacity: 1; }
             }
 
-            .athm-dialog {
+            /* Modal card */
+            .athm-modal {
+                position: relative;
                 border: none;
                 border-radius: 12px;
                 padding: 0;
-                margin: auto;
                 width: min(360px, calc(100vw - 32px));
+                max-height: calc(100vh - 32px);
+                overflow: auto;
                 box-shadow: var(--athm-shadow-lg);
-                background: var(--athm-bg-elevated);
-                color: var(--athm-text-primary);
-            }
-            .athm-dialog[open] {
                 animation: athm-appear 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             }
             @keyframes athm-appear {
@@ -151,9 +159,20 @@
                 }
             }
 
+            /* Theme-specific modal styles */
+            .athm-theme-btn .athm-modal,
+            .athm-theme-btn-light .athm-modal {
+                background: #ffffff;
+                color: #111827;
+            }
+            .athm-theme-btn-dark .athm-modal {
+                background: #374151;
+                color: #f9fafb;
+            }
+
             @media (prefers-reduced-motion: reduce) {
-                .athm-dialog[open],
-                .athm-dialog::backdrop,
+                .athm-overlay,
+                .athm-modal,
                 .athm-button {
                     animation: none;
                     transition: none;
@@ -406,6 +425,7 @@
                 this.#elements = {
                     container,
                     button: container.querySelector("[data-athm-button]"),
+                    overlay: container.querySelector("[data-athm-overlay]"),
                     modal: container.querySelector("[data-athm-modal]"),
                     closeBtn: container.querySelector("[data-athm-close]"),
                     phoneInput: container.querySelector("[data-athm-phone-input]"),
@@ -434,16 +454,17 @@
                 // Modal close button
                 this.#addListener(this.#elements.closeBtn, "click", () => this.closeModal());
 
-                // Handle native dialog close (Escape key triggers this)
-                this.#addListener(this.#elements.modal, "close", () => {
-                    if (this.#state.showModal) {
-                        this.#handleDialogClose();
+                // Backdrop click to close (click on overlay, not modal)
+                this.#addListener(this.#elements.overlay, "click", (e) => {
+                    if (e.target === this.#elements.overlay) {
+                        this.closeModal();
                     }
                 });
 
-                // Backdrop click to close
-                this.#addListener(this.#elements.modal, "click", (e) => {
-                    if (e.target === this.#elements.modal) {
+                // Escape key to close
+                this.#addListener(document, "keydown", (e) => {
+                    if (e.key === "Escape" && this.#state.showModal) {
+                        e.preventDefault();
                         this.closeModal();
                     }
                 });
@@ -487,12 +508,18 @@
             }
 
             #updateVisibility() {
-                // Modal visibility using native dialog API
-                const modal = this.#elements.modal;
-                if (this.#state.showModal && !modal.open) {
-                    modal.showModal();
-                } else if (!this.#state.showModal && modal.open) {
-                    modal.close();
+                // Modal visibility using CSS classes
+                const overlay = this.#elements.overlay;
+                if (this.#state.showModal) {
+                    overlay.classList.remove("hidden");
+                    overlay.setAttribute("aria-hidden", "false");
+                    // Focus the phone input when opening
+                    if (this.#state.step === "phone" && this.#elements.phoneInput) {
+                        setTimeout(() => this.#elements.phoneInput.focus(), 100);
+                    }
+                } else {
+                    overlay.classList.add("hidden");
+                    overlay.setAttribute("aria-hidden", "true");
                 }
 
                 // Step visibility
@@ -559,8 +586,6 @@
             async closeModal() {
                 if (this.#state.step === "waiting" || this.#state.step === "authorizing") {
                     if (!confirm(this.#config.translations.confirmCancel)) {
-                        // Reopen dialog since native close already triggered
-                        this.#elements.modal.showModal();
                         return;
                     }
                     await this.cancelPayment();
@@ -568,18 +593,6 @@
                 }
                 this.#reset();
                 this.#setState({ showModal: false });
-            }
-
-            // Handle native dialog close (Escape key)
-            async #handleDialogClose() {
-                if (this.#state.step === "waiting" || this.#state.step === "authorizing") {
-                    // Reopen and let closeModal handle the confirm
-                    this.#elements.modal.showModal();
-                    await this.closeModal();
-                } else {
-                    this.#reset();
-                    this.#state.showModal = false;
-                }
             }
 
             #reset() {
@@ -805,8 +818,10 @@
                 if (this.#state.pollTimer) {
                     clearTimeout(this.#state.pollTimer);
                 }
-                if (this.#elements.modal.open) {
-                    this.#elements.modal.close();
+                // Hide the modal if open
+                if (this.#state.showModal) {
+                    this.#elements.overlay.classList.add("hidden");
+                    this.#elements.overlay.setAttribute("aria-hidden", "true");
                 }
             }
         }
@@ -892,69 +907,71 @@
     {% endif %}
   </button>
 
-    <!-- Modal Dialog -->
-    <dialog data-athm-modal class="athm-dialog">
-        <div class="athm-modal-header">
-            <h3>{% trans "ATH Móvil Payment" %}</h3>
-            <button type="button" data-athm-close class="athm-modal-close" aria-label="{% trans 'Close' %}">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
-            </button>
-        </div>
-
-        <div class="athm-modal-body">
-            <!-- Step 1: Phone Number Entry -->
-            <div data-athm-step="phone">
-                <p class="athm-instructions">{% trans "Enter your phone number registered with ATH Móvil" %}</p>
-                <input
-                    type="tel"
-                    data-athm-phone-input
-                    inputmode="tel"
-                    autocomplete="off"
-                    placeholder="787-123-4567"
-                    class="athm-phone-input"
-                    maxlength="12"
-                    pattern="[0-9\-]{10,12}"
-                />
-                <p data-athm-error class="athm-error hidden"></p>
-                <button type="button" data-athm-submit class="athm-button athm-{{ theme }}" disabled>
-                    <span data-athm-submit-text>{% trans "Continue" %}</span>
-                    <span data-athm-submit-loading class="hidden">{% trans "Processing..." %}</span>
+    <!-- Modal Overlay -->
+    <div data-athm-overlay class="athm-overlay hidden" aria-hidden="true">
+        <div data-athm-modal class="athm-modal athm-theme-{{ theme }}" role="dialog" aria-modal="true" aria-labelledby="athm-modal-title-{{ theme }}">
+            <div class="athm-modal-header">
+                <h3 id="athm-modal-title-{{ theme }}">{% trans "ATH Móvil Payment" %}</h3>
+                <button type="button" data-athm-close class="athm-modal-close" aria-label="{% trans 'Close' %}">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
                 </button>
             </div>
 
-            <!-- Step 2: Waiting for Confirmation -->
-            <div data-athm-step="waiting" class="hidden">
-                <div class="athm-spinner"></div>
-                <p class="athm-waiting-text">{% trans "Confirm in ATH Móvil" %}</p>
-                <p class="athm-waiting-subtext">{% trans "Check your ATH Móvil app" %}</p>
-                <button type="button" data-athm-cancel class="athm-cancel-link">{% trans "Cancel" %}</button>
-            </div>
-
-            <!-- Step 2b: Authorizing -->
-            <div data-athm-step="authorizing" class="hidden">
-                <div class="athm-spinner"></div>
-                <p class="athm-waiting-text">{% trans "Processing payment..." %}</p>
-            </div>
-
-            <!-- Step 3: Success -->
-            <div data-athm-step="success" class="hidden">
-                <div class="athm-success-icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            <div class="athm-modal-body">
+                <!-- Step 1: Phone Number Entry -->
+                <div data-athm-step="phone">
+                    <p class="athm-instructions">{% trans "Enter your phone number registered with ATH Móvil" %}</p>
+                    <input
+                        type="tel"
+                        data-athm-phone-input
+                        inputmode="tel"
+                        autocomplete="off"
+                        placeholder="787-123-4567"
+                        class="athm-phone-input"
+                        maxlength="12"
+                        pattern="[0-9\-]{10,12}"
+                    />
+                    <p data-athm-error class="athm-error hidden"></p>
+                    <button type="button" data-athm-submit class="athm-button athm-{{ theme }}" disabled>
+                        <span data-athm-submit-text>{% trans "Continue" %}</span>
+                        <span data-athm-submit-loading class="hidden">{% trans "Processing..." %}</span>
+                    </button>
                 </div>
-                <p class="athm-success-text">{% trans "Payment completed" %}</p>
-                <p class="athm-reference">Ref: <span data-athm-reference></span></p>
-            </div>
 
-            <!-- Step 4: Error -->
-            <div data-athm-step="error" class="hidden">
-                <div class="athm-error-icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 8v4m0 4h.01"/></svg>
+                <!-- Step 2: Waiting for Confirmation -->
+                <div data-athm-step="waiting" class="hidden">
+                    <div class="athm-spinner"></div>
+                    <p class="athm-waiting-text">{% trans "Confirm in ATH Móvil" %}</p>
+                    <p class="athm-waiting-subtext">{% trans "Check your ATH Móvil app" %}</p>
+                    <button type="button" data-athm-cancel class="athm-cancel-link">{% trans "Cancel" %}</button>
                 </div>
-                <p data-athm-error-text class="athm-error-text"></p>
-                <button type="button" data-athm-retry class="athm-button athm-{{ theme }}">{% trans "Try again" %}</button>
+
+                <!-- Step 2b: Authorizing -->
+                <div data-athm-step="authorizing" class="hidden">
+                    <div class="athm-spinner"></div>
+                    <p class="athm-waiting-text">{% trans "Processing payment..." %}</p>
+                </div>
+
+                <!-- Step 3: Success -->
+                <div data-athm-step="success" class="hidden">
+                    <div class="athm-success-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                    </div>
+                    <p class="athm-success-text">{% trans "Payment completed" %}</p>
+                    <p class="athm-reference">Ref: <span data-athm-reference></span></p>
+                </div>
+
+                <!-- Step 4: Error -->
+                <div data-athm-step="error" class="hidden">
+                    <div class="athm-error-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 8v4m0 4h.01"/></svg>
+                    </div>
+                    <p data-athm-error-text class="athm-error-text"></p>
+                    <button type="button" data-athm-retry class="athm-button athm-{{ theme }}">{% trans "Try again" %}</button>
+                </div>
             </div>
         </div>
-    </dialog>
+    </div>
 </div>
 
 <script>initializeATHMButtons();</script>
