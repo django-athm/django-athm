@@ -118,6 +118,15 @@ class TestAthmButton:
 
         assert result["theme"] == "btn-dark"
 
+    def test_invalid_theme_falls_back_to_default(self, caplog):
+        context = Context({})
+        config = {"total": "100.00", "theme": "invalid-theme"}
+
+        result = athm_button(context, config)
+
+        assert result["theme"] == "btn"
+        assert "Invalid theme 'invalid-theme'" in caplog.text
+
     def test_default_language_is_spanish(self):
         context = Context({})
         config = {"total": "100.00"}
@@ -134,13 +143,14 @@ class TestAthmButton:
 
         assert result["language"] == "en"
 
-    def test_custom_language_via_language(self):
+    def test_invalid_language_falls_back_to_default(self, caplog):
         context = Context({})
-        config = {"total": "100.00", "language": "en"}
+        config = {"total": "100.00", "lang": "fr"}
 
         result = athm_button(context, config)
 
-        assert result["language"] == "en"
+        assert result["language"] == "es"
+        assert "Invalid language 'fr'" in caplog.text
 
     def test_success_and_failure_urls(self):
         context = Context({})
@@ -310,3 +320,9 @@ class TestAthmButtonTheme:
 
         # Retry button in error step
         assert "data-athm-retry" in html
+
+    def test_modal_dialog_has_theme_class(self, render_button):
+        """Modal element should have theme class for CSS variable access."""
+        html = render_button({"total": "100.00", "theme": "btn-dark"})
+
+        assert 'class="athm-modal athm-theme-btn-dark"' in html

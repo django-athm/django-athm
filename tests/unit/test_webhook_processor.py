@@ -824,7 +824,7 @@ class TestIdempotencyGuarantees:
         WebhookProcessor.process(event1, parse_webhook(event1.payload))
 
         payment = Payment.objects.get(ecommerce_id=ecommerce_id)
-        original_modified = payment.modified
+        original_updated = payment.updated_at
 
         # Duplicate delivery (already processed, same event)
         event2, created = WebhookProcessor.store_event(payload, remote_ip="127.0.0.1")
@@ -833,7 +833,7 @@ class TestIdempotencyGuarantees:
 
         payment.refresh_from_db()
         # Payment should not be modified on duplicate
-        assert payment.modified == original_modified
+        assert payment.updated_at == original_updated
 
 
 class TestRealWebhookIntegration:
