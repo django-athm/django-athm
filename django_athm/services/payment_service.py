@@ -2,6 +2,7 @@ import logging
 from decimal import Decimal
 from uuid import UUID
 
+import httpx
 from athm.client import ATHMovilClient
 from athm.models import PaymentItem as ATHMovilPaymentItem
 from django.db import transaction
@@ -27,6 +28,38 @@ class PaymentService:
             public_token=str(app_settings.PUBLIC_TOKEN),
             private_token=app_settings.PRIVATE_TOKEN,
         )
+
+    @classmethod
+    def fetch_transaction_report(
+        cls,
+        from_date: str,
+        to_date: str,
+    ) -> list[dict]:
+        """
+        Fetch transaction report from ATH Movil API.
+
+        Args:
+            from_date: Start date in "YYYY-MM-DD HH:MM:SS" format
+            to_date: End date in "YYYY-MM-DD HH:MM:SS" format
+
+        Returns:
+            List of transaction dicts from API
+
+        Raises:
+            httpx.HTTPStatusError: On API error response
+            httpx.RequestError: On network/connection failure
+        """
+        url = "https://www.athmovil.com/transactions/v4/transactionReport"
+        payload = {
+            "publicToken": str(app_settings.PUBLIC_TOKEN),
+            "privateToken": app_settings.PRIVATE_TOKEN,
+            "fromDate": from_date,
+            "toDate": to_date,
+        }
+
+        response = httpx.get(url, json=payload, timeout=30)
+        response.raise_for_status()
+        return response.json()
 
     @classmethod
     def initiate(
