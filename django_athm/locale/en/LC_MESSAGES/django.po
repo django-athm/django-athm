@@ -209,31 +209,15 @@ msgstr ""
 msgid "ATH Móvil Transactions"
 msgstr ""
 
-#: models.py:150
-msgid "Item name"
+#: models.py:104
+msgid "Associated client record"
 msgstr ""
 
-#: models.py:151
-msgid "Item description"
+#: models.py:177
+msgid "Associated client record"
 msgstr ""
 
-#: models.py:156
-msgid "Item price"
-msgstr ""
-
-#: models.py:162
-msgid "Item tax"
-msgstr ""
-
-#: models.py:168
-msgid "ATH Móvil Payment Line Item"
-msgstr ""
-
-#: models.py:169
-msgid "ATH Móvil Payment Line Items"
-msgstr ""
-
-#: models.py:204
+#: models.py:147
 msgid "ATH Móvil Refund"
 msgstr ""
 
@@ -285,8 +269,12 @@ msgstr ""
 msgid "Whether the webhook was successfully processed"
 msgstr ""
 
-#: models.py:256
-msgid "Associated transaction if found/created"
+#: models.py:237
+msgid "Associated payment if found/created"
+msgstr ""
+
+#: models.py:245
+msgid "Associated refund for refund webhooks"
 msgstr ""
 
 #: models.py:265
@@ -369,4 +357,28 @@ msgstr ""
 
 #: templatetags/django_athm.py:70
 msgid "ATH Móvil Payment"
+msgstr ""
+
+#: apps.py:8
+msgid "Django ATH Móvil"
+msgstr ""
+
+#: models.py:283
+msgid "Phone number (normalized to digits only)"
+msgstr ""
+
+#: models.py:289
+msgid "Customer name (updated from latest transaction)"
+msgstr ""
+
+#: models.py:294
+msgid "Customer email (updated from latest transaction)"
+msgstr ""
+
+#: models.py:301
+msgid "ATH Movil Client"
+msgstr ""
+
+#: models.py:302
+msgid "ATH Movil Clients"
 msgstr ""

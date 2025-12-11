@@ -209,31 +209,15 @@ msgstr "Transaccion ATH Móvil"
 msgid "ATH Móvil Transactions"
 msgstr "Transacciones ATH Móvil"
 
-#: models.py:150
-msgid "Item name"
-msgstr "Nombre del articulo"
+#: models.py:104
+msgid "Associated client record"
+msgstr "Registro de cliente asociado"
 
-#: models.py:151
-msgid "Item description"
-msgstr "Descripcion del articulo"
+#: models.py:177
+msgid "Associated client record"
+msgstr "Registro de cliente asociado"
 
-#: models.py:156
-msgid "Item price"
-msgstr "Precio del articulo"
-
-#: models.py:162
-msgid "Item tax"
-msgstr "Impuesto del articulo"
-
-#: models.py:168
-msgid "ATH Móvil Payment Line Item"
-msgstr "Articulo de pago ATH Móvil"
-
-#: models.py:169
-msgid "ATH Móvil Payment Line Items"
-msgstr "Articulos de pago ATH Móvil"
-
-#: models.py:204
+#: models.py:147
 msgid "ATH Móvil Refund"
 msgstr "Reembolso ATH Móvil"
 
@@ -285,9 +269,13 @@ msgstr "Direccion IP de la solicitud de webhook"
 msgid "Whether the webhook was successfully processed"
 msgstr "Si el webhook fue procesado exitosamente"
 
-#: models.py:256
-msgid "Associated transaction if found/created"
-msgstr "Transaccion asociada si fue encontrada/creada"
+#: models.py:237
+msgid "Associated payment if found/created"
+msgstr "Pago asociado si fue encontrado/creado"
+
+#: models.py:245
+msgid "Associated refund for refund webhooks"
+msgstr "Reembolso asociado para webhooks de reembolso"
 
 #: models.py:265
 msgid "ATH Móvil Webhook Event"
@@ -370,3 +358,27 @@ msgstr "Intentar de nuevo"
 #: templatetags/django_athm.py:70
 msgid "ATH Móvil Payment"
 msgstr "Pago ATH Móvil"
+
+#: apps.py:8
+msgid "Django ATH Móvil"
+msgstr "Django ATH Móvil"
+
+#: models.py:283
+msgid "Phone number (normalized to digits only)"
+msgstr "Numero de telefono (normalizado a solo digitos)"
+
+#: models.py:289
+msgid "Customer name (updated from latest transaction)"
+msgstr "Nombre del cliente (actualizado de la ultima transaccion)"
+
+#: models.py:294
+msgid "Customer email (updated from latest transaction)"
+msgstr "Correo del cliente (actualizado de la ultima transaccion)"
+
+#: models.py:301
+msgid "ATH Movil Client"
+msgstr "Cliente ATH Movil"
+
+#: models.py:302
+msgid "ATH Movil Clients"
+msgstr "Clientes ATH Movil"

@@ -11,9 +11,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 The package provides:
 
 - **Webhook handling** for payment events with SHA-256 idempotency and ACID guarantees (core feature)
-- **Transaction persistence** with line items and refunds for complete audit trails
+- **Transaction persistence** with refunds and client records for complete audit trails
 - **Read-only Django Admin interface** with refund actions and webhook management
 - **Django signals** for payment lifecycle events to integrate with your business logic
+- **Transaction reconciliation** via the `athm_sync` management command
 - **Optional backend-first, zero-dependency JavaScript powered template tag** as an optional feature for quick integration
 
 ## Development Commands
@@ -58,6 +59,12 @@ ruff format --check .
 ```bash
 # Register webhook URL with ATH Móvil
 python manage.py install_webhook https://yourdomain.com/athm/webhook/
+
+# Reconcile local records with ATH Movil Transaction Report API
+python manage.py athm_sync --from-date 2025-01-01 --to-date 2025-01-31
+
+# Preview sync changes without modifying database
+python manage.py athm_sync --from-date 2025-01-01 --to-date 2025-01-31 --dry-run
 ```
 
 ## Architecture
@@ -91,9 +98,9 @@ All endpoints are namespaced under `django_athm:`:
 
 **Models** (`django_athm/models.py`):
 - `Payment`: Primary transaction record (PK: `ecommerce_id` UUID)
-- `PaymentLineItem`: Individual items in a transaction
 - `Refund`: Refund records linked to payments
 - `WebhookEvent`: Tracks webhook events with idempotency
+- `Client`: Customer records linked by phone number
 
 **Views** (`django_athm/views.py`):
 - `initiate`, `status`, `authorize`, `cancel`: Payment flow endpoints
@@ -106,8 +113,9 @@ All endpoints are namespaced under `django_athm:`:
 **Admin** (`django_athm/admin.py`):
 - All models are read-only (no add/change/delete)
 - `PaymentAdmin`: View transactions, bulk refund action
-- `WebhookEventAdmin`: View/reprocess webhooks, install webhook URL
 - `RefundAdmin`: View refund records
+- `WebhookEventAdmin`: View/reprocess webhooks, install webhook URL
+- `ClientAdmin`: View customer records
 
 **Signals** (`django_athm/signals.py`):
 All signals are webhook-triggered and aligned with ATH Móvil event names:
@@ -178,6 +186,6 @@ Config dict keys:
 
 All tables use explicit `db_table` names:
 - `athm_payment`
-- `athm_payment_item`
 - `athm_refund`
 - `athm_webhook_event`
+- `athm_client`

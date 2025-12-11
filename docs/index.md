@@ -108,7 +108,7 @@ django-athm uses a backend-first modal flow:
 Query payments from the database:
 
 ```python
-from django_athm.models import Payment, PaymentLineItem, Refund
+from django_athm.models import Payment, Refund
 
 # Get all payments
 payments = Payment.objects.all()
@@ -116,12 +116,12 @@ payments = Payment.objects.all()
 # Get completed payments
 completed = Payment.objects.filter(status=Payment.Status.COMPLETED)
 
-# Get a payment with its line items
-payment = Payment.objects.prefetch_related("items").get(ecommerce_id=uuid)
+# Get a payment with its refunds
+payment = Payment.objects.prefetch_related("refunds").get(ecommerce_id=uuid)
 
-# Access line items
-for item in payment.items.all():
-    print(f"{item.name}: ${item.price}")
+# Access refunds
+for refund in payment.refunds.all():
+    print(f"Refund {refund.reference_number}: ${refund.amount}")
 
 # Check if refundable
 if payment.is_refundable:
@@ -158,6 +158,23 @@ python manage.py install_webhook https://yourdomain.com/athm/webhook/
 ```
 
 See [Webhook Configuration](config.md#webhook-configuration) for detailed setup instructions.
+
+### athm_sync
+
+Reconcile local Payment records with ATH Movil's Transaction Report API. Useful for recovering missed webhooks or backfilling historical data.
+
+```bash
+# Sync transactions for a date range
+python manage.py athm_sync --from-date 2025-01-01 --to-date 2025-01-31
+
+# Preview changes without modifying database
+python manage.py athm_sync --from-date 2025-01-01 --to-date 2025-01-31 --dry-run
+```
+
+The command will:
+- Create new Payment records for transactions not in your database
+- Update existing records with missing fields (fee, net_amount, customer info)
+- Skip records that are already fully synced
 
 ## Next Steps
 

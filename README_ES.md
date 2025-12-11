@@ -21,9 +21,10 @@ _Ver este README en inglés: [README.md](/README.md)_
 ## Características
 
 - **Manejo de webhooks** con idempotencia
-- **Persistencia de transacciones** con artículos de línea y reembolsos para auditoría completa
+- **Persistencia de transacciones** con reembolsos y registros de clientes para auditoría completa
 - **Interfaz Django Admin de solo lectura** con acciones de reembolso y configuración de webhooks
-- **Django Signals** para eventos del ciclo de vida de pagos (creado, completado, fallido, expirado, reembolsado)
+- **Django Signals** para eventos del ciclo de vida de pagos (completado, cancelado, expirado, reembolsado)
+- **Reconciliación de transacciones** mediante el comando de gestión `athm_sync`
 - **Template tag opcional de botón de pago** con JavaScript sin dependencias para integración rápida
 
 ## Requisitos
@@ -163,13 +164,25 @@ python manage.py install_webhook
 python manage.py install_webhook https://example.com/athm/webhook/
 ```
 
+### Reconciliación de Transacciones
+
+Reconcilia datos locales con la API de Transaction Report de ATH Móvil para recuperar webhooks perdidos o cargar datos historicos:
+
+```bash
+# Sincronizar transacciones para un rango de fechas
+python manage.py athm_sync --from-date 2025-01-01 --to-date 2025-01-31
+
+# Verificar posibles cambios sin modificar la base de datos
+python manage.py athm_sync --dry-run --from-date 2025-01-01 --to-date 2025-01-31
+```
+
 ### Idempotencia de Webhooks
 
-Todos los webhooks se procesan de manera idempotente usando claves determinísticas basadas en el payload del evento. Los eventos duplicados se detectan e ignoran automáticamente.
+Todos los webhooks se procesan de manera idempotente usando llaves determinísticas basadas en el payload del evento. Los eventos duplicados se detectan e ignoran automáticamente.
 
-### Vistas de Webhook Personalizadas
+### Lógica custom para los Webhooks
 
-Si necesitas lógica personalizada antes/después del procesamiento de webhook:
+Si necesitas alguna lógica específica antes/después del procesamiento de webhook:
 
 ```python
 from django.views.decorators.csrf import csrf_exempt
@@ -194,8 +207,8 @@ def mi_webhook_personalizado(request):
 El paquete proporciona una interfaz admin de solo lectura:
 
 - **Payments**: Ver todas las transacciones, filtrar por estado/fecha, acción de reembolso masivo
-- **Line Items**: Ver artículos asociados con pagos
 - **Refunds**: Ver registros de reembolsos
+- **Clients**: Ver registros de clientes vinculados por número de teléfono
 - **Webhook Events**: Ver historial de webhooks, reprocesar eventos fallidos, instalar webhooks
 
 Todos los modelos son de solo lectura para preservar la integridad de datos - los pagos solo pueden ser reembolsados, no editados.
@@ -214,7 +227,7 @@ athm_config = {
     "tax": 1.64,                 # Monto de impuestos
     "metadata_1": "orden-123",   # Campo personalizado (máx 40 caracteres)
     "metadata_2": "cliente-456", # Campo personalizado (máx 40 caracteres)
-    "items": [...],              # Lista de artículos de línea
+    "items": [...],              # Lista de objetos de articulo
     "theme": "btn",              # Tema del botón: btn, btn-dark, btn-light
     "lang": "es",                # Idioma: es, en
     "success_url": "/gracias/",  # Redirección en éxito (añade ?reference_number=...&ecommerce_id=...)
