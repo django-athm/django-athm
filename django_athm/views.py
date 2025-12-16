@@ -5,7 +5,7 @@ from uuid import UUID
 from athm import parse_webhook
 from athm.exceptions import ValidationError as ATHMValidationError
 from django.core.exceptions import ValidationError
-from django.http import HttpResponse, JsonResponse
+from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 
@@ -14,6 +14,23 @@ from django_athm.services import PaymentService, WebhookProcessor
 from django_athm.utils import safe_decimal, validate_phone_number, validate_total
 
 logger = logging.getLogger(__name__)
+
+# Session key template for storing auth tokens
+SESSION_AUTH_TOKEN_KEY = "athm_auth_{}"
+
+
+def _parse_json_body(request: HttpRequest) -> tuple[dict | None, JsonResponse | None]:
+    """
+    Parse JSON body from request.
+
+    Returns:
+        (data, None) on success
+        (None, error_response) on failure
+    """
+    try:
+        return json.loads(request.body), None
+    except json.JSONDecodeError:
+        return None, JsonResponse({"error": "Invalid JSON"}, status=400)
 
 
 def _get_client_ip(request) -> str:
@@ -105,10 +122,9 @@ def webhook(request):
 
 @require_http_methods(["POST"])
 def initiate(request):
-    try:
-        data = json.loads(request.body)
-    except json.JSONDecodeError:
-        return JsonResponse({"error": "Invalid JSON"}, status=400)
+    data, error = _parse_json_body(request)
+    if error:
+        return error
 
     # Validate required fields
     try:
@@ -138,7 +154,7 @@ def initiate(request):
         return JsonResponse({"error": str(e)}, status=500)
 
     # Store auth_token in session for later authorization
-    request.session[f"athm_auth_{payment.ecommerce_id!s}"] = auth_token
+    request.session[SESSION_AUTH_TOKEN_KEY.format(payment.ecommerce_id)] = auth_token
 
     return JsonResponse(
         {
@@ -170,17 +186,16 @@ def status(request):
 
 @require_http_methods(["POST"])
 def authorize(request):
-    try:
-        data = json.loads(request.body)
-    except json.JSONDecodeError:
-        return JsonResponse({"error": "Invalid JSON"}, status=400)
+    data, error = _parse_json_body(request)
+    if error:
+        return error
 
     ecommerce_uuid, error = _parse_ecommerce_id(data.get("ecommerce_id"))
     if error:
         return error
 
     # Get auth token from session
-    auth_token = request.session.get(f"athm_auth_{ecommerce_uuid!s}")
+    auth_token = request.session.get(SESSION_AUTH_TOKEN_KEY.format(ecommerce_uuid))
     if not auth_token:
         logger.warning(
             "[django-athm] No auth token in session for payment %s", ecommerce_uuid
@@ -219,7 +234,7 @@ def authorize(request):
     payment.save(update_fields=["status", "reference_number", "updated_at"])
 
     # Clean up session
-    request.session.pop(f"athm_auth_{ecommerce_uuid!s}", None)
+    request.session.pop(SESSION_AUTH_TOKEN_KEY.format(ecommerce_uuid), None)
 
     return JsonResponse(
         {
@@ -231,10 +246,9 @@ def authorize(request):
 
 @require_http_methods(["POST"])
 def cancel(request):
-    try:
-        data = json.loads(request.body)
-    except json.JSONDecodeError:
-        return JsonResponse({"error": "Invalid JSON"}, status=400)
+    data, error = _parse_json_body(request)
+    if error:
+        return error
 
     ecommerce_uuid, error = _parse_ecommerce_id(data.get("ecommerce_id"))
     if error:
@@ -249,6 +263,6 @@ def cancel(request):
         # Still return success - payment may have already completed
 
     # Clean up session
-    request.session.pop(f"athm_auth_{ecommerce_uuid!s}", None)
+    request.session.pop(SESSION_AUTH_TOKEN_KEY.format(ecommerce_uuid), None)
 
     return JsonResponse({"status": "cancelled"})

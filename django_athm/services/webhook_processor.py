@@ -6,14 +6,14 @@ from athm.models import WebhookPayload
 from django.db import IntegrityError, transaction
 from django.utils import timezone as django_timezone
 
-from django_athm.models import Client, Payment, Refund, WebhookEvent
+from django_athm.models import Payment, Refund, WebhookEvent
+from django_athm.services.client_service import ClientService
 from django_athm.signals import (
     payment_cancelled,
     payment_completed,
     payment_expired,
     refund_sent,
 )
-from django_athm.utils import normalize_phone_number
 
 logger = logging.getLogger(__name__)
 
@@ -230,63 +230,6 @@ class WebhookProcessor:
         return payment, created
 
     @classmethod
-    def _get_or_update_client(
-        cls, phone_number: str | None, name: str = "", email: str = ""
-    ) -> Client | None:
-        """
-        Get or create Client record by normalized phone number.
-
-        Updates name/email with latest information (latest wins).
-
-        Args:
-            phone_number: Raw phone number from webhook
-            name: Customer name from webhook
-            email: Customer email from webhook
-
-        Returns:
-            Client instance or None if no valid phone number
-        """
-        if not phone_number:
-            return None
-
-        normalized_phone = normalize_phone_number(phone_number)
-        if not normalized_phone:
-            return None
-
-        client, created = Client.objects.get_or_create(
-            phone_number=normalized_phone,
-            defaults={"name": name or "", "email": email or ""},
-        )
-
-        if not created:
-            updated = False
-            if name and client.name != name:
-                client.name = name
-                updated = True
-            if email and client.email != email:
-                client.email = email
-                updated = True
-
-            if updated:
-                client.save(update_fields=["name", "email", "updated_at"])
-                logger.debug("[django-athm] Updated client id=%s", client.pk)
-        else:
-            logger.info("[django-athm] Created new client id=%s", client.pk)
-
-        return client
-
-    TERMINAL_STATUSES = (
-        Payment.Status.COMPLETED,
-        Payment.Status.CANCEL,
-        Payment.Status.EXPIRED,
-    )
-
-    @classmethod
-    def _is_terminal(cls, payment: Payment) -> bool:
-        """Check if payment is in any terminal state."""
-        return payment.status in cls.TERMINAL_STATUSES
-
-    @classmethod
     def _handle_ecommerce_completed(
         cls, event: WebhookEvent, normalized: WebhookPayload
     ) -> None:
@@ -300,7 +243,7 @@ class WebhookProcessor:
             was_already_completed = payment.status == Payment.Status.COMPLETED
 
             # Get or create client
-            client = cls._get_or_update_client(
+            client = ClientService.get_or_update(
                 phone_number=normalized.phone_number,
                 name=normalized.name or "",
                 email=normalized.email or "",
@@ -359,7 +302,7 @@ class WebhookProcessor:
                 return
 
             # Idempotency: if already in terminal state, skip.
-            if cls._is_terminal(payment):
+            if payment.status in Payment.TERMINAL_STATUSES:
                 logger.debug(
                     "[django-athm] Payment %s already in terminal state %s",
                     payment.ecommerce_id,
@@ -392,7 +335,7 @@ class WebhookProcessor:
                 return
 
             # Idempotency: skip if terminal
-            if cls._is_terminal(payment):
+            if payment.status in Payment.TERMINAL_STATUSES:
                 logger.debug(
                     "[django-athm] Payment %s already in terminal state %s",
                     payment.ecommerce_id,
@@ -453,7 +396,7 @@ class WebhookProcessor:
 
             if linked_payment:
                 # Get or create client
-                client = cls._get_or_update_client(
+                client = ClientService.get_or_update(
                     phone_number=normalized.phone_number,
                     name=normalized.name or "",
                     email=normalized.email or "",

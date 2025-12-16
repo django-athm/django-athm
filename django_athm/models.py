@@ -13,6 +13,9 @@ class Payment(models.Model):
         CANCEL = "CANCEL", _("Cancelled")
         EXPIRED = "EXPIRED", _("Expired")
 
+    # Terminal statuses where no further state transitions are expected
+    TERMINAL_STATUSES = (Status.COMPLETED, Status.CANCEL, Status.EXPIRED)
+
     # Primary identifier from ATH Móvil
     ecommerce_id = models.UUIDField(
         primary_key=True,

@@ -7,9 +7,9 @@ from django.core.management.base import BaseCommand, CommandError
 from django.db import IntegrityError, transaction
 from django.utils import timezone as django_timezone
 
-from django_athm.models import Client, Payment
-from django_athm.services.payment_service import PaymentService
-from django_athm.utils import normalize_phone_number, safe_decimal
+from django_athm.models import Payment
+from django_athm.services import ClientService, PaymentService
+from django_athm.utils import safe_decimal
 
 __all__ = ["Command", "SyncResult"]
 
@@ -181,7 +181,7 @@ class Command(BaseCommand):
             payment = Payment.objects.select_for_update().get(pk=payment.pk)
 
             # Get or create Client
-            client = self._get_or_update_client(
+            client = ClientService.get_or_update(
                 phone_number=txn.get("phoneNumber"),
                 name=txn.get("name", ""),
                 email=txn.get("email", ""),
@@ -218,7 +218,7 @@ class Command(BaseCommand):
 
         with transaction.atomic():
             # Get or create Client
-            client = self._get_or_update_client(
+            client = ClientService.get_or_update(
                 phone_number=txn.get("phoneNumber"),
                 name=txn.get("name", ""),
                 email=txn.get("email", ""),
@@ -297,39 +297,6 @@ class Command(BaseCommand):
             changes["customer_email"] = (payment.customer_email, remote_email)
 
         return changes
-
-    def _get_or_update_client(
-        self, phone_number: str | None, name: str = "", email: str = ""
-    ) -> Client | None:
-        """
-        Get or create Client record by normalized phone number.
-        Updates name/email with latest information (latest wins).
-        """
-        if not phone_number:
-            return None
-
-        normalized_phone = normalize_phone_number(phone_number)
-        if not normalized_phone:
-            return None
-
-        client, created = Client.objects.get_or_create(
-            phone_number=normalized_phone,
-            defaults={"name": name or "", "email": email or ""},
-        )
-
-        if not created:
-            updated = False
-            if name and client.name != name:
-                client.name = name
-                updated = True
-            if email and client.email != email:
-                client.email = email
-                updated = True
-
-            if updated:
-                client.save(update_fields=["name", "email", "updated_at"])
-
-        return client
 
     def _parse_transaction_date(self, date_str: str):
         """Parse transaction date from API response."""
