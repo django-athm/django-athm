@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0-beta2] - 2025-12-16
+
+### Added
+
+- **`athm_sync` management command**: Reconcile local Payment records with ATH Movil Transaction Report API
+  - `--from-date` and `--to-date` for date range filtering
+  - `--dry-run` to preview changes without modifying database
+- **`Client` model**: Track customers by normalized phone number
+  - Automatic linking from Payment and Refund via `client` ForeignKey
+  - Name/email updated from latest webhook events
+- **Transaction Report API integration**: `PaymentService.fetch_transaction_report()` method
+- **`ClientService`**: Extracted client management logic for reuse
+
+### Changed (BREAKING)
+
+- **Renamed timestamp fields** on all models:
+  - `created` -> `created_at`
+  - `modified` -> `updated_at`
+- **Removed `PaymentLineItem` model**: Line items are no longer persisted locally (sent to API but not stored)
+- **Added `client` ForeignKey** to `Payment` and `Refund` models (nullable, SET_NULL on delete)
+
+### Changed
+
+- **Button template rewrite**: Complete overhaul with CSS custom properties for theming (btn, btn-dark, btn-light), improved modal UX
+- **Admin enhancements**: Client links, webhooks timeline in Payment detail, reprocess confirmation page, improved search fields
+- **Logging**: Switched from f-string to format-style logging throughout services
+
+### Fixed
+
+- Release workflow accepts tags without `v` prefix
+- Fixed incorrect URL in release workflow
+
 ## [1.0.0-beta1] - 2025-12-09
 
 This is a complete architectural rewrite of django-athm, transitioning from a frontend JavaScript SDK approach to a backend-first webhook-driven payment synchronization system.
