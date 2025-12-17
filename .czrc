@@ -1,7 +1,7 @@
 {
   "commitizen": {
     "name": "cz_conventional_commits",
-    "version": "1.0.0b2",
+    "version": "1.0.0",
     "version_files": [
       "django_athm/__init__.py:__version__",
       "pyproject.toml:version"

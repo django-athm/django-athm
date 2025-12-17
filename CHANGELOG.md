@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0] - 2025-12-17
+
+First stable release. Complete architectural rewrite from v0.7.0.
+
+### Highlights
+
+- **Webhook-driven synchronization**: Idempotent processing with SHA-256 keys and ACID guarantees
+- **Payment lifecycle signals**: `payment_completed`, `payment_cancelled`, `payment_expired`, `refund_sent`
+- **Transaction reconciliation**: `athm_sync` command syncs with ATH Movil Transaction Report API
+- **Client tracking**: Automatic customer records linked by phone number
+- **Read-only Django Admin**: Full audit trails with refund actions and webhook management
+- **Optional payment UI**: Zero-dependency JavaScript modal via `athm_button` template tag
+
+### Changed
+
+- Documentation restructured for brevity and usability
+- Added feedback issue template
+
 ## [1.0.0-beta2] - 2025-12-16
 
 ### Added

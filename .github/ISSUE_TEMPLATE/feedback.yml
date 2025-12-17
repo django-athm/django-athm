@@ -46,7 +46,7 @@ body:
     id: package-version
     attributes:
       label: django-athm version (optional)
-      placeholder: e.g., 1.0.0b2
+      placeholder: e.g., 1.0.0
 
   - type: textarea
     id: additional-context
