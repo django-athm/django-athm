@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.1] - 2025-12-17
+
+### Fixed
+
+- **Payment.reference_number unique constraint violation**: When multiple pending payments existed without a reference number, the unique constraint on empty strings caused `IntegrityError`. Changed field to allow NULL (PostgreSQL treats NULL as distinct for unique constraints).
+
 ## [1.0.0] - 2025-12-17
 
 First stable release. Complete architectural rewrite from v0.7.0.
