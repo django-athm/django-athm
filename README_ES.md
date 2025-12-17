@@ -282,6 +282,10 @@ Este proyecto **no** está afiliado ni endosado por [Evertec, Inc.](https://www.
 - [Documentación de API de ATH Móvil Business](https://developer.athMóvil.com/)
 - [Documentación de los webhooks de ATH Móvil Business](https://github.com/evertec/athMóvil-webhooks)
 
+## Feedback
+
+Tienes sugerencias o ideas para mejorar `django-athm`? Nos encantaría escucharte. [Enviar feedback](https://github.com/django-athm/django-athm/issues/new?template=feedback.yml).
+
 ## Licencia
 
 Licencia MIT - ver [LICENSE](LICENSE) para detalles.

@@ -1,0 +1,55 @@
+name: Feedback
+description: Share your thoughts, suggestions, or experiences using django-athm
+title: '[FEEDBACK] '
+labels: ['feedback']
+body:
+  - type: checkboxes
+    id: feature
+    attributes:
+      label: What feature are you providing feedback on?
+      options:
+        - label: Webhook handling
+        - label: Django Admin interface
+        - label: Payment button template tag
+        - label: Django signals
+        - label: Transaction reconciliation (athm_sync)
+        - label: Documentation
+        - label: Other
+
+  - type: textarea
+    id: feedback
+    attributes:
+      label: Your feedback
+      description: Please share your thoughts, suggestions, or experiences. All feedback is valuable!
+    validations:
+      required: true
+
+  - type: textarea
+    id: suggestions
+    attributes:
+      label: Suggestions for improvement (optional)
+      description: Any ideas for making django-athm better?
+
+  - type: input
+    id: django-version
+    attributes:
+      label: Django version (optional)
+      placeholder: e.g., 5.1
+
+  - type: input
+    id: python-version
+    attributes:
+      label: Python version (optional)
+      placeholder: e.g., 3.12
+
+  - type: input
+    id: package-version
+    attributes:
+      label: django-athm version (optional)
+      placeholder: e.g., 1.0.0b2
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional context
+      description: Add any other context, screenshots, or information that might be helpful.
