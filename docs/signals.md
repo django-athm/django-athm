@@ -1,12 +1,19 @@
 # Signals
 
-django-athm provides Django signals to notify your application of payment events. Use these to trigger business logic like sending confirmation emails, updating order status, or logging events.
+Django signals notify your application of payment events. Use them to trigger business logic like confirmation emails, order status updates, or logging.
 
-All signals are webhook-triggered and aligned with ATH Móvil's official webhook event names.
+All signals are webhook-triggered and aligned with ATH Móvil's event names.
 
 ## Available Signals
 
-All signals are available from `django_athm.signals`:
+| Signal | When Fired | Arguments |
+|--------|------------|-----------|
+| `payment_completed` | Payment successfully completed | `payment` |
+| `payment_cancelled` | Customer cancelled in ATH Móvil app | `payment` |
+| `payment_expired` | Payment session timed out | `payment` |
+| `refund_sent` | Refund processed | `refund`, `payment` |
+
+Import from `django_athm.signals`:
 
 ```python
 from django_athm.signals import (
@@ -17,94 +24,23 @@ from django_athm.signals import (
 )
 ```
 
-### payment_completed
+## Connecting Handlers
 
-Dispatched when a payment is successfully completed.
-
-**When it fires:** When ATH Móvil sends an "eCommerce Payment Completed" webhook event.
-
-**Use case:** Send confirmation emails, update order status to "paid", trigger fulfillment.
-
-**Arguments:**
-- `sender`: `Payment` class
-- `payment`: The `Payment` instance
-
-### payment_cancelled
-
-Dispatched when a payment is cancelled.
-
-**When it fires:** When ATH Móvil sends an "eCommerce Payment Cancelled" webhook event (customer cancelled in ATH Móvil app).
-
-**Use case:** Release reserved inventory, notify customer of cancellation.
-
-**Arguments:**
-- `sender`: `Payment` class
-- `payment`: The `Payment` instance
-
-### payment_expired
-
-Dispatched when a payment expires before completion.
-
-**When it fires:** When ATH Móvil sends an "eCommerce Payment Expired" webhook event (payment session timed out).
-
-**Use case:** Distinguish between explicit cancellation and session timeout, implement retry logic.
-
-**Arguments:**
-- `sender`: `Payment` class
-- `payment`: The `Payment` instance
-
-### refund_sent
-
-Dispatched when a refund is processed.
-
-**When it fires:** When ATH Móvil sends a "Refund Sent" webhook event.
-
-**Use case:** Update order status, send refund confirmation email.
-
-**Arguments:**
-- `sender`: `Refund` class
-- `refund`: The `Refund` instance
-- `payment`: The related `Payment` instance
-
-## Connecting to Signals
-
-Use Django's `@receiver` decorator to connect your handlers:
+Use the `@receiver` decorator:
 
 ```python
 from django.dispatch import receiver
-from django_athm.signals import payment_completed, payment_cancelled, refund_sent
+from django_athm.signals import payment_completed
 
 @receiver(payment_completed)
-def handle_payment_completed(sender, payment, **kwargs):
-    """Handle successful payment."""
-    # Update your order status
+def handle_payment(sender, payment, **kwargs):
     order = Order.objects.get(reference=payment.metadata_1)
     order.status = "paid"
     order.save()
-
-    # Send confirmation email
     send_confirmation_email(order)
-
-@receiver(payment_cancelled)
-def handle_payment_cancelled(sender, payment, **kwargs):
-    """Handle cancelled payment."""
-    # Release reserved inventory
-    order = Order.objects.get(reference=payment.metadata_1)
-    order.release_inventory()
-
-@receiver(refund_sent)
-def handle_refund_sent(sender, refund, payment, **kwargs):
-    """Handle refund sent."""
-    # Update order status
-    order = Order.objects.get(reference=payment.metadata_1)
-    order.status = "refunded"
-    order.save()
-
-    # Send refund confirmation
-    send_refund_email(order, refund.amount)
 ```
 
-## Example: Complete Signal Handler
+## Complete Example
 
 ```python
 # myapp/signals.py
@@ -120,44 +56,29 @@ from django_athm.signals import (
 logger = logging.getLogger(__name__)
 
 @receiver(payment_completed)
-def process_completed_payment(sender, payment, **kwargs):
-    """Process successful payments."""
+def on_payment_completed(sender, payment, **kwargs):
     logger.info(f"Payment completed: {payment.reference_number}")
-
-    # Your business logic here
-    # - Update order status
-    # - Send confirmation email
-    # - Trigger fulfillment
+    # Update order status, send confirmation email, trigger fulfillment
 
 @receiver(payment_cancelled)
-def handle_cancelled_payment(sender, payment, **kwargs):
-    """Handle payment cancellations."""
+def on_payment_cancelled(sender, payment, **kwargs):
     logger.warning(f"Payment cancelled: {payment.ecommerce_id}")
-
-    # Your business logic here
-    # - Release inventory
-    # - Notify customer
+    # Release inventory, notify customer
 
 @receiver(payment_expired)
-def handle_expired_payment(sender, payment, **kwargs):
-    """Handle expired checkout sessions."""
+def on_payment_expired(sender, payment, **kwargs):
     logger.warning(f"Payment expired: {payment.ecommerce_id}")
-
-    # Your business logic here
-    # - Notify customer about timeout
-    # - Offer to retry payment
+    # Notify customer, offer retry
 
 @receiver(refund_sent)
-def handle_refund(sender, refund, payment, **kwargs):
-    """Handle refunds sent by ATH Móvil."""
-    logger.info(
-        f"Refund sent: ${refund.amount} for payment {payment.reference_number}"
-    )
+def on_refund_sent(sender, refund, payment, **kwargs):
+    logger.info(f"Refund sent: ${refund.amount} for {payment.reference_number}")
+    # Update order status, send refund confirmation
 ```
 
-## Registering Signal Handlers
+## Registering Handlers
 
-Ensure your signal handlers are loaded by importing them in your app's `ready()` method:
+Import your signals module in your app's `ready()` method:
 
 ```python
 # myapp/apps.py
@@ -169,3 +90,20 @@ class MyAppConfig(AppConfig):
     def ready(self):
         import myapp.signals  # noqa: F401
 ```
+
+## Signal Arguments
+
+### payment_completed, payment_cancelled, payment_expired
+
+| Argument | Type | Description |
+|----------|------|-------------|
+| `sender` | class | `Payment` |
+| `payment` | `Payment` | The payment instance |
+
+### refund_sent
+
+| Argument | Type | Description |
+|----------|------|-------------|
+| `sender` | class | `Refund` |
+| `refund` | `Refund` | The refund instance |
+| `payment` | `Payment` | The related payment |

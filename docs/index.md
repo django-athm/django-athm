@@ -1,20 +1,26 @@
-# Getting Started
+# django-athm
 
-## Overview
+Django integration for ATH Móvil payments with webhook-driven synchronization.
 
-django-athm's **core purpose** is webhook-driven payment and refund synchronization with SHA-256 idempotency and ACID guarantees. ATH Móvil sends definitive transaction data via webhooks, providing complete audit trails with fees, net amounts, and customer information.
+## Features
 
-The package includes an **optional** backend-first modal payment flow via the `athm_button` template tag for quick integration. You can also build your own payment UI and use only the webhook synchronization features.
+- **Webhook handling** with SHA-256 idempotency
+- **Transaction persistence** for payments, refunds, and customer records
+- **Django signals** for payment lifecycle events
+- **Read-only Django Admin** with refund actions and webhook management
+- **Transaction reconciliation** via the `athm_sync` management command
+- **Optional payment UI** via the `athm_button` template tag
 
-## Installation
+## Requirements
 
-Install the package from PyPI:
+- Python 3.10 - 3.14
+- Django 5.1 - 6.0
+
+## Quick Install
 
 ```bash
 pip install django-athm
 ```
-
-Add the package to your `INSTALLED_APPS` and configure the required settings in your `settings.py`:
 
 ```python
 INSTALLED_APPS = [
@@ -26,158 +32,12 @@ DJANGO_ATHM_PUBLIC_TOKEN = "your-public-token"
 DJANGO_ATHM_PRIVATE_TOKEN = "your-private-token"
 ```
 
-Run migrations to create the database tables:
-
 ```bash
 python manage.py migrate django_athm
 ```
 
-## URL Configuration
-
-Add the URL patterns to your root `urls.py`:
-
-```python
-from django.urls import include, path
-
-urlpatterns = [
-    # ...
-    path("athm/", include("django_athm.urls")),
-]
-```
-
-## Displaying the Checkout Button (Optional)
-
-The `athm_button` template tag provides a complete payment UI for quick integration. This is **optional** - you can build your own payment UI and use only the webhook features.
-
-### 1. Create the Configuration in Your View
-
-```python
-from django.views.decorators.csrf import requires_csrf_token
-
-@requires_csrf_token
-def checkout_view(request):
-    context = {
-        "ATHM_CONFIG": {
-            "total": 25.00,
-            "subtotal": 24.00,
-            "tax": 1.00,
-            "metadata_1": "Order #12345",
-            "metadata_2": "Customer reference",
-            "items": [
-                {
-                    "name": "Product Name",
-                    "description": "Product description",
-                    "quantity": 1,
-                    "price": 24.00,
-                    "tax": 1.00,
-                }
-            ],
-            "success_url": "/checkout/success/",
-            "failure_url": "/checkout/failure/",
-        }
-    }
-    return render(request, "checkout.html", context)
-```
-
-### 2. Render the Button in Your Template
-
-```html
-{% load django_athm %}
-
-{% athm_button ATHM_CONFIG %}
-```
-
-The CSRF token must be available in your template. Use the `@requires_csrf_token` decorator on your view as shown above.
-
-## Payment Flow
-
-django-athm uses a backend-first modal flow:
-
-1. Customer clicks the ATH Móvil checkout button
-2. Modal opens and prompts for phone number
-3. Backend creates payment via ATH Móvil API (`/api/initiate/`)
-4. Customer receives push notification on their ATH Móvil app
-5. Customer approves the payment in their app
-6. Frontend polls for status changes (`/api/status/`)
-7. Backend authorizes the payment (`/api/authorize/`)
-8. ATH Móvil sends webhook with final transaction details
-9. Your application responds to payment events via [signals](signals.md)
-
-## Accessing Transaction Data
-
-Query payments from the database:
-
-```python
-from django_athm.models import Payment, Refund
-
-# Get all payments
-payments = Payment.objects.all()
-
-# Get completed payments
-completed = Payment.objects.filter(status=Payment.Status.COMPLETED)
-
-# Get a payment with its refunds
-payment = Payment.objects.prefetch_related("refunds").get(ecommerce_id=uuid)
-
-# Access refunds
-for refund in payment.refunds.all():
-    print(f"Refund {refund.reference_number}: ${refund.amount}")
-
-# Check if refundable
-if payment.is_refundable:
-    print(f"Can refund up to ${payment.refundable_amount}")
-```
-
-## Django Admin
-
-The package includes read-only admin views for:
-
-- Viewing payment details
-- Processing refunds on completed payments
-- Viewing and reprocessing webhook events
-- Installing webhook URLs with ATH Móvil
-
-## Management Commands
-
-### install_webhook
-
-Register a webhook URL with ATH Móvil to receive payment events.
-
-**Recommended: Use Django Admin** - The admin interface auto-detects your webhook URL from the current request. Navigate to **Webhook Events > Install Webhooks**.
-
-**Command line usage:**
-
-Auto-detect from `DJANGO_ATHM_WEBHOOK_URL` setting:
-```bash
-python manage.py install_webhook
-```
-
-Or provide explicit URL:
-```bash
-python manage.py install_webhook https://yourdomain.com/athm/webhook/
-```
-
-See [Webhook Configuration](config.md#webhook-configuration) for detailed setup instructions.
-
-### athm_sync
-
-Reconcile local Payment records with ATH Movil's Transaction Report API. Useful for recovering missed webhooks or backfilling historical data.
-
-```bash
-# Sync transactions for a date range
-python manage.py athm_sync --from-date 2025-01-01 --to-date 2025-01-31
-
-# Preview changes without modifying database
-python manage.py athm_sync --from-date 2025-01-01 --to-date 2025-01-31 --dry-run
-```
-
-The command will:
-- Create new Payment records for transactions not in your database
-- Update existing records with missing fields (fee, net_amount, customer info)
-- Skip records that are already fully synced
-
 ## Next Steps
 
-- [Configuration Reference](config.md) - All settings and options
-- [API Reference](api.md) - Models, fields, and services
-- [Signals](signals.md) - Respond to payment events
+- [Installation](installation.md) - Complete setup guide
+- [Quickstart](quickstart.md) - Get up and running in minutes
+- [Webhooks](webhooks.md) - Configure webhook handling

@@ -1,9 +1,27 @@
-site_name: Django ATHM
+site_name: django-athm
+site_description: Django integration for ATH Móvil payments
+site_url: https://django-athm.readthedocs.io/
 repo_url: https://github.com/django-athm/django-athm
+repo_name: django-athm
+
+theme:
+  name: readthedocs
+
+markdown_extensions:
+  - admonition
+  - tables
+  - toc:
+      permalink: true
+
 nav:
-    - Getting Started: index.md
-    - Configuration: config.md
-    - API Reference: api.md
-    - Signals: signals.md
-    - Changelog: 'https://github.com/django-athm/django-athm/blob/main/CHANGELOG.md'
-theme: readthedocs
+  - Home: index.md
+  - Installation: installation.md
+  - Quickstart: quickstart.md
+  - Webhooks: webhooks.md
+  - Signals: signals.md
+  - Admin: admin.md
+  - Reconciliation: reconciliation.md
+  - Models: models.md
+  - Services: services.md
+  - Configuration: configuration.md
+  - Changelog: https://github.com/django-athm/django-athm/blob/main/CHANGELOG.md
