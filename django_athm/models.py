@@ -26,6 +26,8 @@ class Payment(models.Model):
     reference_number = models.CharField(
         max_length=255,
         unique=True,
+        blank=True,
+        null=True,
         help_text=_("ATH Móvil reference number for completed transactions"),
     )
     daily_transaction_id = models.CharField(

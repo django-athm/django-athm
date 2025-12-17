@@ -250,7 +250,7 @@ class WebhookProcessor:
             )
 
             # Apply webhook data (enriches payment with authoritative data)
-            payment.reference_number = normalized.reference_number or ""
+            payment.reference_number = normalized.reference_number or None
             payment.daily_transaction_id = normalized.daily_transaction_id or ""
             payment.fee = normalized.fee or Decimal("0")
             payment.net_amount = normalized.net_amount or Decimal("0")
