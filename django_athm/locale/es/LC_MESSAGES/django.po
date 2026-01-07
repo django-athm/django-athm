@@ -442,17 +442,17 @@ msgstr "El pago fue cancelado."
 msgid "Payment expired. Please try again."
 msgstr "El pago expiró. Por favor intenta de nuevo."
 
-#: django_athm/templates/django_athm/button.html:882
-msgid "Failed to initiate payment"
-msgstr "Error al iniciar el pago"
+#: django_athm/templates/django_athm/button.html:896
+msgid "Could not connect to ATH Móvil. Please try again."
+msgstr "No se pudo conectar con ATH Móvil. Por favor intenta de nuevo."
 
-#: django_athm/templates/django_athm/button.html:883
-msgid "Failed to check status"
-msgstr "Error al verificar el estado"
+#: django_athm/templates/django_athm/button.html:897
+msgid "Could not reach ATH Móvil. Please try again."
+msgstr "No se pudo comunicar con ATH Móvil. Por favor intenta de nuevo."
 
-#: django_athm/templates/django_athm/button.html:884
-msgid "Failed to authorize payment"
-msgstr "Error al autorizar el pago"
+#: django_athm/templates/django_athm/button.html:898
+msgid "ATH Móvil could not complete your payment. Please try again."
+msgstr "ATH Móvil no pudo completar tu pago. Por favor intenta de nuevo."
 
 #: django_athm/templates/django_athm/button.html:885
 msgid "Cancel this payment?"

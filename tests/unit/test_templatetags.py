@@ -235,9 +235,11 @@ class TestAthmButtonI18n:
         # Check Spanish translations are present
         assert "El pago expiró. Por favor intenta de nuevo." in html
         assert "El pago fue cancelado." in html
-        assert "Error al iniciar el pago" in html
-        assert "Error al verificar el estado" in html
-        assert "Error al autorizar el pago" in html
+        assert "No se pudo conectar con ATH Móvil. Por favor intenta de nuevo." in html
+        assert "No se pudo comunicar con ATH Móvil. Por favor intenta de nuevo." in html
+        assert (
+            "ATH Móvil no pudo completar tu pago. Por favor intenta de nuevo." in html
+        )
         assert "¿Cancelar este pago?" in html
 
     def test_english_translations_rendered(self, render_button):
@@ -248,9 +250,9 @@ class TestAthmButtonI18n:
         assert "Payment timed out. Please try again." in html
         assert "Payment was cancelled." in html
         assert "Payment expired. Please try again." in html
-        assert "Failed to initiate payment" in html
-        assert "Failed to check status" in html
-        assert "Failed to authorize payment" in html
+        assert "Could not connect to ATH Móvil. Please try again." in html
+        assert "Could not reach ATH Móvil. Please try again." in html
+        assert "ATH Móvil could not complete your payment. Please try again." in html
         assert "Cancel this payment?" in html
 
     def test_default_language_is_spanish(self, render_button):

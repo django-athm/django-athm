@@ -3,7 +3,21 @@ import logging
 from uuid import UUID
 
 from athm import parse_webhook
-from athm.exceptions import ValidationError as ATHMValidationError
+from athm.exceptions import (
+    ATHMovilError,
+)
+from athm.exceptions import (
+    InternalServerError as ATHMInternalServerError,
+)
+from athm.exceptions import (
+    NetworkError as ATHMNetworkError,
+)
+from athm.exceptions import (
+    TimeoutError as ATHMTimeoutError,
+)
+from athm.exceptions import (
+    ValidationError as ATHMValidationError,
+)
 from django.core.exceptions import ValidationError
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
@@ -149,6 +163,17 @@ def initiate(request):
             items=data.get("items"),
             phone_number=phone_number,
         )
+    except (ATHMNetworkError, ATHMTimeoutError, ATHMInternalServerError):
+        logger.exception("[django-athm] ATH Móvil service unavailable")
+        return JsonResponse(
+            {
+                "error": "ATH Móvil service is temporarily unavailable. Please try again."
+            },
+            status=503,
+        )
+    except ATHMovilError as e:
+        logger.exception("[django-athm] ATH Móvil API error")
+        return JsonResponse({"error": f"ATH Móvil: {e}"}, status=502)
     except Exception as e:
         logger.exception("[django-athm] Failed to initiate payment")
         return JsonResponse({"error": str(e)}, status=500)
@@ -223,6 +248,21 @@ def authorize(request):
 
     try:
         reference_number = PaymentService.authorize(ecommerce_uuid, auth_token)
+    except (ATHMNetworkError, ATHMTimeoutError, ATHMInternalServerError):
+        logger.exception(
+            "[django-athm] ATH Móvil service unavailable for payment %s", ecommerce_uuid
+        )
+        return JsonResponse(
+            {
+                "error": "ATH Móvil service is temporarily unavailable. Please try again."
+            },
+            status=503,
+        )
+    except ATHMovilError as e:
+        logger.exception(
+            "[django-athm] ATH Móvil API error for payment %s", ecommerce_uuid
+        )
+        return JsonResponse({"error": f"ATH Móvil: {e}"}, status=502)
     except Exception as e:
         logger.exception("[django-athm] Failed to authorize payment %s", ecommerce_uuid)
         return JsonResponse({"error": str(e)}, status=500)
