@@ -11,7 +11,7 @@ include = ["django_athm"]
 
 [project]
 name = "django-athm"
-version = "1.0.1"
+version = "1.0.2"
 description = "Django + ATH Móvil"
 readme = "README.md"
 license = {text = "MIT"}
@@ -155,7 +155,7 @@ markers = [
 
 [tool.commitizen]
 name = "cz_conventional_commits"
-version = "1.0.1"
+version = "1.0.2"
 version_files = [
     "django_athm/__init__.py:__version__",
     "pyproject.toml:version"
